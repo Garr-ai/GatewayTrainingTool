@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import './App.css'
 import { supabase } from './lib/supabase'
+import type { UserRole } from './types'
 import { LoginForm } from './components/LoginForm'
+import { InProgressPage } from './pages/InProgressPage'
+import { CoordinatorPage } from './pages/CoordinatorPage'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
+  const [role, setRole] = useState<UserRole | null>(null)
   const [appLoading, setAppLoading] = useState(true)
 
   // Supabase status widget state
@@ -13,19 +17,39 @@ function App() {
   const [connMessage, setConnMessage] = useState('')
 
   useEffect(() => {
-    // Load initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      setAppLoading(false)
+      if (session) fetchRole(session.user.id)
+      else setAppLoading(false)
     })
 
-    // React to sign-in / sign-out / token refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      if (session) fetchRole(session.user.id)
+      else { setRole(null); setAppLoading(false) }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  async function fetchRole(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('fetchRole error:', error.message, error.code)
+    }
+    // If data is null (RLS blocking or row missing), default to trainee
+    setRole((data?.role as UserRole) ?? 'trainee')
+    setAppLoading(false)
+  }
+
+  function handleSignOut() {
+    supabase.auth.signOut()
+  }
 
   async function handleTestSupabase() {
     setConnStatus('checking')
@@ -49,6 +73,19 @@ function App() {
     )
   }
 
+  function renderMain() {
+    if (!session) return <LoginForm />
+
+    const email = session.user.email ?? ''
+
+    if (role === 'coordinator') {
+      return <CoordinatorPage email={email} onSignOut={handleSignOut} />
+    }
+
+    // trainer and trainee both see the in-progress page for now
+    return <InProgressPage email={email} onSignOut={handleSignOut} />
+  }
+
   return (
     <div id="app-root">
       <header>
@@ -56,21 +93,7 @@ function App() {
       </header>
 
       <main>
-        {session ? (
-          <div className="login-card" style={{ textAlign: 'center', gap: 16 }}>
-            <h2>Welcome</h2>
-            <p style={{ color: 'var(--text)', fontSize: 14 }}>{session.user.email}</p>
-            <button
-              type="button"
-              className="btn-submit"
-              onClick={() => supabase.auth.signOut()}
-            >
-              Sign out
-            </button>
-          </div>
-        ) : (
-          <LoginForm />
-        )}
+        {renderMain()}
       </main>
 
       {/* Dev tool: Supabase connection check */}
