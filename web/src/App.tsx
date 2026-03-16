@@ -1,120 +1,65 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import { supabase } from './lib/supabase'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [status, setStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>(
+    'idle',
+  )
+  const [message, setMessage] = useState('')
+
+  async function handleTestSupabase() {
+    setStatus('checking')
+    setMessage('')
+    try {
+      const { error } = await supabase.auth.getSession()
+      if (error) throw error
+      setStatus('ok')
+      setMessage('Supabase connection OK (auth.getSession)')
+    } catch (err) {
+      setStatus('error')
+      setMessage(
+        err instanceof Error ? err.message : 'Failed to contact Supabase.',
+      )
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+    <div id="app-root">
+      <header>
+        <h1>Gateway Training Tool</h1>
+        <p>Internal training platform prototype</p>
+      </header>
+
+      <main>{/* Main app content will go here later */}</main>
+
+      <aside className="supabase-status" aria-label="Supabase status">
+        <section className="card">
+          <h2>Supabase status</h2>
+          <p className="hint">
+            Checks that your env vars and project are set up correctly.
           </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          <button
+            type="button"
+            className="primary"
+            onClick={handleTestSupabase}
+            disabled={status === 'checking'}
+          >
+            {status === 'checking' ? 'Checking…' : 'Test Supabase connection'}
+          </button>
+          {status === 'ok' && (
+            <p className="result ok" role="status">
+              {message}
+            </p>
+          )}
+          {status === 'error' && (
+            <p className="result error" role="status">
+              {message}
+            </p>
+          )}
+        </section>
+      </aside>
+    </div>
   )
 }
 
