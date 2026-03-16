@@ -49,19 +49,23 @@ export function LoginForm() {
   }
 
   return (
-    <div className="login-card">
-      <div className="login-card__header">
-        <h2>{mode === 'reset' ? 'Reset password' : 'Gateway Training Tool'}</h2>
-        <p className="login-card__subtitle">
+    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white shadow-lg p-8 flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-lg font-semibold text-slate-900">
+          {mode === 'reset' ? 'Reset password' : 'Gateway Training Tool'}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
           {mode === 'signin' && 'Sign in to your account'}
           {mode === 'signup' && 'Create a new account'}
           {mode === 'reset' && "We'll email you a reset link"}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="login-card__form" noValidate>
-        <div className="form-field">
-          <label htmlFor="email">Email</label>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="email" className="text-sm font-medium text-slate-900">
+            Email
+          </label>
           <input
             id="email"
             type="email"
@@ -71,12 +75,15 @@ export function LoginForm() {
             onChange={e => setEmail(e.target.value)}
             required
             disabled={status === 'loading'}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
           />
         </div>
 
         {mode !== 'reset' && (
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-slate-900">
+              Password
+            </label>
             <input
               id="password"
               type="password"
@@ -86,24 +93,31 @@ export function LoginForm() {
               onChange={e => setPassword(e.target.value)}
               required
               disabled={status === 'loading'}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
         )}
 
         {status === 'error' && (
-          <p className="form-message form-message--error" role="alert">
+          <p
+            className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+            role="alert"
+          >
             {message}
           </p>
         )}
         {status === 'success' && (
-          <p className="form-message form-message--success" role="status">
+          <p
+            className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700"
+            role="status"
+          >
             {message}
           </p>
         )}
 
         <button
           type="submit"
-          className="btn-submit"
+          className="mt-1 inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
           disabled={status === 'loading'}
         >
           {status === 'loading'
@@ -118,29 +132,49 @@ export function LoginForm() {
 
       {mode !== 'reset' && (
         <>
-          <div className="divider"><span>or</span></div>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
           <GoogleButton />
         </>
       )}
 
-      <div className="login-card__footer">
+      <div className="flex flex-col items-center gap-1.5 text-xs text-indigo-600">
         {mode === 'signin' && (
           <>
-            <button type="button" className="link-btn" onClick={() => { setMode('reset'); setMessage('') }}>
+            <button
+              type="button"
+              className="hover:underline"
+              onClick={() => { setMode('reset'); setMessage('') }}
+            >
               Forgot password?
             </button>
-            <button type="button" className="link-btn" onClick={() => { setMode('signup'); setMessage('') }}>
+            <button
+              type="button"
+              className="hover:underline"
+              onClick={() => { setMode('signup'); setMessage('') }}
+            >
               Don't have an account? Sign up
             </button>
           </>
         )}
         {mode === 'signup' && (
-          <button type="button" className="link-btn" onClick={() => { setMode('signin'); setMessage('') }}>
+          <button
+            type="button"
+            className="hover:underline"
+            onClick={() => { setMode('signin'); setMessage('') }}
+          >
             Already have an account? Sign in
           </button>
         )}
         {mode === 'reset' && (
-          <button type="button" className="link-btn" onClick={() => { setMode('signin'); setMessage('') }}>
+          <button
+            type="button"
+            className="hover:underline"
+            onClick={() => { setMode('signin'); setMessage('') }}
+          >
             Back to sign in
           </button>
         )}

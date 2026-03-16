@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import './App.css'
 import { supabase } from './lib/supabase'
 import type { UserRole } from './types'
 import { LoginForm } from './components/LoginForm'
@@ -65,14 +64,6 @@ function App() {
     }
   }
 
-  if (appLoading) {
-    return (
-      <div id="app-root">
-        <p style={{ textAlign: 'center', color: 'var(--text)', marginTop: 80 }}>Loading…</p>
-      </div>
-    )
-  }
-
   function renderMain() {
     if (!session) return <LoginForm />
 
@@ -86,32 +77,83 @@ function App() {
     return <InProgressPage email={email} onSignOut={handleSignOut} />
   }
 
-  return (
-    <div id="app-root">
-      <header>
-        <h1>Gateway Training Tool</h1>
-      </header>
+  // Wait for role when logged in so we don't flash InProgress before Coordinator
+  const waitingForRole = session !== null && role === null
+  const showLoading = appLoading || waitingForRole
 
-      <main>
-        {renderMain()}
-      </main>
-
-      {/* Dev tool: Supabase connection check */}
-      <aside className="supabase-status" aria-label="Supabase status">
-        <section className="card">
-          <h2>Supabase status</h2>
-          <p className="hint">Checks env vars and project connectivity.</p>
+  // Coordinator gets full-screen layout (no header/main chrome)
+  if (!showLoading && session && role === 'coordinator') {
+    return (
+      <>
+        <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-100">
+          {renderMain()}
+        </div>
+        <aside
+          aria-label="Supabase status"
+          className="fixed bottom-4 right-4 w-72 rounded-xl border border-slate-200 bg-white shadow-lg p-4 text-sm z-10"
+        >
+          <h2 className="font-medium text-slate-900 mb-1">Supabase status</h2>
+          <p className="text-xs text-slate-500 mb-2">Checks env vars and project connectivity.</p>
           <button
             type="button"
-            className="primary"
             onClick={handleTestSupabase}
             disabled={connStatus === 'checking'}
+            className="inline-flex items-center rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60"
           >
             {connStatus === 'checking' ? 'Checking…' : 'Test connection'}
           </button>
-          {connStatus === 'ok' && <p className="result ok" role="status">{connMessage}</p>}
-          {connStatus === 'error' && <p className="result error" role="status">{connMessage}</p>}
-        </section>
+          {connStatus === 'ok' && (
+            <p className="mt-2 text-xs text-emerald-600" role="status">{connMessage}</p>
+          )}
+          {connStatus === 'error' && (
+            <p className="mt-2 text-xs text-rose-600" role="status">{connMessage}</p>
+          )}
+        </aside>
+      </>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col">
+      <header className="px-6 py-4 border-b border-slate-200 bg-white">
+        <h1 className="text-lg font-semibold text-slate-900">Gateway Training Tool</h1>
+      </header>
+
+      <main className="flex-1 flex items-start justify-center px-4 py-10">
+        {showLoading ? (
+          <div className="flex items-center justify-center w-full text-slate-500 text-sm">
+            Loading…
+          </div>
+        ) : (
+          renderMain()
+        )}
+      </main>
+
+      {/* Dev tool: Supabase connection check */}
+      <aside
+        aria-label="Supabase status"
+        className="fixed bottom-4 right-4 w-72 rounded-xl border border-slate-200 bg-white shadow-lg p-4 text-sm"
+      >
+        <h2 className="font-medium text-slate-900 mb-1">Supabase status</h2>
+        <p className="text-xs text-slate-500 mb-2">Checks env vars and project connectivity.</p>
+        <button
+          type="button"
+          onClick={handleTestSupabase}
+          disabled={connStatus === 'checking'}
+          className="inline-flex items-center rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60"
+        >
+          {connStatus === 'checking' ? 'Checking…' : 'Test connection'}
+        </button>
+        {connStatus === 'ok' && (
+          <p className="mt-2 text-xs text-emerald-600" role="status">
+            {connMessage}
+          </p>
+        )}
+        {connStatus === 'error' && (
+          <p className="mt-2 text-xs text-rose-600" role="status">
+            {connMessage}
+          </p>
+        )}
       </aside>
     </div>
   )
