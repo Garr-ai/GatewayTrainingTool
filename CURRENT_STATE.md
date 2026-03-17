@@ -57,7 +57,7 @@ GatewayTrainingTool/
 └── vercel.json             # Vercel: build web/, output web/dist
 ```
 
-There is no `apps/api` or `supabase/migrations` in the repo yet; the app assumes a Supabase project with `profiles` and `classes` (and any migrations are applied outside the repo or in a separate process).
+- **supabase/migrations/** — SQL migrations for class-related tables. Run in Supabase SQL editor or via `supabase db push`.
 
 ---
 

@@ -12,7 +12,14 @@ interface ClassDetailPageProps {
   className: string
 }
 
-type ClassDetailTab = 'overview' | 'drills' | 'schedule' | 'trainers' | 'students' | 'reports'
+type ClassDetailTab =
+  | 'overview'
+  | 'drills'
+  | 'schedule'
+  | 'trainers'
+  | 'students'
+  | 'dailyReports'
+  | 'hours'
 
 export function ClassDetailPage({ className }: ClassDetailPageProps) {
   const [classData, setClassData] = useState<Class | null>(null)
@@ -61,7 +68,8 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
     { id: 'schedule', label: 'Schedule' },
     { id: 'trainers', label: 'Trainers' },
     { id: 'students', label: 'Students' },
-    { id: 'reports', label: 'Daily reports & hours' },
+    { id: 'dailyReports', label: 'Daily reports' },
+    { id: 'hours', label: 'Logged hours' },
   ]
 
   return (
@@ -111,14 +119,25 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         {activeTab === 'drills' && (
           <ClassDrillsSection classId={classData.id} className={classData.name} />
         )}
-        {activeTab === 'schedule' && <ClassScheduleSection className={classData.name} />}
+        {activeTab === 'schedule' && (
+          <ClassScheduleSection classId={classData.id} className={classData.name} />
+        )}
         {activeTab === 'trainers' && (
           <ClassTrainersSection classId={classData.id} className={classData.name} />
         )}
         {activeTab === 'students' && (
           <ClassStudentsSection classId={classData.id} className={classData.name} />
         )}
-        {activeTab === 'reports' && <ClassReportsSection className={classData.name} />}
+        {activeTab === 'dailyReports' && (
+          <ClassReportsSection
+            classId={classData.id}
+            className={classData.name}
+            mode="reports"
+          />
+        )}
+        {activeTab === 'hours' && (
+          <ClassReportsSection classId={classData.id} className={classData.name} mode="hours" />
+        )}
       </div>
     </div>
   )

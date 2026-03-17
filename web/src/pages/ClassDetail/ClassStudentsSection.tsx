@@ -57,7 +57,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       .order('full_name', { ascending: true })
 
     const { data, error } = term
-      ? await query.ilike('full_name', `%${term}%`)
+      ? await query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
       : await query.limit(25)
 
     if (error) {
