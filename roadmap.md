@@ -43,12 +43,21 @@ Overview of planned features for the **Classes** section of the Gateway Training
 
 - **Class detail page/panel**  
   - Shows: name, property, game type, trainer, dates, status.  
+  - Maybe generate an invite link for the class?
   - Sections (or placeholders) for:  
     - **Schedule** — time slots; add/edit/remove.  
     - **Students** — enrolled list; add/remove (when enrollment exists).  
     - **Attendance** — per session (when attendance feature exists).  
     - **Drills / scores** — link or summary to drill and test data (when implemented).  
     - **Daily reports** — link or list of uploads (when implemented).
+    - Payroll hours - Calculate # of training hours for the day, total training hours to date, 
+    - Ability to upload homework/assignments
+
+
+- **Student Profiles**
+  - Ability to upload payroll information, hours completed, games completed, etc.
+  - Ability to track scores
+  - 
 
 - **Edit class**  
   - Coordinators can change name, property, game type, trainer, dates (and later schedule) from the detail view or list (e.g. “Edit” button).
