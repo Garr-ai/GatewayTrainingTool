@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Class } from '../types'
 import { CreateClassModal } from '../components/CreateClassModal'
@@ -28,6 +29,12 @@ export function ClassesPage() {
   useEffect(() => {
     fetchClasses()
   }, [])
+
+  const navigate = useNavigate()
+
+  function classSlug(name: string) {
+    return name.trim().replace(/\s+/g, '-')
+  }
 
   function provinceLabel(province: string) {
     return PROVINCES.find(p => p.value === province)?.label ?? province
@@ -89,7 +96,11 @@ export function ClassesPage() {
               </thead>
               <tbody>
                 {classes.map(c => (
-                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr
+                    key={c.id}
+                    className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                    onClick={() => navigate(`/classes/${classSlug(c.name)}`)}
+                  >
                     <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
                     <td className="px-4 py-3 text-slate-600">{c.site}</td>
                     <td className="px-4 py-3 text-slate-600">{provinceLabel(c.province)}</td>

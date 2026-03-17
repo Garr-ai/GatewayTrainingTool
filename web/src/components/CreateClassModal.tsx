@@ -25,8 +25,14 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!name.trim()) {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
       setError('Class name is required.')
+      return
+    }
+    // Disallow characters that can interfere with URLs or slugs
+    if (/[.,?/#\\]/.test(trimmedName)) {
+      setError('Class name cannot contain characters like . , ? / or \\\\')
       return
     }
     if (!site.trim()) {
@@ -43,8 +49,27 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
     }
 
     setLoading(true)
+    // Enforce unique class names
+    const { data: existing, error: existingError } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('name', trimmedName)
+      .limit(1)
+
+    if (existingError) {
+      setLoading(false)
+      setError(existingError.message)
+      return
+    }
+
+    if (existing && existing.length > 0) {
+      setLoading(false)
+      setError('A class with this name already exists. Please choose a different name.')
+      return
+    }
+
     const { error: err } = await supabase.from('classes').insert({
-      name: name.trim(),
+      name: trimmedName,
       site: site.trim(),
       province,
       game_type: gameType.trim() || null,
