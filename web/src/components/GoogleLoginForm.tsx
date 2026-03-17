@@ -27,7 +27,7 @@ export function GoogleButton() {
     <div>
       <button
         type="button"
-        className="btn-google"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60"
         onClick={handleGoogleSignIn}
         disabled={loading}
       >
@@ -36,7 +36,10 @@ export function GoogleButton() {
       </button>
 
       {error && (
-        <p className="form-message form-message--error" role="alert" style={{ marginTop: 8 }}>
+        <p
+          className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+          role="alert"
+        >
           {error}
         </p>
       )}
