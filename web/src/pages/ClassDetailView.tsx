@@ -3,8 +3,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { ClassDetailPage } from './ClassDetailPage'
 
 export function ClassDetailView() {
-  const { role } = useAuth()
+  const { role, loading } = useAuth()
   const { className } = useParams()
+
+  if (loading || role === null) {
+    return <div className="text-sm text-slate-500">Loading…</div>
+  }
 
   if (role !== 'coordinator') {
     return <Navigate to="/dashboard" replace />

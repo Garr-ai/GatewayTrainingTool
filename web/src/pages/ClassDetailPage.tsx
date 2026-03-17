@@ -108,10 +108,16 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
 
       <div className="flex-1 min-h-0 overflow-auto">
         {activeTab === 'overview' && <ClassOverviewSection classData={classData} />}
-        {activeTab === 'drills' && <ClassDrillsSection className={classData.name} />}
+        {activeTab === 'drills' && (
+          <ClassDrillsSection classId={classData.id} className={classData.name} />
+        )}
         {activeTab === 'schedule' && <ClassScheduleSection className={classData.name} />}
-        {activeTab === 'trainers' && <ClassTrainersSection className={classData.name} />}
-        {activeTab === 'students' && <ClassStudentsSection className={classData.name} />}
+        {activeTab === 'trainers' && (
+          <ClassTrainersSection classId={classData.id} className={classData.name} />
+        )}
+        {activeTab === 'students' && (
+          <ClassStudentsSection classId={classData.id} className={classData.name} />
+        )}
         {activeTab === 'reports' && <ClassReportsSection className={classData.name} />}
       </div>
     </div>
