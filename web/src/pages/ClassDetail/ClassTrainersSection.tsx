@@ -64,9 +64,14 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       setError(error.message)
       setSearchResults([])
     } else {
-      setSearchResults(
-        (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? [],
+      const existingEmails = new Set(
+        trainers.map(t => t.trainer_email.toLowerCase()),
       )
+      const raw = (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []
+      const filtered = raw.filter(
+        p => !existingEmails.has(p.email.toLowerCase()),
+      )
+      setSearchResults(filtered)
     }
     setSearchLoading(false)
   }
@@ -87,11 +92,8 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       return
     }
 
-    setAssignOpen(false)
-    setSearchTerm('')
-    setSearchResults([])
-    setRole('primary')
-    loadTrainers()
+    await loadTrainers()
+    await searchProfiles(searchTerm)
   }
 
   function openEditTrainer(t: ClassTrainer) {
@@ -151,7 +153,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
             setAssignOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
         >
           + Assign trainer
         </button>
@@ -165,7 +167,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
 
       {assignOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Assign trainer</h4>
@@ -186,7 +188,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
               </button>
             </header>
 
-            <div className="mb-3 flex items-center gap-3 text-xs">
+            <div className="mb-3 flex flex-col gap-2 text-xs sm:flex-row sm:items-center">
               <input
                 type="search"
                 value={searchTerm}
@@ -239,7 +241,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
 
       {editingTrainer && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Edit trainer</h4>

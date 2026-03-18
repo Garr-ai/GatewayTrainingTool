@@ -699,8 +699,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                       No timeline rows yet. Add blocks like in the spreadsheet.
                     </p>
                   ) : (
-                    <div className="overflow-auto rounded-lg border border-slate-200">
-                      <table className="w-full text-[11px]">
+                  <div className="overflow-auto rounded-lg border border-slate-200">
+                    <table className="min-w-full text-[11px]">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
@@ -854,7 +854,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                     </p>
                   ) : (
                     <div className="overflow-auto rounded-lg border border-slate-200">
-                      <table className="w-full text-[11px]">
+                      <table className="min-w-full text-[11px]">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">

@@ -19,9 +19,9 @@ export function ProtectedLayout() {
 
   if (role === 'coordinator') {
     return (
-      <div className="h-screen w-screen flex overflow-hidden bg-slate-900">
+      <div className="min-h-screen w-screen flex bg-slate-900">
         <CoordinatorLayout />
-        <section className="flex-1 bg-slate-100 px-6 py-5 flex flex-col gap-4 min-h-0 overflow-hidden">
+        <section className="flex-1 bg-slate-100 px-6 py-5 flex flex-col gap-4 min-h-screen overflow-auto">
           <Outlet />
         </section>
       </div>

@@ -65,9 +65,14 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       setError(error.message)
       setSearchResults([])
     } else {
-      setSearchResults(
-        (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? [],
+      const existingEmails = new Set(
+        students.map(s => s.student_email.toLowerCase()),
       )
+      const raw = (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []
+      const filtered = raw.filter(
+        p => !existingEmails.has(p.email.toLowerCase()),
+      )
+      setSearchResults(filtered)
     }
     setSearchLoading(false)
   }
@@ -84,8 +89,8 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       group_label: groupLabel.trim() || null,
     })
 
-    setSaving(false)
     if (error) {
+      setSaving(false)
       console.error('createEnrollment error:', error.message)
       setError(error.message)
       return
@@ -93,10 +98,9 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
     setStatus('enrolled')
     setGroupLabel('')
-    setEnrollOpen(false)
-    setSearchTerm('')
-    setSearchResults([])
-    loadStudents()
+    await loadStudents()
+    await searchProfiles(searchTerm)
+    setSaving(false)
   }
 
   function openEditStudent(enrollment: ClassEnrollment) {
@@ -153,7 +157,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             setEnrollOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
         >
           + Enroll student
         </button>
@@ -167,7 +171,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {enrollOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Enroll student</h4>
@@ -191,7 +195,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               </button>
             </header>
 
-            <div className="mb-3 flex items-center gap-3 text-xs">
+            <div className="mb-3 flex flex-col gap-2 text-xs sm:flex-row sm:items-center">
               <input
                 type="search"
                 value={searchTerm}
@@ -256,7 +260,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {editingEnrollment && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Edit student</h4>
