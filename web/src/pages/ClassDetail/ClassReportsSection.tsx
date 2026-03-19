@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
@@ -58,63 +58,31 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [hoursSaving, setHoursSaving] = useState(false)
 
   async function loadReports() {
-    const { data, error } = await supabase
-      .from('class_daily_reports')
-      .select('*')
-      .eq('class_id', classId)
-      .order('report_date', { ascending: false })
-
-    if (error) {
-      console.error('loadReports error:', error.message)
-      setError('Unable to load daily reports.')
-      setReports([])
-    } else {
-      setReports((data as ClassDailyReport[]) ?? [])
-    }
+    const data = await api.reports.list(classId)
+    setReports(data)
   }
 
   async function loadHours() {
-    const { data, error } = await supabase
-      .from('class_logged_hours')
-      .select('*')
-      .eq('class_id', classId)
-      .order('log_date', { ascending: false })
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('loadHours error:', error.message)
-      setError('Unable to load logged hours.')
-      setHours([])
-    } else {
-      setHours((data as ClassLoggedHours[]) ?? [])
-    }
+    const data = await api.hours.list(classId)
+    setHours(data)
   }
 
   async function loadTrainers() {
-    const { data } = await supabase
-      .from('class_trainers')
-      .select('*')
-      .eq('class_id', classId)
-      .order('trainer_name', { ascending: true })
-    setTrainers((data as ClassTrainer[]) ?? [])
+    const data = await api.trainers.list(classId)
+    setTrainers(data)
   }
 
   async function loadEnrollments() {
-    const { data } = await supabase
-      .from('class_enrollments')
-      .select('*')
-      .eq('class_id', classId)
-      .eq('status', 'enrolled')
-      .order('student_name', { ascending: true })
-    setEnrollments((data as ClassEnrollment[]) ?? [])
+    const data = await api.enrollments.list(classId, 'enrolled')
+    setEnrollments(data)
   }
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    Promise.all([loadReports(), loadHours(), loadTrainers(), loadEnrollments()]).finally(() =>
-      setLoading(false)
-    )
+    Promise.all([loadReports(), loadHours(), loadTrainers(), loadEnrollments()])
+      .catch(err => setError((err as Error).message))
+      .finally(() => setLoading(false))
   }, [classId])
 
   function resetReportForm() {
@@ -137,28 +105,10 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   }
 
   async function loadReportDetails(reportId: string) {
-    const [{ data: trainerLinks }, { data: timeline }, { data: progress }] = await Promise.all([
-      supabase
-        .from('class_daily_report_trainers')
-        .select('trainer_id')
-        .eq('report_id', reportId),
-      supabase
-        .from('class_daily_report_timeline_items')
-        .select('*')
-        .eq('report_id', reportId)
-        .order('position', { ascending: true })
-        .order('start_time', { ascending: true }),
-      supabase
-        .from('class_daily_report_trainee_progress')
-        .select('*')
-        .eq('report_id', reportId),
-    ])
-
-    setSelectedTrainerIds(
-      (trainerLinks as { trainer_id: string }[] | null)?.map(t => t.trainer_id) ?? [],
-    )
-    setTimelineItems((timeline as ClassDailyReportTimelineItem[] | null) ?? [])
-    setProgressRows((progress as ClassDailyReportTraineeProgress[] | null) ?? [])
+    const full = await api.reports.get(reportId)
+    setSelectedTrainerIds(full.trainer_ids)
+    setTimelineItems(full.timeline)
+    setProgressRows(full.progress)
   }
 
   function openAddReport() {
@@ -192,20 +142,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setReportSaving(true)
     setError(null)
 
-    const parseIntOrNull = (value: string) => {
-      if (!value.trim()) return null
-      const n = Number(value)
+    const parseIntOrNull = (v: string) => {
+      if (!v.trim()) return null
+      const n = Number(v)
       return Number.isNaN(n) ? null : n
     }
 
-    const parseFloatOrNull = (value: string) => {
-      if (!value.trim()) return null
-      const n = Number(value)
-      return Number.isNaN(n) ? null : n
-    }
-
-    const payload = {
-      class_id: classId,
+    const body = {
       report_date: reportDate,
       group_label: reportGroup.trim() || null,
       game: reportGame.trim() || null,
@@ -216,85 +159,49 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       mg_attended: parseIntOrNull(mgAttended),
       current_trainees: parseIntOrNull(currentTrainees),
       licenses_received: parseIntOrNull(licensesReceived),
-      override_hours_to_date: parseFloatOrNull(overrideHoursToDate),
-      override_paid_hours_total: parseFloatOrNull(overridePaidHours),
-      override_live_hours_total: parseFloatOrNull(overrideLiveHours),
+      override_hours_to_date: parseIntOrNull(overrideHoursToDate),
+      override_paid_hours_total: parseIntOrNull(overridePaidHours),
+      override_live_hours_total: parseIntOrNull(overrideLiveHours),
+      trainer_ids: selectedTrainerIds,
+      timeline: timelineItems.map(item => ({
+        start_time: item.start_time,
+        end_time: item.end_time,
+        activity: item.activity,
+        homework_handouts_tests: item.homework_handouts_tests,
+        category: item.category,
+      })),
+      progress: progressRows.map(row => ({
+        enrollment_id: row.enrollment_id,
+        progress_text: row.progress_text,
+        gk_rating: row.gk_rating,
+        dex_rating: row.dex_rating,
+        hom_rating: row.hom_rating,
+        coming_back_next_day: row.coming_back_next_day ?? false,
+      })),
     }
 
-    let reportId = editingReport?.id
-
-    if (editingReport) {
-      const { error } = await supabase
-        .from('class_daily_reports')
-        .update(payload)
-        .eq('id', editingReport.id)
-      if (error) {
-        setError(error.message)
-        setReportSaving(false)
-        return
+    try {
+      if (editingReport) {
+        await api.reports.update(editingReport.id, body)
+      } else {
+        await api.reports.create(classId, body)
       }
-    } else {
-      const { data, error } = await supabase
-        .from('class_daily_reports')
-        .insert(payload)
-        .select('id')
-        .single()
-      if (error) {
-        setError(error.message)
-        setReportSaving(false)
-        return
-      }
-      reportId = (data as { id: string }).id
+      setReportFormOpen(false)
+      loadReports()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setReportSaving(false)
     }
-
-    if (reportId) {
-      await supabase.from('class_daily_report_trainers').delete().eq('report_id', reportId)
-      if (selectedTrainerIds.length > 0) {
-        await supabase.from('class_daily_report_trainers').insert(
-          selectedTrainerIds.map(trainerId => ({ report_id: reportId!, trainer_id: trainerId })),
-        )
-      }
-
-      await supabase.from('class_daily_report_timeline_items').delete().eq('report_id', reportId)
-      if (timelineItems.length > 0) {
-        await supabase.from('class_daily_report_timeline_items').insert(
-          timelineItems.map((item, index) => ({
-            report_id: reportId!,
-            start_time: item.start_time,
-            end_time: item.end_time,
-            activity: item.activity,
-            homework_handouts_tests: item.homework_handouts_tests,
-            category: item.category,
-            position: index,
-          })),
-        )
-      }
-
-      await supabase.from('class_daily_report_trainee_progress').delete().eq('report_id', reportId)
-      if (progressRows.length > 0) {
-        await supabase.from('class_daily_report_trainee_progress').insert(
-          progressRows.map(row => ({
-            report_id: reportId!,
-            enrollment_id: row.enrollment_id,
-            progress_text: row.progress_text,
-            gk_rating: row.gk_rating,
-            dex_rating: row.dex_rating,
-            hom_rating: row.hom_rating,
-            coming_back_next_day: row.coming_back_next_day ?? false,
-          })),
-        )
-      }
-    }
-
-    setReportSaving(false)
-    setReportFormOpen(false)
-    loadReports()
   }
 
   async function handleRemoveReport(id: string) {
-    const { error } = await supabase.from('class_daily_reports').delete().eq('id', id)
-    if (error) setError(error.message)
-    else loadReports()
+    try {
+      await api.reports.delete(id)
+      loadReports()
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }
 
   function openAddHours() {
@@ -340,7 +247,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setError(null)
 
     const payload = {
-      class_id: classId,
       log_date: hoursDate,
       person_type: hoursPersonType,
       trainer_id: trainerId,
@@ -349,34 +255,28 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       notes: hoursNotes.trim() || null,
     }
 
-    if (editingHours) {
-      const { error } = await supabase
-        .from('class_logged_hours')
-        .update(payload)
-        .eq('id', editingHours.id)
-      if (error) {
-        setError(error.message)
-        setHoursSaving(false)
-        return
+    try {
+      if (editingHours) {
+        await api.hours.update(editingHours.id, payload)
+      } else {
+        await api.hours.create(classId, payload)
       }
-    } else {
-      const { error } = await supabase.from('class_logged_hours').insert(payload)
-      if (error) {
-        setError(error.message)
-        setHoursSaving(false)
-        return
-      }
+      setHoursFormOpen(false)
+      loadHours()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setHoursSaving(false)
     }
-
-    setHoursSaving(false)
-    setHoursFormOpen(false)
-    loadHours()
   }
 
   async function handleRemoveHours(id: string) {
-    const { error } = await supabase.from('class_logged_hours').delete().eq('id', id)
-    if (error) setError(error.message)
-    else loadHours()
+    try {
+      await api.hours.delete(id)
+      loadHours()
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }
 
   function personName(h: ClassLoggedHours) {
@@ -543,7 +443,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
                 {/* Trainers for the day */}
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold text-slate-700">Trainers for the day</p>
+                  <p className="mb-1 text-[11px] font-semibold text-slate-700">
+                    Trainers for the day
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {trainers.length === 0 ? (
                       <span className="text-[11px] text-slate-500">
@@ -566,7 +468,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                               checked={checked}
                               onChange={e => {
                                 setSelectedTrainerIds(prev =>
-                                  e.target.checked ? [...prev, t.id] : prev.filter(id => id !== t.id),
+                                  e.target.checked
+                                    ? [...prev, t.id]
+                                    : prev.filter(id => id !== t.id),
                                 )
                               }}
                             />
@@ -578,11 +482,12 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   </div>
                 </div>
 
-                {/* Totals (calculated + override) */}
+                {/* Hours totals */}
                 <div className="rounded-lg border border-slate-200 bg-white p-3">
                   <p className="text-[11px] font-semibold text-slate-700">Hours totals</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Calculated from logged hours up to this report date; override fields take precedence.
+                    Calculated from logged hours up to this report date; override fields take
+                    precedence.
                   </p>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
                     {(() => {
@@ -595,13 +500,16 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                         overridePaidHours.trim() !== '' ? Number(overridePaidHours) : totals.paid
                       const liveDisplay =
                         overrideLiveHours.trim() !== '' ? Number(overrideLiveHours) : totals.live
-
                       return (
                         <>
                           <div className="rounded-md border border-slate-200 p-2">
-                            <div className="text-[10px] text-slate-500">Training hours to date</div>
+                            <div className="text-[10px] text-slate-500">
+                              Training hours to date
+                            </div>
                             <div className="text-sm font-semibold text-slate-900">
-                              {Number.isNaN(hoursToDateDisplay) ? '—' : hoursToDateDisplay.toFixed(2)}
+                              {Number.isNaN(hoursToDateDisplay)
+                                ? '—'
+                                : hoursToDateDisplay.toFixed(2)}
                             </div>
                             <div className="mt-1 text-[10px] text-slate-500">
                               Calculated: {totals.hoursToDate.toFixed(2)}
@@ -639,7 +547,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                             </label>
                           </div>
                           <div className="rounded-md border border-slate-200 p-2">
-                            <div className="text-[10px] text-slate-500">Total live training hours</div>
+                            <div className="text-[10px] text-slate-500">
+                              Total live training hours
+                            </div>
                             <div className="text-sm font-semibold text-slate-900">
                               {Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}
                             </div>
@@ -699,8 +609,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                       No timeline rows yet. Add blocks like in the spreadsheet.
                     </p>
                   ) : (
-                  <div className="overflow-auto rounded-lg border border-slate-200">
-                    <table className="min-w-full text-[11px]">
+                    <div className="overflow-auto rounded-lg border border-slate-200">
+                      <table className="min-w-full text-[11px]">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
@@ -729,7 +639,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                     onChange={e =>
                                       setTimelineItems(prev =>
                                         prev.map((row, i) =>
-                                          i === index ? { ...row, start_time: e.target.value } : row,
+                                          i === index
+                                            ? { ...row, start_time: e.target.value }
+                                            : row,
                                         ),
                                       )
                                     }
@@ -814,7 +726,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   )}
                 </div>
 
-                {/* Per-trainee progress table */}
+                {/* Per-trainee progress */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-semibold text-slate-700">Per-trainee progress</p>
@@ -832,9 +744,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                             gk_rating:
                               progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null,
                             dex_rating:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null,
+                              progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ??
+                              null,
                             hom_rating:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null,
+                              progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ??
+                              null,
                             coming_back_next_day:
                               progressRows.find(p => p.enrollment_id === enr.id)
                                 ?.coming_back_next_day ?? true,
@@ -874,14 +788,14 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                         <tbody>
                           {progressRows.map((row, index) => {
                             const enrollment = enrollments.find(e => e.id === row.enrollment_id)
-                            const updateRow = (patch: Partial<ClassDailyReportTraineeProgress>) => {
+                            const updateRow = (
+                              patch: Partial<ClassDailyReportTraineeProgress>,
+                            ) => {
                               setProgressRows(prev =>
                                 prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
                               )
                             }
-
                             const ratingOptions: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
-
                             return (
                               <tr key={row.id} className="border-b border-slate-100">
                                 <td className="px-2 py-1 align-top text-slate-900">
@@ -900,63 +814,36 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                 </td>
                                 <td className="px-2 py-1 align-top">
                                   <div className="flex flex-col gap-1">
-                                    <label className="flex items-center gap-1">
-                                      <span className="w-8 text-slate-600">GK</span>
-                                      <select
-                                        value={row.gk_rating ?? ''}
-                                        onChange={e =>
-                                          updateRow({
-                                            gk_rating: (e.target.value || null) as DailyRating | null,
-                                          })
-                                        }
-                                        className="flex-1 rounded-md border border-slate-300 px-1 py-0.5"
-                                      >
-                                        <option value="">—</option>
-                                        {ratingOptions.map(r => (
-                                          <option key={r} value={r}>
-                                            {r}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                      <span className="w-8 text-slate-600">Dex</span>
-                                      <select
-                                        value={row.dex_rating ?? ''}
-                                        onChange={e =>
-                                          updateRow({
-                                            dex_rating: (e.target.value || null) as DailyRating | null,
-                                          })
-                                        }
-                                        className="flex-1 rounded-md border border-slate-300 px-1 py-0.5"
-                                      >
-                                        <option value="">—</option>
-                                        {ratingOptions.map(r => (
-                                          <option key={r} value={r}>
-                                            {r}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                    <label className="flex items-center gap-1">
-                                      <span className="w-8 text-slate-600">HoM</span>
-                                      <select
-                                        value={row.hom_rating ?? ''}
-                                        onChange={e =>
-                                          updateRow({
-                                            hom_rating: (e.target.value || null) as DailyRating | null,
-                                          })
-                                        }
-                                        className="flex-1 rounded-md border border-slate-300 px-1 py-0.5"
-                                      >
-                                        <option value="">—</option>
-                                        {ratingOptions.map(r => (
-                                          <option key={r} value={r}>
-                                            {r}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
+                                    {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(
+                                      field => (
+                                        <label key={field} className="flex items-center gap-1">
+                                          <span className="w-8 text-slate-600">
+                                            {field === 'gk_rating'
+                                              ? 'GK'
+                                              : field === 'dex_rating'
+                                                ? 'Dex'
+                                                : 'HoM'}
+                                          </span>
+                                          <select
+                                            value={row[field] ?? ''}
+                                            onChange={e =>
+                                              updateRow({
+                                                [field]: (e.target.value ||
+                                                  null) as DailyRating | null,
+                                              })
+                                            }
+                                            className="flex-1 rounded-md border border-slate-300 px-1 py-0.5"
+                                          >
+                                            <option value="">—</option>
+                                            {ratingOptions.map(r => (
+                                              <option key={r} value={r}>
+                                                {r}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </label>
+                                      ),
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-2 py-1 align-top">
@@ -964,7 +851,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                     <input
                                       type="checkbox"
                                       checked={row.coming_back_next_day ?? true}
-                                      onChange={e => updateRow({ coming_back_next_day: e.target.checked })}
+                                      onChange={e =>
+                                        updateRow({ coming_back_next_day: e.target.checked })
+                                      }
                                     />
                                     <span>Yes</span>
                                   </label>
@@ -1000,7 +889,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
           {reports.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No daily reports yet for <span className="font-medium text-slate-700">{className}</span>.
+              No daily reports yet for{' '}
+              <span className="font-medium text-slate-700">{className}</span>.
             </div>
           ) : (
             <div className="rounded-lg border border-slate-200 overflow-hidden">
@@ -1052,7 +942,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Logged hours</h3>
               <p className="mt-0.5 text-xs text-slate-500">
-                Track hours for trainers and students for payroll. Total: {totalHours.toFixed(1)} hrs
+                Track hours for trainers and students for payroll. Total: {totalHours.toFixed(1)}{' '}
+                hrs
               </p>
             </div>
             <button
@@ -1191,7 +1082,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
           {hours.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No logged hours yet for <span className="font-medium text-slate-700">{className}</span>.
+              No logged hours yet for{' '}
+              <span className="font-medium text-slate-700">{className}</span>.
             </div>
           ) : (
             <div className="rounded-lg border border-slate-200 overflow-hidden">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/apiClient'
 import type { Class } from '../types'
 import { ClassOverviewSection } from './ClassDetail/ClassOverviewSection'
 import { ClassDrillsSection } from './ClassDetail/ClassDrillsSection'
@@ -31,20 +31,16 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
     async function loadClass() {
       setLoading(true)
       setError(null)
-      const { data, error } = await supabase
-        .from('classes')
-        .select('*')
-        .eq('name', className)
-        .single()
-
-      if (error) {
-        console.error('loadClass error:', error.message)
+      try {
+        const data = await api.classes.getByName(className)
+        setClassData(data)
+      } catch (err) {
+        console.error('loadClass error:', (err as Error).message)
         setError('Unable to load class.')
         setClassData(null)
-      } else {
-        setClassData(data as Class)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     loadClass()
@@ -142,4 +138,3 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
     </div>
   )
 }
-

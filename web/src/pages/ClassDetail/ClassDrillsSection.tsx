@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import type { ClassDrill, DrillType } from '../../types'
 
 interface ClassDrillsSectionProps {
@@ -21,20 +21,16 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
   async function loadDrills() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('class_drills')
-      .select('*')
-      .eq('class_id', classId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('loadDrills error:', error.message)
+    try {
+      const data = await api.drills.list(classId)
+      setDrills(data)
+    } catch (err) {
+      console.error('loadDrills error:', (err as Error).message)
       setError('Unable to load drills for this class.')
       setDrills([])
-    } else {
-      setDrills((data as ClassDrill[]) ?? [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -50,28 +46,25 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
     const parSeconds = formParTime ? Number(formParTime) : null
     const target = formTargetScore ? Number(formTargetScore) : null
 
-    const { error } = await supabase.from('class_drills').insert({
-      class_id: classId,
-      name: formName.trim(),
-      type: formType,
-      par_time_seconds: Number.isNaN(parSeconds) ? null : parSeconds,
-      target_score: Number.isNaN(target) ? null : target,
-      active: true,
-    })
-
-    setSaving(false)
-    if (error) {
-      console.error('createDrill error:', error.message)
-      setError(error.message)
-      return
+    try {
+      await api.drills.create(classId, {
+        name: formName.trim(),
+        type: formType,
+        par_time_seconds: Number.isNaN(parSeconds) ? null : parSeconds,
+        target_score: Number.isNaN(target) ? null : target,
+      })
+      setFormName('')
+      setFormParTime('')
+      setFormTargetScore('')
+      setFormType('drill')
+      setFormOpen(false)
+      loadDrills()
+    } catch (err) {
+      console.error('createDrill error:', (err as Error).message)
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
-
-    setFormName('')
-    setFormParTime('')
-    setFormTargetScore('')
-    setFormType('drill')
-    setFormOpen(false)
-    loadDrills()
   }
 
   return (
@@ -186,15 +179,9 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
                 <tr key={drill.id} className="border-b border-slate-100">
                   <td className="px-3 py-2 text-slate-900">{drill.name}</td>
                   <td className="px-3 py-2 text-slate-600 capitalize">{drill.type}</td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {drill.par_time_seconds ?? '—'}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {drill.target_score ?? '—'}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {drill.active ? 'Yes' : 'No'}
-                  </td>
+                  <td className="px-3 py-2 text-slate-600">{drill.par_time_seconds ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-600">{drill.target_score ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-600">{drill.active ? 'Yes' : 'No'}</td>
                 </tr>
               ))}
             </tbody>
@@ -204,5 +191,3 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
     </section>
   )
 }
-
-

@@ -6,8 +6,6 @@ import { DashboardView } from './pages/DashboardView'
 import { ClassesView } from './pages/ClassesView'
 import { SettingsView } from './pages/SettingsView'
 import { ClassDetailView } from './pages/ClassDetailView'
-import { SupabaseStatusWidget } from './components/SupabaseStatusWidget'
-
 function App() {
   return (
     <AuthProvider>
@@ -23,7 +21,6 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <SupabaseStatusWidget />
       </BrowserRouter>
     </AuthProvider>
   )

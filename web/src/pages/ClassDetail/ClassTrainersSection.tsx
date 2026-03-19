@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import type { ClassTrainer, TrainerRole, Profile } from '../../types'
 
 interface ClassTrainersSectionProps {
@@ -26,20 +26,16 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
   async function loadTrainers() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('class_trainers')
-      .select('*')
-      .eq('class_id', classId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('loadTrainers error:', error.message)
+    try {
+      const data = await api.trainers.list(classId)
+      setTrainers(data)
+    } catch (err) {
+      console.error('loadTrainers error:', (err as Error).message)
       setError('Unable to load trainers for this class.')
       setTrainers([])
-    } else {
-      setTrainers((data as ClassTrainer[]) ?? [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -49,51 +45,33 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
   async function searchProfiles(term: string) {
     setSearchLoading(true)
     setError(null)
-    const query = supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .eq('role', 'trainer')
-      .order('full_name', { ascending: true })
-
-    const { data, error } = term
-      ? await query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
-      : await query.limit(25)
-
-    if (error) {
-      console.error('searchTrainers error:', error.message)
-      setError(error.message)
+    try {
+      const raw = await api.profiles.search({ role: 'trainer', search: term || undefined })
+      const existingEmails = new Set(trainers.map(t => t.trainer_email.toLowerCase()))
+      setSearchResults(raw.filter(p => !existingEmails.has(p.email.toLowerCase())))
+    } catch (err) {
+      console.error('searchTrainers error:', (err as Error).message)
+      setError((err as Error).message)
       setSearchResults([])
-    } else {
-      const existingEmails = new Set(
-        trainers.map(t => t.trainer_email.toLowerCase()),
-      )
-      const raw = (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? []
-      const filtered = raw.filter(
-        p => !existingEmails.has(p.email.toLowerCase()),
-      )
-      setSearchResults(filtered)
+    } finally {
+      setSearchLoading(false)
     }
-    setSearchLoading(false)
   }
 
   async function handleAssignTrainer(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setError(null)
-
-    const { error } = await supabase.from('class_trainers').insert({
-      class_id: classId,
-      trainer_name: profile.full_name ?? profile.email,
-      trainer_email: profile.email,
-      role,
-    })
-
-    if (error) {
-      console.error('createTrainer error:', error.message)
-      setError(error.message)
-      return
+    try {
+      await api.trainers.create(classId, {
+        trainer_name: profile.full_name ?? profile.email,
+        trainer_email: profile.email,
+        role,
+      })
+      await loadTrainers()
+      await searchProfiles(searchTerm)
+    } catch (err) {
+      console.error('createTrainer error:', (err as Error).message)
+      setError((err as Error).message)
     }
-
-    await loadTrainers()
-    await searchProfiles(searchTerm)
   }
 
   function openEditTrainer(t: ClassTrainer) {
@@ -108,34 +86,29 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     if (!editingTrainer) return
     if (!editName.trim() || !editEmail.trim()) return
     setError(null)
-
-    const { error } = await supabase
-      .from('class_trainers')
-      .update({
+    try {
+      await api.trainers.update(editingTrainer.id, {
         trainer_name: editName.trim(),
         trainer_email: editEmail.trim(),
         role: editRole,
       })
-      .eq('id', editingTrainer.id)
-
-    if (error) {
-      console.error('updateTrainer error:', error.message)
-      setError(error.message)
-      return
+      setEditingTrainer(null)
+      loadTrainers()
+    } catch (err) {
+      console.error('updateTrainer error:', (err as Error).message)
+      setError((err as Error).message)
     }
-
-    setEditingTrainer(null)
-    loadTrainers()
   }
 
-  async function handleRemove(id: string) {
-    const { error } = await supabase.from('class_trainers').delete().eq('id', id)
-    if (error) {
-      console.error('removeTrainer error:', error.message)
-      setError(error.message)
-      return
+  async function handleRemove(id: string, name: string) {
+    if (!window.confirm(`Remove ${name} from this class?`)) return
+    try {
+      await api.trainers.delete(id)
+      loadTrainers()
+    } catch (err) {
+      console.error('removeTrainer error:', (err as Error).message)
+      setError((err as Error).message)
     }
-    loadTrainers()
   }
 
   return (
@@ -224,9 +197,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
                       onClick={() => handleAssignTrainer(p)}
                     >
                       <div>
-                        <p className="font-medium text-slate-900">
-                          {p.full_name ?? p.email}
-                        </p>
+                        <p className="font-medium text-slate-900">{p.full_name ?? p.email}</p>
                         <p className="text-[11px] text-slate-500">{p.email}</p>
                       </div>
                       <span className="text-[11px] text-indigo-600">Assign</span>
@@ -320,7 +291,8 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
         <p className="text-xs text-slate-500">Loading trainers…</p>
       ) : trainers.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-          No trainers assigned yet for <span className="font-medium text-slate-700">{className}</span>.
+          No trainers assigned yet for{' '}
+          <span className="font-medium text-slate-700">{className}</span>.
         </div>
       ) : (
         <div className="rounded-lg border border-slate-200 overflow-hidden">
@@ -348,7 +320,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
                       type="button"
                       onClick={e => {
                         e.stopPropagation()
-                        handleRemove(t.id)
+                        handleRemove(t.id, t.trainer_name)
                       }}
                       className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
                     >
@@ -364,4 +336,3 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     </section>
   )
 }
-
