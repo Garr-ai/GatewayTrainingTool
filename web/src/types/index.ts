@@ -120,6 +120,7 @@ export interface ClassDailyReportTraineeProgress {
   dex_rating: DailyRating | null
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
+  homework_completed: boolean
   created_at: string
 }
 

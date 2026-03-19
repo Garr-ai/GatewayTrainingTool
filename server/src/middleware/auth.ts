@@ -5,6 +5,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string
+      userRole?: string
     }
   }
 }
@@ -25,5 +26,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   req.userId = data.user.id
+
+  // Attach role so downstream middleware can check it without an extra DB call
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .single()
+  req.userRole = profile?.role ?? undefined
+
+  next()
+}
+
+export function requireCoordinator(req: Request, res: Response, next: NextFunction): void {
+  if (req.userRole !== 'coordinator') {
+    res.status(403).json({ error: 'Coordinator access required' })
+    return
+  }
   next()
 }

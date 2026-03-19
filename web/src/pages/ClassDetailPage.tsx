@@ -100,8 +100,8 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`inline-flex items-center rounded-t-lg border-b-2 px-3 py-2 font-medium ${
                 activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-600 bg-slate-50'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  ? 'border-gw-blue text-gw-blue bg-blue-50'
+                  : 'border-transparent text-slate-500 hover:text-gw-dark hover:bg-slate-50'
               }`}
             >
               {tab.label}

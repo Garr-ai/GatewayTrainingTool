@@ -3,6 +3,21 @@ import { supabase } from '../lib/supabase'
 
 export const reportsRouter = Router()
 
+// GET /reports  (all reports across classes, newest first)
+reportsRouter.get('/reports', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data, error } = await supabase
+      .from('class_daily_reports')
+      .select('*, classes(id, name, site)')
+      .order('report_date', { ascending: false })
+      .limit(200)
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /classes/:classId/reports
 reportsRouter.get('/classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -134,6 +149,7 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
           dex_rating: row.dex_rating ?? null,
           hom_rating: row.hom_rating ?? null,
           coming_back_next_day: row.coming_back_next_day ?? false,
+          homework_completed: row.homework_completed ?? false,
         })),
       )
     }
@@ -226,6 +242,7 @@ reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: Next
           dex_rating: row.dex_rating ?? null,
           hom_rating: row.hom_rating ?? null,
           coming_back_next_day: row.coming_back_next_day ?? false,
+          homework_completed: row.homework_completed ?? false,
         })),
       )
     }

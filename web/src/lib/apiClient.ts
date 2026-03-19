@@ -69,6 +69,7 @@ interface ProgressRowInput {
   dex_rating: DailyRating | null
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
+  homework_completed: boolean
 }
 
 interface ReportBody {
@@ -178,6 +179,7 @@ export const api = {
   },
 
   schedule: {
+    listAll: () => req<(ClassScheduleSlot & { classes: { id: string; name: string; site: string } })[]>('/schedule'),
     list: (classId: string) => req<ClassScheduleSlot[]>(`/classes/${classId}/schedule`),
     create: (
       classId: string,
@@ -200,6 +202,7 @@ export const api = {
   },
 
   reports: {
+    listAll: () => req<(ClassDailyReport & { classes: { id: string; name: string; site: string } })[]>('/reports'),
     list: (classId: string) => req<ClassDailyReport[]>(`/classes/${classId}/reports`),
     get: (id: string) => req<ReportWithNested>(`/reports/${id}`),
     create: (classId: string, body: ReportBody) =>

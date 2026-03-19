@@ -5,6 +5,17 @@ interface CoordinatorLayoutProps {
   onMobileClose: () => void
 }
 
+type NavItem = { to: string; label: string }
+
+const NAV_ITEMS: NavItem[] = [
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/classes', label: 'Classes' },
+  { to: '/students', label: 'Students' },
+  { to: '/trainers', label: 'Trainers' },
+  { to: '/reports', label: 'Reports' },
+  { to: '/schedule', label: 'Schedule' },
+]
+
 export function CoordinatorLayout({ mobileOpen, onMobileClose }: CoordinatorLayoutProps) {
   return (
     <>
@@ -18,20 +29,20 @@ export function CoordinatorLayout({ mobileOpen, onMobileClose }: CoordinatorLayo
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-56 flex-shrink-0
-          bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 px-4 py-5 flex flex-col gap-6
+          bg-gradient-to-b from-gw-darkest to-gw-dark text-white px-4 py-5 flex flex-col gap-6
           transition-transform duration-200
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
           md:relative md:translate-x-0 md:z-auto
         `}
       >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold tracking-[0.2em] uppercase text-slate-200">
+          <span className="text-xs font-semibold tracking-[0.2em] uppercase text-white/80">
             Gateway
           </span>
           <button
             type="button"
             onClick={onMobileClose}
-            className="md:hidden text-slate-400 hover:text-slate-200 p-1 -mr-1"
+            className="md:hidden text-white/50 hover:text-white p-1 -mr-1"
             aria-label="Close menu"
           >
             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -40,34 +51,32 @@ export function CoordinatorLayout({ mobileOpen, onMobileClose }: CoordinatorLayo
           </button>
         </div>
 
-        <nav className="flex flex-col gap-1" aria-label="Main navigation">
-          <NavLink
-            to="/dashboard"
-            onClick={onMobileClose}
-            className={({ isActive }) =>
-              `w-full rounded-lg px-3 py-2 text-left text-sm ${isActive ? 'bg-slate-700/70' : 'hover:bg-slate-700/40'}`
-            }
-          >
-            Dashboard
-          </NavLink>
-          <NavLink
-            to="/classes"
-            onClick={onMobileClose}
-            className={({ isActive }) =>
-              `w-full rounded-lg px-3 py-2 text-left text-sm ${isActive ? 'bg-slate-700/70' : 'hover:bg-slate-700/40'}`
-            }
-          >
-            Classes
-          </NavLink>
-          <NavLink
-            to="/settings"
-            onClick={onMobileClose}
-            className={({ isActive }) =>
-              `w-full rounded-lg px-3 py-2 text-left text-sm ${isActive ? 'bg-slate-700/70' : 'hover:bg-slate-700/40'}`
-            }
-          >
-            Settings
-          </NavLink>
+        <nav className="flex flex-col gap-1 flex-1" aria-label="Main navigation">
+          {NAV_ITEMS.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onMobileClose}
+              className={({ isActive }) =>
+                `w-full rounded-lg px-3 py-2 text-left text-sm ${isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/8 hover:text-white'}`
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+
+          {/* Settings pinned to bottom */}
+          <div className="mt-auto">
+            <NavLink
+              to="/settings"
+              onClick={onMobileClose}
+              className={({ isActive }) =>
+                `w-full rounded-lg px-3 py-2 text-left text-sm ${isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/8 hover:text-white'}`
+              }
+            >
+              Settings
+            </NavLink>
+          </div>
         </nav>
       </aside>
     </>

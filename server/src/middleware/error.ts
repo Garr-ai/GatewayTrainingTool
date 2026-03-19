@@ -6,7 +6,12 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
-  const message = err instanceof Error ? err.message : 'Internal server error'
   console.error(err)
+  const isProd = process.env.NODE_ENV === 'production'
+  const message = isProd
+    ? 'Internal server error'
+    : err instanceof Error
+      ? err.message
+      : 'Internal server error'
   res.status(500).json({ error: message })
 }

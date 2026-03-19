@@ -3,6 +3,24 @@ import { supabase } from '../lib/supabase'
 
 export const scheduleRouter = Router()
 
+// GET /schedule  (all upcoming slots across classes)
+scheduleRouter.get('/schedule', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const { data, error } = await supabase
+      .from('class_schedule_slots')
+      .select('*, classes(id, name, site)')
+      .gte('slot_date', today)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(200)
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /classes/:classId/schedule
 scheduleRouter.get('/classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
   try {

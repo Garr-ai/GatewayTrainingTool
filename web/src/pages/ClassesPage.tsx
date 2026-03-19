@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
 import { CreateClassModal } from '../components/CreateClassModal'
-import { PROVINCES } from '../types'
 import { useAuth } from '../contexts/AuthContext'
+import { classSlug, provinceLabel } from '../lib/utils'
 
 export function ClassesPage() {
   const { email, signOut } = useAuth()
@@ -35,13 +35,6 @@ export function ClassesPage() {
 
   const navigate = useNavigate()
 
-  function classSlug(name: string) {
-    return name.trim().replace(/\s+/g, '-')
-  }
-
-  function provinceLabel(province: string) {
-    return PROVINCES.find(p => p.value === province)?.label ?? province
-  }
 
   async function handleArchive(c: Class, e: React.MouseEvent) {
     e.stopPropagation()
@@ -92,7 +85,7 @@ export function ClassesPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            className="inline-flex items-center rounded-lg bg-gw-blue px-4 py-2 text-sm font-medium text-white hover:bg-gw-blue-hover"
           >
             + Create class
           </button>
@@ -116,7 +109,7 @@ export function ClassesPage() {
                   <button
                     type="button"
                     onClick={() => setCreateOpen(true)}
-                    className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+                    className="mt-4 rounded-lg bg-gw-blue px-4 py-2 text-sm font-medium text-white hover:bg-gw-blue-hover"
                   >
                     + Create class
                   </button>
@@ -126,13 +119,13 @@ export function ClassesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50">
-                          <th className="px-4 py-3 font-medium text-slate-900">Name</th>
-                          <th className="px-4 py-3 font-medium text-slate-900">Site</th>
-                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-slate-900">Province</th>
-                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-slate-900">Game type</th>
-                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-900">Start</th>
-                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-900">End</th>
+                        <tr className="border-b border-slate-200 bg-gw-dark">
+                          <th className="px-4 py-3 font-medium text-white">Name</th>
+                          <th className="px-4 py-3 font-medium text-white">Site</th>
+                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-white">Province</th>
+                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-white">Game type</th>
+                          <th className="hidden md:table-cell px-4 py-3 font-medium text-white">Start</th>
+                          <th className="hidden md:table-cell px-4 py-3 font-medium text-white">End</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
@@ -140,10 +133,10 @@ export function ClassesPage() {
                         {active.map(c => (
                           <tr
                             key={c.id}
-                            className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                            className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer"
                             onClick={() => navigate(`/classes/${classSlug(c.name)}`)}
                           >
-                            <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
+                            <td className="px-4 py-3 font-medium text-gw-dark">{c.name}</td>
                             <td className="px-4 py-3 text-slate-600">{c.site}</td>
                             <td className="hidden sm:table-cell px-4 py-3 text-slate-600">{provinceLabel(c.province)}</td>
                             <td className="hidden sm:table-cell px-4 py-3 text-slate-600">{c.game_type ?? '—'}</td>
@@ -177,12 +170,12 @@ export function ClassesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50">
-                          <th className="px-4 py-3 font-medium text-slate-900">Name</th>
-                          <th className="px-4 py-3 font-medium text-slate-900">Site</th>
-                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-slate-900">Province</th>
-                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-900">Start</th>
-                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-900">End</th>
+                        <tr className="border-b border-slate-200 bg-slate-100">
+                          <th className="px-4 py-3 font-medium text-slate-600">Name</th>
+                          <th className="px-4 py-3 font-medium text-slate-600">Site</th>
+                          <th className="hidden sm:table-cell px-4 py-3 font-medium text-slate-600">Province</th>
+                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-600">Start</th>
+                          <th className="hidden md:table-cell px-4 py-3 font-medium text-slate-600">End</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>

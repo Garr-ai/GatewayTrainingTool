@@ -51,7 +51,7 @@ export function LoginForm() {
   return (
     <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white shadow-lg p-8 flex flex-col gap-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className="text-lg font-semibold text-gw-dark">
           {mode === 'reset' ? 'Reset password' : 'Gateway Training Tool'}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
@@ -75,7 +75,7 @@ export function LoginForm() {
             onChange={e => setEmail(e.target.value)}
             required
             disabled={status === 'loading'}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
           />
         </div>
 
@@ -93,31 +93,25 @@ export function LoginForm() {
               onChange={e => setPassword(e.target.value)}
               required
               disabled={status === 'loading'}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>
         )}
 
         {status === 'error' && (
-          <p
-            className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
-            role="alert"
-          >
+          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
             {message}
           </p>
         )}
         {status === 'success' && (
-          <p
-            className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700"
-            role="status"
-          >
+          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700" role="status">
             {message}
           </p>
         )}
 
         <button
           type="submit"
-          className="mt-1 inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
+          className="mt-1 inline-flex w-full items-center justify-center rounded-md bg-gw-blue px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-gw-blue-hover disabled:opacity-60"
           disabled={status === 'loading'}
         >
           {status === 'loading'
@@ -141,40 +135,24 @@ export function LoginForm() {
         </>
       )}
 
-      <div className="flex flex-col items-center gap-1.5 text-xs text-indigo-600">
+      <div className="flex flex-col items-center gap-1.5 text-xs text-gw-blue">
         {mode === 'signin' && (
           <>
-            <button
-              type="button"
-              className="hover:underline"
-              onClick={() => { setMode('reset'); setMessage('') }}
-            >
+            <button type="button" className="hover:underline" onClick={() => { setMode('reset'); setMessage('') }}>
               Forgot password?
             </button>
-            <button
-              type="button"
-              className="hover:underline"
-              onClick={() => { setMode('signup'); setMessage('') }}
-            >
+            <button type="button" className="hover:underline" onClick={() => { setMode('signup'); setMessage('') }}>
               Don't have an account? Sign up
             </button>
           </>
         )}
         {mode === 'signup' && (
-          <button
-            type="button"
-            className="hover:underline"
-            onClick={() => { setMode('signin'); setMessage('') }}
-          >
+          <button type="button" className="hover:underline" onClick={() => { setMode('signin'); setMessage('') }}>
             Already have an account? Sign in
           </button>
         )}
         {mode === 'reset' && (
-          <button
-            type="button"
-            className="hover:underline"
-            onClick={() => { setMode('signin'); setMessage('') }}
-          >
+          <button type="button" className="hover:underline" onClick={() => { setMode('signin'); setMessage('') }}>
             Back to sign in
           </button>
         )}
