@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase'
 
 export const classesRouter = Router()
 
-// GET /classes
-classesRouter.get('/classes', async (_req: Request, res: Response, next: NextFunction) => {
+// GET /classes?archived=true|false  (defaults to false)
+classesRouter.get('/classes', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const archived = req.query.archived === 'true'
     const { data, error } = await supabase
       .from('classes')
       .select('*')
+      .eq('archived', archived)
       .order('start_date', { ascending: false })
     if (error) throw error
     res.json(data)
@@ -97,18 +99,20 @@ classesRouter.post('/classes', async (req: Request, res: Response, next: NextFun
 // PUT /classes/:id
 classesRouter.put('/classes/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, site, province, game_type, start_date, end_date, description } = req.body
+    const { name, site, province, game_type, start_date, end_date, description, archived } = req.body
+    const update: Record<string, unknown> = {
+      name,
+      site,
+      province,
+      game_type: game_type ?? null,
+      start_date,
+      end_date,
+      description: description ?? null,
+    }
+    if (archived !== undefined) update.archived = archived
     const { data, error } = await supabase
       .from('classes')
-      .update({
-        name,
-        site,
-        province,
-        game_type: game_type ?? null,
-        start_date,
-        end_date,
-        description: description ?? null,
-      })
+      .update(update)
       .eq('id', req.params.id)
       .select()
       .single()

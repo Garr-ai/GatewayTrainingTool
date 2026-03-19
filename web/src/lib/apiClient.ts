@@ -94,7 +94,10 @@ interface ReportBody {
 
 export const api = {
   classes: {
-    list: () => req<Class[]>('/classes'),
+    list: (params?: { archived?: boolean }) => {
+      const qs = params?.archived !== undefined ? `?archived=${params.archived}` : ''
+      return req<Class[]>(`/classes${qs}`)
+    },
     getByName: (name: string) =>
       req<Class>(`/classes/by-name/${encodeURIComponent(name)}`),
     get: (id: string) => req<Class>(`/classes/${id}`),
@@ -109,6 +112,10 @@ export const api = {
     }) => req<Class>('/classes', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: Partial<Class>) =>
       req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    archive: (id: string) =>
+      req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify({ archived: true }) }),
+    unarchive: (id: string) =>
+      req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify({ archived: false }) }),
     delete: (id: string) => req<void>(`/classes/${id}`, { method: 'DELETE' }),
   },
 

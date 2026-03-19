@@ -296,41 +296,43 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
         </div>
       ) : (
         <div className="rounded-lg border border-slate-200 overflow-hidden">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Name</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Email</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Role</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trainers.map(t => (
-                <tr
-                  key={t.id}
-                  className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => openEditTrainer(t)}
-                >
-                  <td className="px-3 py-2 text-slate-900">{t.trainer_name}</td>
-                  <td className="px-3 py-2 text-slate-600">{t.trainer_email}</td>
-                  <td className="px-3 py-2 text-slate-600 capitalize">{t.role}</td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleRemove(t.id, t.trainer_name)
-                      }}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
-                    >
-                      Remove
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-slate-900">Name</th>
+                  <th className="hidden sm:table-cell px-3 py-2 text-left font-medium text-slate-900">Email</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-900">Role</th>
+                  <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {trainers.map(t => (
+                  <tr
+                    key={t.id}
+                    className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                    onClick={() => openEditTrainer(t)}
+                  >
+                    <td className="px-3 py-2 text-slate-900">{t.trainer_name}</td>
+                    <td className="hidden sm:table-cell px-3 py-2 text-slate-600">{t.trainer_email}</td>
+                    <td className="px-3 py-2 text-slate-600 capitalize">{t.role}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleRemove(t.id, t.trainer_name)
+                        }}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

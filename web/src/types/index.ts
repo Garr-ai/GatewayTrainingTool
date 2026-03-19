@@ -20,6 +20,7 @@ export interface Class {
   start_date: string
   end_date: string
   description: string | null
+  archived: boolean
   created_at: string
   updated_at: string
 }
