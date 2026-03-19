@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import type { ClassScheduleSlot, ClassTrainer } from '../../types'
 
 interface ClassScheduleSectionProps {
@@ -25,30 +25,25 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
   async function loadSlots() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('class_schedule_slots')
-      .select('*')
-      .eq('class_id', classId)
-      .order('slot_date', { ascending: true })
-      .order('start_time', { ascending: true })
-
-    if (error) {
-      console.error('loadSlots error:', error.message)
+    try {
+      const data = await api.schedule.list(classId)
+      setSlots(data)
+    } catch (err) {
+      console.error('loadSlots error:', (err as Error).message)
       setError('Unable to load schedule for this class.')
       setSlots([])
-    } else {
-      setSlots((data as ClassScheduleSlot[]) ?? [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function loadTrainers() {
-    const { data } = await supabase
-      .from('class_trainers')
-      .select('*')
-      .eq('class_id', classId)
-      .order('created_at', { ascending: true })
-    setTrainers((data as ClassTrainer[]) ?? [])
+    try {
+      const data = await api.trainers.list(classId)
+      setTrainers(data)
+    } catch {
+      // non-critical
+    }
   }
 
   useEffect(() => {
@@ -90,7 +85,6 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     setError(null)
 
     const payload = {
-      class_id: classId,
       slot_date: slotDate,
       start_time: startTime,
       end_time: endTime,
@@ -99,42 +93,30 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
       group_label: groupLabel.trim() || null,
     }
 
-    if (editingSlot) {
-      const { error } = await supabase
-        .from('class_schedule_slots')
-        .update(payload)
-        .eq('id', editingSlot.id)
-
-      if (error) {
-        console.error('updateSlot error:', error.message)
-        setError(error.message)
-        setSaving(false)
-        return
+    try {
+      if (editingSlot) {
+        await api.schedule.update(editingSlot.id, payload)
+      } else {
+        await api.schedule.create(classId, payload)
       }
-    } else {
-      const { error } = await supabase.from('class_schedule_slots').insert(payload)
-
-      if (error) {
-        console.error('createSlot error:', error.message)
-        setError(error.message)
-        setSaving(false)
-        return
-      }
+      closeForm()
+      loadSlots()
+    } catch (err) {
+      console.error('saveSlot error:', (err as Error).message)
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
-
-    setSaving(false)
-    closeForm()
-    loadSlots()
   }
 
   async function handleRemove(id: string) {
-    const { error } = await supabase.from('class_schedule_slots').delete().eq('id', id)
-    if (error) {
-      console.error('removeSlot error:', error.message)
-      setError(error.message)
-      return
+    try {
+      await api.schedule.delete(id)
+      loadSlots()
+    } catch (err) {
+      console.error('removeSlot error:', (err as Error).message)
+      setError((err as Error).message)
     }
-    loadSlots()
   }
 
   function trainerName(id: string | null) {
@@ -318,7 +300,10 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
                   <td className="px-3 py-2 text-slate-600">{slot.end_time}</td>
                   <td className="px-3 py-2 text-slate-600">{trainerName(slot.trainer_id)}</td>
                   <td className="px-3 py-2 text-slate-600">{slot.group_label ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-600 max-w-[120px] truncate" title={slot.notes ?? undefined}>
+                  <td
+                    className="px-3 py-2 text-slate-600 max-w-[120px] truncate"
+                    title={slot.notes ?? undefined}
+                  >
                     {slot.notes ?? '—'}
                   </td>
                   <td className="px-3 py-2 text-right">

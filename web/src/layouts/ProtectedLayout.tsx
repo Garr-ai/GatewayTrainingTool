@@ -5,11 +5,10 @@ import { CoordinatorLayout } from '../components/CoordinatorLayout'
 export function ProtectedLayout() {
   const { session, role, loading } = useAuth()
 
-  if (!session) {
-    return <Navigate to="/login" replace />
-  }
-
   if (loading || role === null) {
+    if (!session && !loading) {
+      return <Navigate to="/login" replace />
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-500 text-sm">
         Loading…
@@ -17,11 +16,15 @@ export function ProtectedLayout() {
     )
   }
 
+  if (!session) {
+    return <Navigate to="/login" replace />
+  }
+
   if (role === 'coordinator') {
     return (
-      <div className="h-screen w-screen flex overflow-hidden bg-slate-900">
+      <div className="min-h-screen w-screen flex bg-slate-900">
         <CoordinatorLayout />
-        <section className="flex-1 bg-slate-100 px-6 py-5 flex flex-col gap-4 min-h-0 overflow-hidden">
+        <section className="flex-1 bg-slate-100 px-6 py-5 flex flex-col gap-4 min-h-screen overflow-auto">
           <Outlet />
         </section>
       </div>

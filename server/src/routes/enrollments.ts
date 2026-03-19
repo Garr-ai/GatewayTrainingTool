@@ -1,0 +1,75 @@
+import { Router, type Request, type Response, type NextFunction } from 'express'
+import { supabase } from '../lib/supabase'
+
+export const enrollmentsRouter = Router()
+
+// GET /classes/:classId/enrollments?status=enrolled
+enrollmentsRouter.get('/classes/:classId/enrollments', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let query = supabase
+      .from('class_enrollments')
+      .select('*')
+      .eq('class_id', req.params.classId)
+      .order('created_at', { ascending: false })
+
+    if (req.query.status) {
+      query = query.eq('status', req.query.status as string)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// POST /classes/:classId/enrollments
+enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { student_name, student_email, status, group_label } = req.body
+    const { data, error } = await supabase
+      .from('class_enrollments')
+      .insert({
+        class_id: req.params.classId,
+        student_name,
+        student_email,
+        status,
+        group_label: group_label ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    res.status(201).json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// PUT /enrollments/:id
+enrollmentsRouter.put('/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status, group_label } = req.body
+    const { data, error } = await supabase
+      .from('class_enrollments')
+      .update({ status, group_label: group_label ?? null })
+      .eq('id', req.params.id)
+      .select()
+      .single()
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// DELETE /enrollments/:id
+enrollmentsRouter.delete('/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { error } = await supabase.from('class_enrollments').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.status(204).send()
+  } catch (err) {
+    next(err)
+  }
+})

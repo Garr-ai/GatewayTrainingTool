@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import type { ClassEnrollment, EnrollmentStatus, Profile } from '../../types'
 
 interface ClassStudentsSectionProps {
@@ -27,20 +27,16 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   async function loadStudents() {
     setLoading(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('class_enrollments')
-      .select('*')
-      .eq('class_id', classId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('loadStudents error:', error.message)
+    try {
+      const data = await api.enrollments.list(classId)
+      setStudents(data)
+    } catch (err) {
+      console.error('loadStudents error:', (err as Error).message)
       setError('Unable to load students for this class.')
       setStudents([])
-    } else {
-      setStudents((data as ClassEnrollment[]) ?? [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -50,53 +46,39 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   async function searchProfiles(term: string) {
     setSearchLoading(true)
     setError(null)
-    const query = supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .eq('role', 'trainee')
-      .order('full_name', { ascending: true })
-
-    const { data, error } = term
-      ? await query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
-      : await query.limit(25)
-
-    if (error) {
-      console.error('searchStudents error:', error.message)
-      setError(error.message)
+    try {
+      const raw = await api.profiles.search({ role: 'trainee', search: term || undefined })
+      const existingEmails = new Set(students.map(s => s.student_email.toLowerCase()))
+      setSearchResults(raw.filter(p => !existingEmails.has(p.email.toLowerCase())))
+    } catch (err) {
+      console.error('searchStudents error:', (err as Error).message)
+      setError((err as Error).message)
       setSearchResults([])
-    } else {
-      setSearchResults(
-        (data as Pick<Profile, 'id' | 'full_name' | 'email'>[]) ?? [],
-      )
+    } finally {
+      setSearchLoading(false)
     }
-    setSearchLoading(false)
   }
 
   async function handleEnrollStudent(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setSaving(true)
     setError(null)
-
-    const { error } = await supabase.from('class_enrollments').insert({
-      class_id: classId,
-      student_name: profile.full_name ?? profile.email,
-      student_email: profile.email,
-      status,
-      group_label: groupLabel.trim() || null,
-    })
-
-    setSaving(false)
-    if (error) {
-      console.error('createEnrollment error:', error.message)
-      setError(error.message)
-      return
+    try {
+      await api.enrollments.create(classId, {
+        student_name: profile.full_name ?? profile.email,
+        student_email: profile.email,
+        status,
+        group_label: groupLabel.trim() || null,
+      })
+      setStatus('enrolled')
+      setGroupLabel('')
+      await loadStudents()
+      await searchProfiles(searchTerm)
+    } catch (err) {
+      console.error('createEnrollment error:', (err as Error).message)
+      setError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
-
-    setStatus('enrolled')
-    setGroupLabel('')
-    setEnrollOpen(false)
-    setSearchTerm('')
-    setSearchResults([])
-    loadStudents()
   }
 
   function openEditStudent(enrollment: ClassEnrollment) {
@@ -109,33 +91,28 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     e.preventDefault()
     if (!editingEnrollment) return
     setError(null)
-
-    const { error } = await supabase
-      .from('class_enrollments')
-      .update({
+    try {
+      await api.enrollments.update(editingEnrollment.id, {
         status: editStatus,
         group_label: editGroupLabel.trim() || null,
       })
-      .eq('id', editingEnrollment.id)
-
-    if (error) {
-      console.error('updateEnrollment error:', error.message)
-      setError(error.message)
-      return
+      setEditingEnrollment(null)
+      loadStudents()
+    } catch (err) {
+      console.error('updateEnrollment error:', (err as Error).message)
+      setError((err as Error).message)
     }
-
-    setEditingEnrollment(null)
-    loadStudents()
   }
 
-  async function handleRemove(id: string) {
-    const { error } = await supabase.from('class_enrollments').delete().eq('id', id)
-    if (error) {
-      console.error('removeEnrollment error:', error.message)
-      setError(error.message)
-      return
+  async function handleRemove(id: string, name: string) {
+    if (!window.confirm(`Remove ${name} from this class?`)) return
+    try {
+      await api.enrollments.delete(id)
+      loadStudents()
+    } catch (err) {
+      console.error('removeEnrollment error:', (err as Error).message)
+      setError((err as Error).message)
     }
-    loadStudents()
   }
 
   return (
@@ -153,7 +130,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             setEnrollOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
         >
           + Enroll student
         </button>
@@ -167,7 +144,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {enrollOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Enroll student</h4>
@@ -191,7 +168,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               </button>
             </header>
 
-            <div className="mb-3 flex items-center gap-3 text-xs">
+            <div className="mb-3 flex flex-col gap-2 text-xs sm:flex-row sm:items-center">
               <input
                 type="search"
                 value={searchTerm}
@@ -235,9 +212,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                       onClick={() => handleEnrollStudent(p)}
                     >
                       <div>
-                        <p className="font-medium text-slate-900">
-                          {p.full_name ?? p.email}
-                        </p>
+                        <p className="font-medium text-slate-900">{p.full_name ?? p.email}</p>
                         <p className="text-[11px] text-slate-500">{p.email}</p>
                       </div>
                       <span className="text-[11px] text-indigo-600">Enroll</span>
@@ -247,16 +222,14 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               )}
             </div>
 
-            {saving && (
-              <p className="mt-2 text-[11px] text-slate-500">Saving enrollment…</p>
-            )}
+            {saving && <p className="mt-2 text-[11px] text-slate-500">Saving enrollment…</p>}
           </div>
         </div>
       )}
 
       {editingEnrollment && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto rounded-xl bg-white shadow-xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Edit student</h4>
@@ -278,7 +251,10 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               <p className="text-[11px] text-slate-500">{editingEnrollment.student_email}</p>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <form
+              onSubmit={handleSaveEdit}
+              className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs"
+            >
               <div>
                 <label className="block font-medium text-slate-700">
                   Status
@@ -329,7 +305,8 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
         <p className="text-xs text-slate-500">Loading students…</p>
       ) : students.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-          No students enrolled yet for <span className="font-medium text-slate-700">{className}</span>.
+          No students enrolled yet for{' '}
+          <span className="font-medium text-slate-700">{className}</span>.
         </div>
       ) : (
         <div className="rounded-lg border border-slate-200 overflow-hidden">
@@ -359,7 +336,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                       type="button"
                       onClick={e => {
                         e.stopPropagation()
-                        handleRemove(s.id)
+                        handleRemove(s.id, s.student_name)
                       }}
                       className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
                     >
@@ -375,4 +352,3 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     </section>
   )
 }
-

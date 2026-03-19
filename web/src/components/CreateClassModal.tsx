@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/apiClient'
 import { PROVINCES } from '../types'
 import type { Province } from '../types'
 
@@ -30,9 +30,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
       setError('Class name is required.')
       return
     }
-    // Disallow characters that can interfere with URLs or slugs
     if (/[.,?/#\\]/.test(trimmedName)) {
-      setError('Class name cannot contain characters like . , ? / or \\\\')
+      setError('Class name cannot contain characters like . , ? / or \\')
       return
     }
     if (!site.trim()) {
@@ -49,42 +48,23 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
     }
 
     setLoading(true)
-    // Enforce unique class names
-    const { data: existing, error: existingError } = await supabase
-      .from('classes')
-      .select('id')
-      .eq('name', trimmedName)
-      .limit(1)
-
-    if (existingError) {
+    try {
+      await api.classes.create({
+        name: trimmedName,
+        site: site.trim(),
+        province,
+        game_type: gameType.trim() || null,
+        start_date: startDate,
+        end_date: endDate,
+        description: description.trim() || null,
+      })
+      onSuccess()
+      onClose()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
       setLoading(false)
-      setError(existingError.message)
-      return
     }
-
-    if (existing && existing.length > 0) {
-      setLoading(false)
-      setError('A class with this name already exists. Please choose a different name.')
-      return
-    }
-
-    const { error: err } = await supabase.from('classes').insert({
-      name: trimmedName,
-      site: site.trim(),
-      province,
-      game_type: gameType.trim() || null,
-      start_date: startDate,
-      end_date: endDate,
-      description: description.trim() || null,
-    })
-
-    setLoading(false)
-    if (err) {
-      setError(err.message)
-      return
-    }
-    onSuccess()
-    onClose()
   }
 
   return (

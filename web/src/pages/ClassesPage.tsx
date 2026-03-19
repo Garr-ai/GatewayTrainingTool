@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { api } from '../lib/apiClient'
 import type { Class } from '../types'
 import { CreateClassModal } from '../components/CreateClassModal'
 import { PROVINCES } from '../types'
@@ -10,20 +10,19 @@ export function ClassesPage() {
   const { email, signOut } = useAuth()
   const [classes, setClasses] = useState<Class[]>([])
   const [loading, setLoading] = useState(true)
+
   const [createOpen, setCreateOpen] = useState(false)
 
   async function fetchClasses() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('classes')
-      .select('*')
-      .order('start_date', { ascending: false })
-    setLoading(false)
-    if (error) {
-      console.error('fetchClasses error:', error.message)
-      return
+    try {
+      const data = await api.classes.list()
+      setClasses(data)
+    } catch (err) {
+      console.error('fetchClasses error:', (err as Error).message)
+    } finally {
+      setLoading(false)
     }
-    setClasses((data as Class[]) ?? [])
   }
 
   useEffect(() => {
@@ -116,10 +115,7 @@ export function ClassesPage() {
       </div>
 
       {createOpen && (
-        <CreateClassModal
-          onClose={() => setCreateOpen(false)}
-          onSuccess={fetchClasses}
-        />
+        <CreateClassModal onClose={() => setCreateOpen(false)} onSuccess={fetchClasses} />
       )}
     </div>
   )
