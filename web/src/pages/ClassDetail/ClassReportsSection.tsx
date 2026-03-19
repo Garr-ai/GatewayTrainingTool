@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/apiClient'
+import type { ReportPdfArgs } from '../../lib/reportPdf'
+import { ReportPreviewModal } from '../../components/ReportPreviewModal'
 import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
@@ -45,6 +47,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [timelineItems, setTimelineItems] = useState<ClassDailyReportTimelineItem[]>([])
   const [progressRows, setProgressRows] = useState<ClassDailyReportTraineeProgress[]>([])
   const [reportSaving, setReportSaving] = useState(false)
+  const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  const dragIndexRef = useRef<number | null>(null)
 
   // Logged hours form
   const [hoursFormOpen, setHoursFormOpen] = useState(false)
@@ -177,6 +181,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
         dex_rating: row.dex_rating,
         hom_rating: row.hom_rating,
         coming_back_next_day: row.coming_back_next_day ?? false,
+        homework_completed: row.homework_completed ?? false,
       })),
     }
 
@@ -196,9 +201,19 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   }
 
   async function handleRemoveReport(id: string) {
+    if (!window.confirm('Remove this report? This cannot be undone.')) return
     try {
       await api.reports.delete(id)
       loadReports()
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  async function handleViewPdf(r: ClassDailyReport) {
+    try {
+      const full = await api.reports.get(r.id)
+      setPreviewArgs({ report: full, className, trainers, enrollments })
     } catch (err) {
       setError((err as Error).message)
     }
@@ -305,6 +320,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   }
 
   return (
+    <>
     <section className="space-y-4">
       {error && (
         <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
@@ -325,7 +341,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
             <button
               type="button"
               onClick={openAddReport}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
             >
               + Add daily report
             </button>
@@ -613,6 +629,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                       <table className="min-w-full text-[11px]">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
+                            <th className="px-2 py-1 w-6" />
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
                               Start–end
                             </th>
@@ -630,7 +647,27 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                         </thead>
                         <tbody>
                           {timelineItems.map((item, index) => (
-                            <tr key={item.id} className="border-b border-slate-100">
+                            <tr
+                              key={item.id}
+                              draggable
+                              onDragStart={() => { dragIndexRef.current = index }}
+                              onDragOver={e => e.preventDefault()}
+                              onDrop={() => {
+                                const from = dragIndexRef.current
+                                if (from === null || from === index) return
+                                setTimelineItems(prev => {
+                                  const next = [...prev]
+                                  const [moved] = next.splice(from, 1)
+                                  next.splice(index, 0, moved)
+                                  return next
+                                })
+                                dragIndexRef.current = null
+                              }}
+                              className="border-b border-slate-100 hover:bg-slate-50"
+                            >
+                              <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-400 select-none">
+                                ⠿
+                              </td>
                               <td className="px-2 py-1">
                                 <div className="flex gap-1">
                                   <input
@@ -752,6 +789,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                             coming_back_next_day:
                               progressRows.find(p => p.enrollment_id === enr.id)
                                 ?.coming_back_next_day ?? true,
+                            homework_completed:
+                              progressRows.find(p => p.enrollment_id === enr.id)
+                                ?.homework_completed ?? false,
                             created_at: new Date().toISOString(),
                           })),
                         )
@@ -781,7 +821,10 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                               Ratings (GK / Dex / HoM)
                             </th>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Coming back next day?
+                              Coming back?
+                            </th>
+                            <th className="px-2 py-1 text-left font-medium text-slate-900">
+                              HW done?
                             </th>
                           </tr>
                         </thead>
@@ -858,6 +901,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                     <span>Yes</span>
                                   </label>
                                 </td>
+                                <td className="px-2 py-1 align-top">
+                                  <label className="inline-flex items-center gap-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={row.homework_completed ?? false}
+                                      onChange={e =>
+                                        updateRow({ homework_completed: e.target.checked })
+                                      }
+                                    />
+                                    <span>Yes</span>
+                                  </label>
+                                </td>
                               </tr>
                             )
                           })}
@@ -878,7 +933,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   <button
                     type="submit"
                     disabled={reportSaving}
-                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500 disabled:opacity-60"
+                    className="rounded-md bg-gw-blue px-3 py-1.5 text-white hover:bg-gw-blue-hover disabled:opacity-60"
                   >
                     {reportSaving ? 'Saving…' : editingReport ? 'Save changes' : 'Add report'}
                   </button>
@@ -906,26 +961,35 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </thead>
                 <tbody>
                   {reports.map(r => (
-                    <tr
-                      key={r.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                      onClick={() => openEditReport(r)}
-                    >
+                    <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-2 text-slate-900">{r.report_date}</td>
                       <td className="px-3 py-2 text-slate-600">{r.group_label ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{r.session_label ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-600">{r.game ?? '—'}</td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation()
-                            handleRemoveReport(r.id)
-                          }}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditReport(r)}
+                            className="rounded-md border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleViewPdf(r)}
+                            className="rounded-md border border-gw-blue px-2 py-1 text-gw-blue hover:bg-blue-50"
+                          >
+                            View PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveReport(r.id)}
+                            className="rounded-md border border-rose-200 px-2 py-1 text-rose-600 hover:bg-rose-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1071,7 +1135,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   <button
                     type="submit"
                     disabled={hoursSaving}
-                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500 disabled:opacity-60"
+                    className="rounded-md bg-gw-blue px-3 py-1.5 text-white hover:bg-gw-blue-hover disabled:opacity-60"
                   >
                     {hoursSaving ? 'Saving…' : editingHours ? 'Save changes' : 'Log hours'}
                   </button>
@@ -1129,5 +1193,10 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
         </div>
       )}
     </section>
+
+    {previewArgs && (
+      <ReportPreviewModal args={previewArgs} onClose={() => setPreviewArgs(null)} />
+    )}
+    </>
   )
 }

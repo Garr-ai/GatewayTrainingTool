@@ -69,6 +69,7 @@ interface ProgressRowInput {
   dex_rating: DailyRating | null
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
+  homework_completed: boolean
 }
 
 interface ReportBody {
@@ -94,7 +95,10 @@ interface ReportBody {
 
 export const api = {
   classes: {
-    list: () => req<Class[]>('/classes'),
+    list: (params?: { archived?: boolean }) => {
+      const qs = params?.archived !== undefined ? `?archived=${params.archived}` : ''
+      return req<Class[]>(`/classes${qs}`)
+    },
     getByName: (name: string) =>
       req<Class>(`/classes/by-name/${encodeURIComponent(name)}`),
     get: (id: string) => req<Class>(`/classes/${id}`),
@@ -109,6 +113,10 @@ export const api = {
     }) => req<Class>('/classes', { method: 'POST', body: JSON.stringify(body) }),
     update: (id: string, body: Partial<Class>) =>
       req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    archive: (id: string) =>
+      req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify({ archived: true }) }),
+    unarchive: (id: string) =>
+      req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify({ archived: false }) }),
     delete: (id: string) => req<void>(`/classes/${id}`, { method: 'DELETE' }),
   },
 
@@ -171,6 +179,7 @@ export const api = {
   },
 
   schedule: {
+    listAll: () => req<(ClassScheduleSlot & { classes: { id: string; name: string; site: string } })[]>('/schedule'),
     list: (classId: string) => req<ClassScheduleSlot[]>(`/classes/${classId}/schedule`),
     create: (
       classId: string,
@@ -193,6 +202,7 @@ export const api = {
   },
 
   reports: {
+    listAll: () => req<(ClassDailyReport & { classes: { id: string; name: string; site: string } })[]>('/reports'),
     list: (classId: string) => req<ClassDailyReport[]>(`/classes/${classId}/reports`),
     get: (id: string) => req<ReportWithNested>(`/reports/${id}`),
     create: (classId: string, body: ReportBody) =>

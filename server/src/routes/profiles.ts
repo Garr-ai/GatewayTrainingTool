@@ -39,7 +39,9 @@ profilesRouter.get('/profiles', async (req: Request, res: Response, next: NextFu
     }
 
     if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
+      // Strip characters that could abuse PostgREST's .or() DSL, then cap length
+      const safeSearch = search.replace(/[(),"'\\]/g, '').slice(0, 100)
+      query = query.or(`full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`)
     } else {
       query = query.limit(25)
     }

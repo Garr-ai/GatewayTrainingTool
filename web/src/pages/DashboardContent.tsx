@@ -12,11 +12,6 @@ export function DashboardContent() {
           <p className="mt-0.5 text-xs text-slate-500">Coordinator overview</p>
         </div>
         <div className="flex items-center gap-3">
-          <input
-            type="search"
-            className="hidden sm:block rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 min-w-[220px]"
-            placeholder="Search students or classes..."
-          />
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-slate-500">Coordinator</span>
             <span className="text-xs text-slate-800">{email}</span>
@@ -43,7 +38,7 @@ export function DashboardContent() {
       <section className="mt-2 rounded-xl bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-semibold text-slate-900">Active classes</h3>
-          <Link to="/classes" className="text-xs font-medium text-indigo-600 hover:underline">View all</Link>
+          <Link to="/classes" className="text-xs font-medium text-gw-blue hover:underline">View all</Link>
         </div>
         <p className="text-xs text-slate-500">Active class details will appear here.</p>
       </section>

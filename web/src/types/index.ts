@@ -20,6 +20,7 @@ export interface Class {
   start_date: string
   end_date: string
   description: string | null
+  archived: boolean
   created_at: string
   updated_at: string
 }
@@ -119,6 +120,7 @@ export interface ClassDailyReportTraineeProgress {
   dex_rating: DailyRating | null
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
+  homework_completed: boolean
   created_at: string
 }
 

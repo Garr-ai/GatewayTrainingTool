@@ -70,7 +70,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="mb-4 flex items-start justify-between gap-4">
+      <header className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{classData.name}</h2>
           <p className="mt-0.5 text-xs text-slate-500">
@@ -91,8 +91,8 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         </div>
       </header>
 
-      <div className="flex-shrink-0 border-b border-slate-200 mb-3">
-        <nav className="-mb-px flex gap-2 text-xs" aria-label="Class detail sections">
+      <div className="flex-shrink-0 border-b border-slate-200 mb-3 overflow-x-auto">
+        <nav className="-mb-px flex gap-2 text-xs whitespace-nowrap" aria-label="Class detail sections">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -100,8 +100,8 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`inline-flex items-center rounded-t-lg border-b-2 px-3 py-2 font-medium ${
                 activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-600 bg-slate-50'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  ? 'border-gw-blue text-gw-blue bg-blue-50'
+                  : 'border-transparent text-slate-500 hover:text-gw-dark hover:bg-slate-50'
               }`}
             >
               {tab.label}

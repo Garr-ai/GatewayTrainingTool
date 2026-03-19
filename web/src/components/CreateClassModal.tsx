@@ -67,6 +67,9 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
     }
   }
 
+  const inputClass =
+    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue'
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -95,7 +98,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. BJ-APR-01"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className={inputClass}
               required
             />
           </div>
@@ -111,7 +114,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
                 value={site}
                 onChange={e => setSite(e.target.value)}
                 placeholder="e.g. GVE, SLE, GVB"
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={inputClass}
               />
             </div>
             <div>
@@ -122,7 +125,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
                 id="class-province"
                 value={province}
                 onChange={e => setProvince(e.target.value as Province)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={inputClass}
               >
                 {PROVINCES.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -143,7 +146,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               value={gameType}
               onChange={e => setGameType(e.target.value)}
               placeholder="e.g. Blackjack, Poker"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className={inputClass}
             />
           </div>
 
@@ -157,7 +160,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={inputClass}
                 required
               />
             </div>
@@ -170,7 +173,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={inputClass}
                 required
               />
             </div>
@@ -186,7 +189,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               onChange={e => setDescription(e.target.value)}
               placeholder="Optional notes"
               rows={2}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className={inputClass}
             />
           </div>
 
@@ -207,7 +210,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+              className="rounded-lg bg-gw-blue px-4 py-2 text-sm font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
             >
               {loading ? 'Creating…' : 'Create class'}
             </button>

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/gtse8/GatewayTrainingTool -name .env* -o -name *.env)",
+      "Bash(grep -r \"innerHTML\\\\|dangerouslySetInnerHTML\" --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"res\\\\.json.*error\\\\|res\\\\.status.*error\" server/src --include=*.ts)",
+      "Bash(grep -n \"req\\\\.params\\\\|req\\\\.query\\\\|req\\\\.body\" server/src/routes/*.ts)",
+      "Bash(grep -n \"\\\\.or\\(\" server/src/routes/*.ts)"
+    ]
+  }
+}
