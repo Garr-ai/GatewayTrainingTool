@@ -1,1 +1,1 @@
-export { default } from './src/index'
+export { default } from '../server/src/index'

@@ -1,9 +1,9 @@
 {
-  "buildCommand": "cd web && npm install && npm run build && cd ../api && npm install",
+  "buildCommand": "npm install && cd web && npm install && npm run build",
   "outputDirectory": "web/dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "api/src/**"
+      "includeFiles": "server/src/**"
     }
   },
   "rewrites": [
