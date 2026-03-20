@@ -187,7 +187,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
     try {
       if (editingReport) {
-        await api.reports.update(editingReport.id, body)
+        await api.reports.update(classId, editingReport.id, body)
       } else {
         await api.reports.create(classId, body)
       }
@@ -203,7 +203,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   async function handleRemoveReport(id: string) {
     if (!window.confirm('Remove this report? This cannot be undone.')) return
     try {
-      await api.reports.delete(id)
+      await api.reports.delete(classId, id)
       loadReports()
     } catch (err) {
       setError((err as Error).message)
@@ -272,7 +272,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
     try {
       if (editingHours) {
-        await api.hours.update(editingHours.id, payload)
+        await api.hours.update(classId, editingHours.id, payload)
       } else {
         await api.hours.create(classId, payload)
       }
@@ -287,7 +287,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
   async function handleRemoveHours(id: string) {
     try {
-      await api.hours.delete(id)
+      await api.hours.delete(classId, id)
       loadHours()
     } catch (err) {
       setError((err as Error).message)

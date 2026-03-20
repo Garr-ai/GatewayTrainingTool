@@ -46,14 +46,15 @@ enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res
   }
 })
 
-// PUT /enrollments/:id
-enrollmentsRouter.put('/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
+// PUT /classes/:classId/enrollments/:id  — classId in path prevents cross-class modification (IDOR)
+enrollmentsRouter.put('/classes/:classId/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, group_label } = req.body
     const { data, error } = await supabase
       .from('class_enrollments')
       .update({ status, group_label: group_label ?? null })
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .select()
       .single()
     if (error) {
@@ -69,14 +70,14 @@ enrollmentsRouter.put('/enrollments/:id', async (req: Request, res: Response, ne
   }
 })
 
-// DELETE /enrollments/:id
-enrollmentsRouter.delete('/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /classes/:classId/enrollments/:id  — classId in path prevents cross-class deletion (IDOR)
+enrollmentsRouter.delete('/classes/:classId/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Verify the record exists before deleting so we can return a meaningful 404
     const { data: existing, error: fetchError } = await supabase
       .from('class_enrollments')
       .select('id')
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .single()
     if (fetchError || !existing) {
       res.status(404).json({ error: 'Enrollment not found' })

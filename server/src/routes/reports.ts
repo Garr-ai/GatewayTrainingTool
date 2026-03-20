@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
 
 export const reportsRouter = Router()
 
@@ -154,14 +155,23 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
       )
     }
 
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_daily_reports',
+      recordId: reportId,
+      metadata: { class_id: req.params.classId, report_date },
+      ipAddress: req.ip,
+    })
+
     res.status(201).json(report)
   } catch (err) {
     next(err)
   }
 })
 
-// PUT /reports/:id
-reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
+// PUT /classes/:classId/reports/:id  — classId in path prevents cross-class modification (IDOR)
+reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       report_date,
@@ -202,6 +212,7 @@ reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: Next
         override_live_hours_total: override_live_hours_total ?? null,
       })
       .eq('id', reportId)
+      .eq('class_id', req.params.classId)
       .select()
       .single()
     if (reportError) {
@@ -253,24 +264,44 @@ reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: Next
       )
     }
 
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_daily_reports',
+      recordId: reportId,
+      metadata: { class_id: req.params.classId, report_date },
+      ipAddress: req.ip,
+    })
+
     res.json(report)
   } catch (err) {
     next(err)
   }
 })
 
-// DELETE /reports/:id
-reportsRouter.delete('/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /classes/:classId/reports/:id  — classId in path prevents cross-class deletion (IDOR)
+reportsRouter.delete('/classes/:classId/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_daily_reports')
       .select('id')
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .single()
     if (fetchError || !existing) {
       res.status(404).json({ error: 'Report not found' })
       return
     }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_daily_reports',
+      recordId: req.params.id,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
+
     const { error } = await supabase.from('class_daily_reports').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()
