@@ -31,7 +31,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../../lib/apiClient'
+import { api, type ReportWithNested } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
 import type {
@@ -90,6 +90,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [reportSaving, setReportSaving] = useState(false)
   // Non-null when the coordinator clicks "View PDF" — triggers ReportPreviewModal
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
+  const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
   // Tracks the source row index during a timeline drag operation
   const dragIndexRef = useRef<number | null>(null)
 
@@ -161,6 +163,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
    */
   async function loadReportDetails(reportId: string) {
     const full = await api.reports.get(reportId)
+    // Cache so View PDF can reuse without re-fetching
+    reportCacheRef.current[reportId] = full
     setSelectedTrainerIds(full.trainer_ids)
     setTimelineItems(full.timeline)
     setProgressRows(full.progress)
@@ -284,7 +288,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
    */
   async function handleViewPdf(r: ClassDailyReport) {
     try {
-      const full = await api.reports.get(r.id)
+      // Use cached report detail if available (e.g. from a recent edit), otherwise fetch
+      const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
+      reportCacheRef.current[r.id] = full
       setPreviewArgs({ report: full, className, trainers, enrollments })
     } catch (err) {
       setError((err as Error).message)

@@ -141,30 +141,29 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         </nav>
       </div>
 
+      {/* All tabs stay mounted (hidden via CSS) so switching tabs doesn't re-fetch data */}
       <div className="flex-1 min-h-0 overflow-auto">
-        {activeTab === 'overview' && <ClassOverviewSection classData={classData} />}
-        {activeTab === 'drills' && (
+        <div className={activeTab === 'overview' ? '' : 'hidden'}>
+          <ClassOverviewSection classData={classData} />
+        </div>
+        <div className={activeTab === 'drills' ? '' : 'hidden'}>
           <ClassDrillsSection classId={classData.id} className={classData.name} />
-        )}
-        {activeTab === 'schedule' && (
+        </div>
+        <div className={activeTab === 'schedule' ? '' : 'hidden'}>
           <ClassScheduleSection classId={classData.id} className={classData.name} />
-        )}
-        {activeTab === 'trainers' && (
+        </div>
+        <div className={activeTab === 'trainers' ? '' : 'hidden'}>
           <ClassTrainersSection classId={classData.id} className={classData.name} />
-        )}
-        {activeTab === 'students' && (
+        </div>
+        <div className={activeTab === 'students' ? '' : 'hidden'}>
           <ClassStudentsSection classId={classData.id} className={classData.name} />
-        )}
-        {activeTab === 'dailyReports' && (
-          <ClassReportsSection
-            classId={classData.id}
-            className={classData.name}
-            mode="reports"
-          />
-        )}
-        {activeTab === 'hours' && (
+        </div>
+        <div className={activeTab === 'dailyReports' ? '' : 'hidden'}>
+          <ClassReportsSection classId={classData.id} className={classData.name} mode="reports" />
+        </div>
+        <div className={activeTab === 'hours' ? '' : 'hidden'}>
           <ClassReportsSection classId={classData.id} className={classData.name} mode="hours" />
-        )}
+        </div>
       </div>
     </div>
   )
