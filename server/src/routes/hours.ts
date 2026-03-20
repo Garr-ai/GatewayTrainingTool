@@ -104,7 +104,7 @@ hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Respons
       userId: req.userId!,
       action: 'UPDATE',
       tableName: 'class_logged_hours',
-      recordId: req.params.id,
+      recordId: req.params.id as string,
       metadata: { class_id: req.params.classId, hours, paid, person_type },
       ipAddress: req.ip,
     })
@@ -133,7 +133,7 @@ hoursRouter.delete('/classes/:classId/hours/:id', async (req: Request, res: Resp
       userId: req.userId!,
       action: 'DELETE',
       tableName: 'class_logged_hours',
-      recordId: req.params.id,
+      recordId: req.params.id as string,
       metadata: { class_id: req.params.classId },
       ipAddress: req.ip,
     })

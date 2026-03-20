@@ -192,7 +192,7 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
       progress = [],
     } = req.body
 
-    const reportId = req.params.id
+    const reportId = req.params.id as string
 
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
@@ -297,7 +297,7 @@ reportsRouter.delete('/classes/:classId/reports/:id', async (req: Request, res: 
       userId: req.userId!,
       action: 'DELETE',
       tableName: 'class_daily_reports',
-      recordId: req.params.id,
+      recordId: req.params.id as string,
       metadata: { class_id: req.params.classId },
       ipAddress: req.ip,
     })

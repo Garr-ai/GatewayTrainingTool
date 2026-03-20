@@ -25,7 +25,7 @@ classesRouter.get('/classes/by-name/:name', async (req: Request, res: Response, 
     const { data, error } = await supabase
       .from('classes')
       .select('*')
-      .eq('name', decodeURIComponent(req.params.name))
+      .eq('name', decodeURIComponent(req.params.name as string))
       .single()
     if (error) {
       if (error.code === 'PGRST116') {
