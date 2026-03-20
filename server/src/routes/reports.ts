@@ -204,7 +204,13 @@ reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: Next
       .eq('id', reportId)
       .select()
       .single()
-    if (reportError) throw reportError
+    if (reportError) {
+      if (reportError.code === 'PGRST116') {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      throw reportError
+    }
 
     // Replace all nested data
     await supabase.from('class_daily_report_trainers').delete().eq('report_id', reportId)
@@ -256,6 +262,15 @@ reportsRouter.put('/reports/:id', async (req: Request, res: Response, next: Next
 // DELETE /reports/:id
 reportsRouter.delete('/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_daily_reports')
+      .select('id')
+      .eq('id', req.params.id)
+      .single()
+    if (fetchError || !existing) {
+      res.status(404).json({ error: 'Report not found' })
+      return
+    }
     const { error } = await supabase.from('class_daily_reports').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()
