@@ -24,10 +24,18 @@ profilesRouter.get('/profiles/me', async (req: Request, res: Response, next: Nex
   }
 })
 
+const VALID_ROLES = new Set(['coordinator', 'trainer', 'trainee'])
+
 // GET /profiles?role=xxx&search=xxx
 profilesRouter.get('/profiles', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { role, search } = req.query as { role?: string; search?: string }
+
+    // Whitelist the role parameter to prevent unexpected filter injection
+    if (role !== undefined && !VALID_ROLES.has(role)) {
+      res.status(400).json({ error: 'Invalid role value' })
+      return
+    }
 
     let query = supabase
       .from('profiles')
