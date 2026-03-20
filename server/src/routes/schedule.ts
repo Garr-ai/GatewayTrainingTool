@@ -61,8 +61,8 @@ scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Resp
   }
 })
 
-// PUT /schedule/:id
-scheduleRouter.put('/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
+// PUT /classes/:classId/schedule/:id  — classId in path prevents cross-class modification (IDOR)
+scheduleRouter.put('/classes/:classId/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slot_date, start_time, end_time, notes, trainer_id, group_label } = req.body
     const { data, error } = await supabase
@@ -76,18 +76,35 @@ scheduleRouter.put('/schedule/:id', async (req: Request, res: Response, next: Ne
         group_label: group_label ?? null,
       })
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Schedule slot not found' })
+        return
+      }
+      throw error
+    }
     res.json(data)
   } catch (err) {
     next(err)
   }
 })
 
-// DELETE /schedule/:id
-scheduleRouter.delete('/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /classes/:classId/schedule/:id  — classId in path prevents cross-class deletion (IDOR)
+scheduleRouter.delete('/classes/:classId/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_schedule_slots')
+      .select('id')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (fetchError || !existing) {
+      res.status(404).json({ error: 'Schedule slot not found' })
+      return
+    }
     const { error } = await supabase.from('class_schedule_slots').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

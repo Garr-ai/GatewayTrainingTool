@@ -10,6 +10,11 @@ declare global {
   }
 }
 
+// Roles that can access payroll and background check data.
+// Add 'payroll_admin' to a user's profile.role in the DB to grant access.
+// Do NOT reuse the general 'coordinator' role for financial/HR data.
+const PAYROLL_ROLES = new Set(['payroll_admin'])
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
@@ -41,6 +46,23 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 export function requireCoordinator(req: Request, res: Response, next: NextFunction): void {
   if (req.userRole !== 'coordinator') {
     res.status(403).json({ error: 'Coordinator access required' })
+    return
+  }
+  next()
+}
+
+/**
+ * Gate for payroll and background check endpoints.
+ * Apply this INSTEAD OF (not in addition to) requireCoordinator on sensitive financial/HR routes.
+ *
+ * Example:
+ *   router.get('/payroll', requireAuth, requirePayrollAdmin, payrollHandler)
+ *
+ * To grant access: set profile.role = 'payroll_admin' in Supabase for the user.
+ */
+export function requirePayrollAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!PAYROLL_ROLES.has(req.userRole ?? '')) {
+    res.status(403).json({ error: 'Payroll admin access required' })
     return
   }
   next()

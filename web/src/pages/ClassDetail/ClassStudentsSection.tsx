@@ -92,7 +92,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     if (!editingEnrollment) return
     setError(null)
     try {
-      await api.enrollments.update(editingEnrollment.id, {
+      await api.enrollments.update(classId, editingEnrollment.id, {
         status: editStatus,
         group_label: editGroupLabel.trim() || null,
       })
@@ -107,7 +107,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   async function handleRemove(id: string, name: string) {
     if (!window.confirm(`Remove ${name} from this class?`)) return
     try {
-      await api.enrollments.delete(id)
+      await api.enrollments.delete(classId, id)
       loadStudents()
     } catch (err) {
       console.error('removeEnrollment error:', (err as Error).message)
