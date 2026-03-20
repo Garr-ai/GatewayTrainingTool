@@ -116,7 +116,13 @@ classesRouter.put('/classes/:id', async (req: Request, res: Response, next: Next
       .eq('id', req.params.id)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Class not found' })
+        return
+      }
+      throw error
+    }
     res.json(data)
   } catch (err) {
     next(err)
@@ -126,6 +132,15 @@ classesRouter.put('/classes/:id', async (req: Request, res: Response, next: Next
 // DELETE /classes/:id
 classesRouter.delete('/classes/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('id', req.params.id)
+      .single()
+    if (fetchError || !existing) {
+      res.status(404).json({ error: 'Class not found' })
+      return
+    }
     const { error } = await supabase.from('classes').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

@@ -56,7 +56,13 @@ enrollmentsRouter.put('/enrollments/:id', async (req: Request, res: Response, ne
       .eq('id', req.params.id)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Enrollment not found' })
+        return
+      }
+      throw error
+    }
     res.json(data)
   } catch (err) {
     next(err)
@@ -66,6 +72,16 @@ enrollmentsRouter.put('/enrollments/:id', async (req: Request, res: Response, ne
 // DELETE /enrollments/:id
 enrollmentsRouter.delete('/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Verify the record exists before deleting so we can return a meaningful 404
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_enrollments')
+      .select('id')
+      .eq('id', req.params.id)
+      .single()
+    if (fetchError || !existing) {
+      res.status(404).json({ error: 'Enrollment not found' })
+      return
+    }
     const { error } = await supabase.from('class_enrollments').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

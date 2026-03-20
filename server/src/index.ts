@@ -3,9 +3,11 @@ import express from 'express'
 import cors from 'cors'
 import { router } from './routes'
 import { errorHandler } from './middleware/error'
+import { securityHeaders } from './middleware/security'
 
 const app = express()
 
+app.use(securityHeaders)
 app.use(
   cors({
     origin: process.env.NODE_ENV === 'production'
@@ -14,7 +16,8 @@ app.use(
     credentials: true,
   }),
 )
-app.use(express.json())
+// Explicit body size limit — prevents request body attacks; adjust if you need larger payloads
+app.use(express.json({ limit: '50kb' }))
 app.use('/api', router)
 app.use(errorHandler)
 
