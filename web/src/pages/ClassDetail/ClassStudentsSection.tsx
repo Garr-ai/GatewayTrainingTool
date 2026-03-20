@@ -1,29 +1,59 @@
+/**
+ * pages/ClassDetail/ClassStudentsSection.tsx — Student enrollment management tab
+ *
+ * Allows coordinators to enroll trainees in a class, update their enrollment
+ * status, assign them to a competency group, and remove them.
+ *
+ * Follows the same pattern as ClassTrainersSection:
+ *   1. "Enroll student" button opens a search modal querying role="trainee" profiles
+ *   2. Already-enrolled students are filtered out by email
+ *   3. On click, a `class_enrollments` record is created with the selected status and group
+ *   4. Clicking a student row opens an edit modal to change status or group
+ *
+ * Groups (A, B, C etc.) are used to split students into concurrent training sub-groups
+ * that can be assigned to different schedule slots and trainers.
+ *
+ * Enrollment statuses:
+ *   enrolled  — Currently active in the class
+ *   waitlist  — Waiting for a spot to open
+ *   dropped   — Has left the class (record kept for history)
+ *
+ * The `saving` state is shown inside the search modal while the enrollment
+ * API call is in flight, since the modal stays open for batch enrollments.
+ */
+
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/apiClient'
 import type { ClassEnrollment, EnrollmentStatus, Profile } from '../../types'
 
 interface ClassStudentsSectionProps {
-  classId: string
-  className: string
+  classId: string   // UUID of the class
+  className: string // Display name — used in the empty-state message
 }
 
 export function ClassStudentsSection({ classId, className }: ClassStudentsSectionProps) {
   const [students, setStudents] = useState<ClassEnrollment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Controls the enroll-student search modal
   const [enrollOpen, setEnrollOpen] = useState(false)
+  // Status and group to assign when enrolling from the search modal
   const [status, setStatus] = useState<EnrollmentStatus>('enrolled')
   const [groupLabel, setGroupLabel] = useState('')
+  // True while the enrollment create API call is in flight
   const [saving, setSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Pick<Profile, 'id' | 'full_name' | 'email'>[]>(
     [],
   )
   const [searchLoading, setSearchLoading] = useState(false)
+  // Set when a student row is clicked to open the edit modal
   const [editingEnrollment, setEditingEnrollment] = useState<ClassEnrollment | null>(null)
+  // Edit form field state
   const [editStatus, setEditStatus] = useState<EnrollmentStatus>('enrolled')
   const [editGroupLabel, setEditGroupLabel] = useState('')
 
+  /** Loads all enrollments for the class (all statuses). */
   async function loadStudents() {
     setLoading(true)
     setError(null)
@@ -43,6 +73,10 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     loadStudents()
   }, [classId])
 
+  /**
+   * Searches for trainee profiles matching the search term.
+   * Filters out already-enrolled students by email to prevent duplicates.
+   */
   async function searchProfiles(term: string) {
     setSearchLoading(true)
     setError(null)
@@ -59,6 +93,11 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     }
   }
 
+  /**
+   * Creates an enrollment record for the selected profile.
+   * Uses the `status` and `groupLabel` from the search modal controls.
+   * Refreshes both the student list and search results after enrollment.
+   */
   async function handleEnrollStudent(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setSaving(true)
     setError(null)
@@ -69,6 +108,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
         status,
         group_label: groupLabel.trim() || null,
       })
+      // Reset to defaults for the next enrollment in the same modal session
       setStatus('enrolled')
       setGroupLabel('')
       await loadStudents()
@@ -81,12 +121,14 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     }
   }
 
+  /** Pre-fills the edit modal with the selected enrollment's current values. */
   function openEditStudent(enrollment: ClassEnrollment) {
     setEditingEnrollment(enrollment)
     setEditStatus(enrollment.status)
     setEditGroupLabel(enrollment.group_label ?? '')
   }
 
+  /** Saves changes to an existing enrollment (status and/or group label). */
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editingEnrollment) return
@@ -104,6 +146,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     }
   }
 
+  /** Removes a student's enrollment from this class after confirmation. */
   async function handleRemove(id: string, name: string) {
     if (!window.confirm(`Remove ${name} from this class?`)) return
     try {
@@ -130,7 +173,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             setEnrollOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-gw-blue px-3 py-2 text-xs font-medium text-white hover:bg-gw-blue-hover"
         >
           + Enroll student
         </button>
@@ -291,7 +334,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-500"
+                  className="rounded-md bg-gw-blue px-3 py-1.5 text-[11px] font-medium text-white hover:bg-gw-blue-hover"
                 >
                   Save changes
                 </button>

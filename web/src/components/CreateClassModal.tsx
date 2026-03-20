@@ -1,27 +1,51 @@
+/**
+ * components/CreateClassModal.tsx — Modal form for creating a new training class
+ *
+ * Renders a modal dialog with a form containing all required and optional fields
+ * for a new class. On successful creation, calls `onSuccess` (which typically
+ * re-fetches the class list) and then calls `onClose`.
+ *
+ * Validation rules (client-side, mirrored on the backend):
+ *   - Class name is required and must not contain `. , ? / \` characters
+ *     (these break the URL slug system used to navigate to class detail pages)
+ *   - Site and province are required
+ *   - Both start and end dates are required, and end must be >= start
+ *
+ * The modal uses ARIA attributes (role="dialog", aria-modal, aria-labelledby)
+ * for accessibility.
+ */
+
 import { useState } from 'react'
 import { api } from '../lib/apiClient'
 import { PROVINCES } from '../types'
 import type { Province } from '../types'
 
 interface CreateClassModalProps {
-  onClose: () => void
-  onSuccess: () => void
+  onClose: () => void    // Called when the user cancels or after successful creation
+  onSuccess: () => void  // Called after the class is created so the parent can refresh its list
 }
 
 export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) {
   const [name, setName] = useState('')
   const [site, setSite] = useState('')
+  // Province defaults to BC — the most common training location
   const [province, setProvince] = useState<Province>('BC')
   const [gameType, setGameType] = useState('')
+  // Start date defaults to today so the coordinator only needs to adjust end date
   const [startDate, setStartDate] = useState(() => {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
   const [endDate, setEndDate] = useState('')
   const [description, setDescription] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)  // True while the API call is in flight
+  const [error, setError] = useState('')          // Validation or API error shown to the user
 
+  /**
+   * Validates the form and POSTs a new class to the API.
+   * Calls onSuccess (to refresh the class list) then onClose on success.
+   * On error, sets the `error` state which renders an alert inside the form.
+   */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -30,6 +54,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
       setError('Class name is required.')
       return
     }
+    // Disallow characters that would break the URL slug (classSlug in utils.ts
+    // converts spaces to hyphens; these characters cause ambiguity or broken URLs)
     if (/[.,?/#\\]/.test(trimmedName)) {
       setError('Class name cannot contain characters like . , ? / or \\')
       return

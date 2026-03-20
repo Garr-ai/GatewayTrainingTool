@@ -1,11 +1,40 @@
+/**
+ * server/src/middleware/auth.ts — Authentication and authorisation middleware
+ *
+ * Provides three Express middleware functions that protect API routes:
+ *
+ *   requireAuth
+ *     Validates the Bearer JWT from the Authorization header using Supabase's
+ *     `auth.getUser()`. On success, attaches `req.userId` and `req.userRole`
+ *     for downstream use. Returns 401 for missing/invalid tokens.
+ *     Also performs a DB lookup to attach the user's role, so downstream
+ *     middleware doesn't need an additional DB call.
+ *
+ *   requireCoordinator
+ *     Checks that `req.userRole === 'coordinator'`. Must be called AFTER
+ *     requireAuth (which sets req.userRole). Returns 403 for all other roles.
+ *     Used to gate all class management routes.
+ *
+ *   requirePayrollAdmin
+ *     A separate, stricter gate for future payroll/HR routes.
+ *     The 'payroll_admin' role is distinct from 'coordinator' so sensitive
+ *     financial data can be gated independently of general coordination access.
+ *
+ * Module augmentation:
+ *   The `declare global` block extends Express's Request type to include
+ *   `userId` and `userRole` properties, which TypeScript would otherwise
+ *   reject as unknown properties on `req`.
+ */
+
 import type { Request, Response, NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 
+// Extend Express Request type to include our custom auth properties
 declare global {
   namespace Express {
     interface Request {
-      userId?: string
-      userRole?: string
+      userId?: string    // Set by requireAuth — the Supabase user's UUID
+      userRole?: string  // Set by requireAuth — the user's role from the profiles table
     }
   }
 }
@@ -15,6 +44,15 @@ declare global {
 // Do NOT reuse the general 'coordinator' role for financial/HR data.
 const PAYROLL_ROLES = new Set(['payroll_admin'])
 
+/**
+ * Validates the Bearer JWT in the Authorization header.
+ * On success: attaches req.userId (UUID) and req.userRole (from profiles table).
+ * On failure: responds with 401 and stops the middleware chain.
+ *
+ * This middleware makes two DB calls per request:
+ *   1. supabase.auth.getUser(token)  — validates the JWT
+ *   2. profiles.select('role')       — fetches the role (not in the JWT claims)
+ */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
@@ -22,6 +60,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return
   }
 
+  // Strip the "Bearer " prefix to get the raw JWT
   const token = authHeader.slice(7)
   const { data, error } = await supabase.auth.getUser(token)
 
@@ -32,7 +71,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
   req.userId = data.user.id
 
-  // Attach role so downstream middleware can check it without an extra DB call
+  // Attach role so downstream middleware (requireCoordinator) doesn't need
+  // to make another DB call — one round-trip here covers all downstream checks
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -43,6 +83,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next()
 }
 
+/**
+ * Guards routes to coordinator-only access.
+ * Must be called after requireAuth (which sets req.userRole).
+ * Returns 403 for trainers, trainees, and unauthenticated requests.
+ */
 export function requireCoordinator(req: Request, res: Response, next: NextFunction): void {
   if (req.userRole !== 'coordinator') {
     res.status(403).json({ error: 'Coordinator access required' })

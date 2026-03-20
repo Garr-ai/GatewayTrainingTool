@@ -1,7 +1,20 @@
+/**
+ * pages/ClassDetail/ClassOverviewSection.tsx — Class overview summary tab
+ *
+ * The first tab shown when opening a class detail page. Displays the core
+ * class metadata in a three-column card grid:
+ *   1. Class details — name, site, province, game type, and date range
+ *   2. Trainers — placeholder (will show assigned trainers once wired up)
+ *   3. Students & schedule — placeholder for enrolment counts and next session
+ *
+ * This component is purely presentational — it receives the already-fetched
+ * `classData` object from ClassDetailPage and does no data fetching of its own.
+ */
+
 import type { Class } from '../../types'
 
 interface ClassOverviewSectionProps {
-  classData: Class
+  classData: Class  // The full class record (already fetched by ClassDetailPage)
 }
 
 export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {

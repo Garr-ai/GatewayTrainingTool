@@ -1,3 +1,20 @@
+/**
+ * pages/ClassesPage.tsx — Class management list page (coordinator only)
+ *
+ * Shows two tables:
+ *   1. Active classes — clickable rows that navigate to the class detail page
+ *   2. Archived classes — shown below with unarchive and delete actions
+ *
+ * Both lists are fetched in parallel on mount. Archive, unarchive, and delete
+ * actions refresh both lists via `fetchClasses()`.
+ *
+ * The "Create class" button opens the CreateClassModal, which calls
+ * `fetchClasses()` via `onSuccess` on successful creation.
+ *
+ * Navigation to a class detail page uses the `classSlug` utility to convert
+ * the class name to a URL-safe slug (e.g. "BJ APR 01" → "BJ-APR-01").
+ */
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
@@ -8,11 +25,17 @@ import { classSlug, provinceLabel } from '../lib/utils'
 
 export function ClassesPage() {
   const { email, signOut } = useAuth()
+  // Separate state arrays for active vs. archived classes
   const [active, setActive] = useState<Class[]>([])
   const [archived, setArchived] = useState<Class[]>([])
   const [loading, setLoading] = useState(true)
+  // Controls visibility of the CreateClassModal
   const [createOpen, setCreateOpen] = useState(false)
 
+  /**
+   * Fetches active and archived classes in parallel and updates state.
+   * Called on mount and after any create/archive/unarchive/delete action.
+   */
   async function fetchClasses() {
     setLoading(true)
     try {
@@ -35,7 +58,10 @@ export function ClassesPage() {
 
   const navigate = useNavigate()
 
-
+  /**
+   * Archives a class (soft-delete — it moves to the archived list).
+   * `e.stopPropagation()` prevents the row click from navigating to the class detail.
+   */
   async function handleArchive(c: Class, e: React.MouseEvent) {
     e.stopPropagation()
     if (!window.confirm(`Archive "${c.name}"? It will be hidden from the active list.`)) return
@@ -47,6 +73,7 @@ export function ClassesPage() {
     }
   }
 
+  /** Moves an archived class back to the active list. */
   async function handleUnarchive(c: Class) {
     try {
       await api.classes.unarchive(c.id)
@@ -56,6 +83,7 @@ export function ClassesPage() {
     }
   }
 
+  /** Permanently deletes a class. Only available for archived classes. */
   async function handleDelete(c: Class) {
     if (!window.confirm(`Permanently delete "${c.name}"? This cannot be undone.`)) return
     try {

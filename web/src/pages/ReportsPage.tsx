@@ -1,9 +1,26 @@
+/**
+ * pages/ReportsPage.tsx — Global daily reports list (coordinator only)
+ *
+ * Shows all daily reports across all classes in a single table, sorted by
+ * most recent report date. Clicking a row navigates to that class's detail page
+ * (the Daily Reports tab), not to a standalone report view.
+ *
+ * The API response includes a nested `classes` object (joined server-side) so
+ * the table can display the class name and site without additional requests.
+ *
+ * This page is accessible from the main sidebar navigation under "Reports".
+ */
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { ClassDailyReport } from '../types'
 import { classSlug } from '../lib/utils'
 
+/**
+ * Extends ClassDailyReport with the joined `classes` object returned by
+ * the listAll endpoint (GET /reports).
+ */
 type ReportRow = ClassDailyReport & { classes: { id: string; name: string; site: string } }
 
 export function ReportsPage() {
@@ -15,6 +32,7 @@ export function ReportsPage() {
     async function load() {
       try {
         const data = await api.reports.listAll()
+        // Cast is safe because listAll returns the joined shape (type is widened in apiClient)
         setReports(data as ReportRow[])
       } catch (err) {
         console.error('fetchReports error:', (err as Error).message)

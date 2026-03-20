@@ -1,3 +1,13 @@
+/**
+ * pages/SettingsContent.tsx — Settings page (coordinator only)
+ *
+ * Currently a placeholder page that shows the coordinator's email and a sign-out
+ * button. The full settings implementation (e.g. notification preferences, account
+ * management, user management) is pending.
+ *
+ * Accessed via the Settings link pinned to the bottom of CoordinatorLayout's sidebar.
+ */
+
 import { useAuth } from '../contexts/AuthContext'
 
 export function SettingsContent() {

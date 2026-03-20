@@ -1,3 +1,21 @@
+/*
+ * index.css — Global stylesheet
+ *
+ * This file is the primary CSS entry point for the Vite build. It contains
+ * only the three Tailwind CSS directives needed to inject:
+ *
+ *   @tailwind base      — Tailwind's base/reset styles (Preflight)
+ *   @tailwind components — Reusable component class layer (none defined here,
+ *                          but plugins can inject into this layer)
+ *   @tailwind utilities  — All utility classes (e.g. flex, text-sm, bg-white)
+ *
+ * All custom colour tokens (gw-blue, gw-dark, gw-darkest, etc.) are defined
+ * in `tailwind.config.js` and consumed here via the utilities layer.
+ *
+ * Do not add component-level styles here. Prefer Tailwind utility classes
+ * inline in TSX files, or extend the Tailwind config for design tokens.
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

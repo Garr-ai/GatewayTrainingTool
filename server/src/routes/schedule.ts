@@ -1,11 +1,43 @@
+/**
+ * server/src/routes/schedule.ts — Class schedule slot CRUD routes
+ *
+ * All routes require: authentication (via requireAuth in routes/index.ts)
+ *                     + coordinator role (via requireCoordinator in routes/index.ts)
+ *
+ * Routes:
+ *   GET    /schedule                              — List upcoming slots across ALL classes (global view)
+ *   GET    /classes/:classId/schedule             — List all slots for a specific class
+ *   POST   /classes/:classId/schedule             — Add a new schedule slot to a class
+ *   PUT    /classes/:classId/schedule/:id         — Update a schedule slot
+ *   DELETE /classes/:classId/schedule/:id         — Delete a schedule slot
+ *
+ * The global GET /schedule route is used by the dashboard to show upcoming training
+ * sessions across all classes in one place. It includes a joined `classes` object
+ * (id, name, site) for display purposes and is limited to the next 200 upcoming slots.
+ *
+ * Schedule slots can optionally reference a trainer (trainer_id) and a group label
+ * to filter which group of trainees the slot applies to.
+ *
+ * IDOR protection: the classId URL parameter is matched in all write queries
+ * so coordinators cannot modify slots belonging to a different class.
+ */
+
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 
 export const scheduleRouter = Router()
 
-// GET /schedule  (all upcoming slots across classes)
+/**
+ * GET /schedule
+ * Auth: coordinator
+ * Returns upcoming schedule slots across all classes, joined with the parent class's
+ * id, name, and site for display in a global calendar or dashboard.
+ * Filtered to slots on or after today to exclude past sessions.
+ * Sorted by date ascending then start_time ascending. Limited to 200 results.
+ */
 scheduleRouter.get('/schedule', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    // Compute today's date as an ISO string (YYYY-MM-DD) for the .gte() filter
     const today = new Date().toISOString().split('T')[0]
     const { data, error } = await supabase
       .from('class_schedule_slots')
@@ -21,7 +53,12 @@ scheduleRouter.get('/schedule', async (_req: Request, res: Response, next: NextF
   }
 })
 
-// GET /classes/:classId/schedule
+/**
+ * GET /classes/:classId/schedule
+ * Auth: coordinator
+ * Returns all schedule slots for a specific class (past and future), sorted by
+ * date and start_time ascending. Used to display the full schedule in ClassScheduleSection.
+ */
 scheduleRouter.get('/classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data, error } = await supabase
@@ -37,7 +74,12 @@ scheduleRouter.get('/classes/:classId/schedule', async (req: Request, res: Respo
   }
 })
 
-// POST /classes/:classId/schedule
+/**
+ * POST /classes/:classId/schedule
+ * Auth: coordinator
+ * Creates a new schedule slot for the class. `trainer_id`, `notes`, and
+ * `group_label` are optional. Returns 201 with the created slot record.
+ */
 scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slot_date, start_time, end_time, notes, trainer_id, group_label } = req.body
@@ -61,7 +103,13 @@ scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Resp
   }
 })
 
-// PUT /classes/:classId/schedule/:id  — classId in path prevents cross-class modification (IDOR)
+/**
+ * PUT /classes/:classId/schedule/:id
+ * Auth: coordinator
+ * Updates a schedule slot's fields. Both the slot UUID and classId are matched in
+ * the query (IDOR protection). Returns 404 if either doesn't match.
+ * Supabase error code PGRST116 = "no rows found".
+ */
 scheduleRouter.put('/classes/:classId/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { slot_date, start_time, end_time, notes, trainer_id, group_label } = req.body
@@ -92,7 +140,14 @@ scheduleRouter.put('/classes/:classId/schedule/:id', async (req: Request, res: R
   }
 })
 
-// DELETE /classes/:classId/schedule/:id  — classId in path prevents cross-class deletion (IDOR)
+/**
+ * DELETE /classes/:classId/schedule/:id
+ * Auth: coordinator
+ * Permanently deletes a schedule slot. Pre-fetches using both id and class_id to
+ * return a proper 404 (Supabase delete doesn't error on missing rows). The
+ * classId match also prevents cross-class deletion (IDOR protection).
+ * Returns 204 No Content on success.
+ */
 scheduleRouter.delete('/classes/:classId/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: existing, error: fetchError } = await supabase

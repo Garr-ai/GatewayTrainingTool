@@ -1,13 +1,37 @@
+/**
+ * lib/reportPdf.ts — Daily report HTML generator
+ *
+ * Produces a self-contained HTML string that represents a daily training report.
+ * The output is:
+ *   - Rendered inside an <iframe> in the ReportPreviewModal for in-browser preview
+ *   - Downloadable as an .html file via a Blob URL
+ *   - Printable using the browser's native print dialog (window.print())
+ *
+ * There is no server-side PDF rendering — the browser's "Print to PDF" feature
+ * is used instead, which keeps dependencies minimal and avoids Puppeteer/headless Chrome.
+ *
+ * The HTML includes inline <style> with @media print rules so the output
+ * looks clean when printed or saved to PDF.
+ *
+ * All user-supplied strings are HTML-escaped via `esc()` to prevent XSS in the preview.
+ */
+
 import type { ReportWithNested } from './apiClient'
 import type { ClassTrainer, ClassEnrollment } from '../types'
 
+/** Arguments passed to `generateReportHtml()`. */
 export interface ReportPdfArgs {
   report: ReportWithNested
   className: string
-  trainers: ClassTrainer[]
-  enrollments: ClassEnrollment[]
+  trainers: ClassTrainer[]   // Full trainer list for the class (used to resolve trainer names from IDs)
+  enrollments: ClassEnrollment[]  // Enrolled students (used to resolve student names from enrollment IDs)
 }
 
+/**
+ * Escapes a string for safe insertion into HTML content.
+ * Returns an em-dash ('—') for null/undefined values, which reads
+ * more naturally than "null" or "undefined" in a formatted report.
+ */
 function esc(v: string | null | undefined): string {
   if (v == null) return '—'
   return v
@@ -18,12 +42,25 @@ function esc(v: string | null | undefined): string {
     .replace(/'/g, '&#39;')
 }
 
+/**
+ * Generates a complete, standalone HTML document for a daily report.
+ *
+ * The trainer_ids array in the report contains `class_trainers.id` values;
+ * this function resolves them to display names by looking up in the `trainers` array.
+ * If a trainer ID cannot be resolved (e.g. was removed after the report was saved),
+ * the raw ID is used as a fallback.
+ *
+ * Similarly, progress rows reference `class_enrollments.id`; these are resolved
+ * to student names via the `enrollments` array.
+ */
 export function generateReportHtml({ report, className, trainers, enrollments }: ReportPdfArgs): string {
+  // Resolve trainer IDs to display names; fall back to ID if not found
   const trainerNames = report.trainer_ids.length
     ? report.trainer_ids.map(id => trainers.find(t => t.id === id)?.trainer_name ?? id).map(esc).join(', ')
     : '—'
 
   const fmt = esc
+  // Format nullable numbers as strings; show em-dash if null/undefined
   const fmtNum = (v: number | null | undefined) => (v != null ? String(v) : '—')
 
   const timelineRows = report.timeline.length

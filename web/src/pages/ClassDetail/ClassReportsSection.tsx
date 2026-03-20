@@ -1,3 +1,35 @@
+/**
+ * pages/ClassDetail/ClassReportsSection.tsx — Daily reports and logged hours tabs
+ *
+ * This is the most complex component in the app. It serves two tabs in ClassDetailPage
+ * via the `mode` prop:
+ *
+ *   mode="reports" — Daily Reports tab
+ *     Creates and edits daily training reports with three sections:
+ *       1. Header fields (date, group, game, session, time, M&G counts, trainee count, licenses)
+ *       2. Trainers for the day (checkboxes from the class trainers list)
+ *       3. Hours totals (auto-calculated from logged hours, with manual override fields)
+ *       4. Training timeline (drag-and-drop reorderable table of time blocks)
+ *       5. Per-trainee progress (ratings, homework, coming-back flag, notes for each student)
+ *     "View PDF" opens ReportPreviewModal with a formatted HTML report for print/download.
+ *
+ *   mode="hours" — Logged Hours tab
+ *     Simple CRUD interface for logging hours against trainers or students for payroll.
+ *     Hours are used by the reports tab to calculate training/paid/live totals.
+ *
+ * Shared state: both modes share the same loaded state (trainers, enrollments, reports,
+ * and hours are all loaded in a single Promise.all on mount) so switching tabs is instant.
+ *
+ * Timeline drag-and-drop:
+ *   Uses HTML5 drag events with `dragIndexRef` to track which row is being dragged.
+ *   On drop, the array is spliced to move the row to the new position.
+ *
+ * Hours totals computation:
+ *   `computedTotalsForDate(date)` sums all hours logged up to and including the
+ *   report's date. Override fields let the coordinator manually set these values
+ *   if the logged hours don't perfectly reflect reality (e.g. off-system hours).
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
@@ -14,22 +46,27 @@ import type {
 } from '../../types'
 
 interface ClassReportsSectionProps {
-  classId: string
-  className: string
-  mode: 'reports' | 'hours'
+  classId: string              // UUID of the class
+  className: string            // Display name used in empty states and PDF generation
+  mode: 'reports' | 'hours'   // Which tab this component is currently rendering
 }
 
 export function ClassReportsSection({ classId, className, mode }: ClassReportsSectionProps) {
+  // Shared data loaded for both tabs
   const [reports, setReports] = useState<ClassDailyReport[]>([])
   const [hours, setHours] = useState<ClassLoggedHours[]>([])
   const [trainers, setTrainers] = useState<ClassTrainer[]>([])
+  // Only enrolled students are loaded (waitlist/dropped are excluded from daily progress)
   const [enrollments, setEnrollments] = useState<ClassEnrollment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Daily report form
+  // ── Daily report form state ───────────────────────────────────────────────
+  // Controls the inline report form panel (shown above the reports table)
   const [reportFormOpen, setReportFormOpen] = useState(false)
+  // Null when adding a new report; set to the report being edited
   const [editingReport, setEditingReport] = useState<ClassDailyReport | null>(null)
+  // All report header fields stored as strings (numeric fields converted on save)
   const [reportDate, setReportDate] = useState('')
   const [reportGroup, setReportGroup] = useState('')
   const [reportGame, setReportGame] = useState('')
@@ -40,17 +77,23 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [mgAttended, setMgAttended] = useState('')
   const [currentTrainees, setCurrentTrainees] = useState('')
   const [licensesReceived, setLicensesReceived] = useState('')
+  // Override fields for hours totals — empty string means "use calculated value"
   const [overrideHoursToDate, setOverrideHoursToDate] = useState('')
   const [overridePaidHours, setOverridePaidHours] = useState('')
   const [overrideLiveHours, setOverrideLiveHours] = useState('')
+  // IDs of trainers selected via checkboxes for the "trainers for the day" section
   const [selectedTrainerIds, setSelectedTrainerIds] = useState<string[]>([])
+  // Timeline rows — the ordered list of training time blocks for the day
   const [timelineItems, setTimelineItems] = useState<ClassDailyReportTimelineItem[]>([])
+  // Per-trainee progress rows — one per enrolled student
   const [progressRows, setProgressRows] = useState<ClassDailyReportTraineeProgress[]>([])
   const [reportSaving, setReportSaving] = useState(false)
+  // Non-null when the coordinator clicks "View PDF" — triggers ReportPreviewModal
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  // Tracks the source row index during a timeline drag operation
   const dragIndexRef = useRef<number | null>(null)
 
-  // Logged hours form
+  // ── Logged hours form state ───────────────────────────────────────────────
   const [hoursFormOpen, setHoursFormOpen] = useState(false)
   const [editingHours, setEditingHours] = useState<ClassLoggedHours | null>(null)
   const [hoursDate, setHoursDate] = useState('')
@@ -76,11 +119,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setTrainers(data)
   }
 
+  /** Only loads students with status='enrolled' — waitlisted/dropped don't appear in reports. */
   async function loadEnrollments() {
     const data = await api.enrollments.list(classId, 'enrolled')
     setEnrollments(data)
   }
 
+  // Load all four datasets in parallel on mount to avoid waterfall requests
   useEffect(() => {
     setLoading(true)
     setError(null)
@@ -89,6 +134,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       .finally(() => setLoading(false))
   }, [classId])
 
+  /** Resets all report form fields to their empty defaults. */
   function resetReportForm() {
     setReportDate('')
     setReportGroup('')
@@ -108,6 +154,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setProgressRows([])
   }
 
+  /**
+   * Fetches the full report details (trainer_ids, timeline, progress) for editing.
+   * The list endpoint only returns the report header; nested data requires a
+   * separate GET /reports/:id call.
+   */
   async function loadReportDetails(reportId: string) {
     const full = await api.reports.get(reportId)
     setSelectedTrainerIds(full.trainer_ids)
@@ -115,12 +166,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setProgressRows(full.progress)
   }
 
+  /** Resets the form and opens it in "add new report" mode. */
   function openAddReport() {
     setEditingReport(null)
     resetReportForm()
     setReportFormOpen(true)
   }
 
+  /**
+   * Pre-fills the report form with an existing report's data and opens it in edit mode.
+   * Fetches nested data (timeline, progress) via a separate API call because the
+   * list endpoint does not include them.
+   */
   async function openEditReport(r: ClassDailyReport) {
     setEditingReport(r)
     setReportDate(r.report_date)
@@ -129,6 +186,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setReportSessionLabel(r.session_label ?? '')
     setReportStartTime(r.class_start_time ?? '')
     setReportEndTime(r.class_end_time ?? '')
+    // Convert nullable numbers to strings for controlled inputs
     setMgConfirmed(r.mg_confirmed?.toString() ?? '')
     setMgAttended(r.mg_attended?.toString() ?? '')
     setCurrentTrainees(r.current_trainees?.toString() ?? '')
@@ -140,12 +198,20 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setReportFormOpen(true)
   }
 
+  /**
+   * Handles both create and update for daily reports.
+   * Numeric string fields are parsed with `parseIntOrNull` to convert empty
+   * strings to null (API expects null, not empty string).
+   * Timeline items are sent with their current array index as `position` to
+   * preserve the drag-and-drop order.
+   */
   async function handleSaveReport(e: React.FormEvent) {
     e.preventDefault()
     if (!reportDate) return
     setReportSaving(true)
     setError(null)
 
+    /** Converts a form string value to a number or null. Returns null for empty/NaN. */
     const parseIntOrNull = (v: string) => {
       if (!v.trim()) return null
       const n = Number(v)
@@ -200,6 +266,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
+  /** Deletes a daily report after confirmation. This also deletes all nested data. */
   async function handleRemoveReport(id: string) {
     if (!window.confirm('Remove this report? This cannot be undone.')) return
     try {
@@ -210,6 +277,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
+  /**
+   * Fetches the full report (with nested data) and sets `previewArgs` to open
+   * the ReportPreviewModal. The modal uses the trainers/enrollments already
+   * in state to resolve IDs to display names.
+   */
   async function handleViewPdf(r: ClassDailyReport) {
     try {
       const full = await api.reports.get(r.id)
@@ -219,6 +291,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
+  /** Resets the hours form and opens it in "add new hours" mode. */
   function openAddHours() {
     setEditingHours(null)
     setHoursDate('')
@@ -230,6 +303,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setHoursFormOpen(true)
   }
 
+  /** Pre-fills the hours form with an existing entry's data for editing. */
   function openEditHours(h: ClassLoggedHours) {
     setEditingHours(h)
     setHoursDate(h.log_date)
@@ -241,12 +315,20 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setHoursFormOpen(true)
   }
 
+  /**
+   * Validates and saves a logged hours entry (create or update).
+   * Validates that:
+   *   - A valid positive number is entered for hours
+   *   - A trainer or student is selected depending on person_type
+   * trainer_id and enrollment_id are mutually exclusive based on person_type.
+   */
   async function handleSaveHours(e: React.FormEvent) {
     e.preventDefault()
     if (!hoursDate || !hoursValue) return
     const numHours = Number(hoursValue)
     if (Number.isNaN(numHours) || numHours <= 0) return
 
+    // Only set the relevant ID field based on person_type; clear the other
     const trainerId = hoursPersonType === 'trainer' ? hoursTrainerId || null : null
     const enrollmentId = hoursPersonType === 'student' ? hoursEnrollmentId || null : null
     if (hoursPersonType === 'trainer' && !trainerId) {
@@ -285,6 +367,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
+  /** Deletes a logged hours entry after navigation (no confirmation — low risk). */
   async function handleRemoveHours(id: string) {
     try {
       await api.hours.delete(classId, id)
@@ -294,6 +377,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
+  /**
+   * Resolves a logged hours entry to a human-readable person name.
+   * Looks up trainer_id in the trainers array or enrollment_id in the
+   * enrollments array depending on person_type.
+   */
   function personName(h: ClassLoggedHours) {
     if (h.person_type === 'trainer' && h.trainer_id) {
       return trainers.find(t => t.id === h.trainer_id)?.trainer_name ?? '—'
@@ -304,10 +392,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     return '—'
   }
 
+  // Sum of all logged hours for the class, shown in the hours tab header
   const totalHours = hours.reduce((sum, h) => sum + h.hours, 0)
 
+  /**
+   * Computes cumulative hour totals for a given report date.
+   * Only includes hours logged on or before `date` (ISO date string comparison).
+   * This mimics the running total that would appear in the original spreadsheet.
+   * Returns zero totals if no date is selected yet.
+   */
   function computedTotalsForDate(date: string) {
     if (!date) return { hoursToDate: 0, paid: 0, live: 0 }
+    // String comparison works for ISO date strings (YYYY-MM-DD)
     const relevant = hours.filter(h => h.log_date <= date)
     const hoursToDate = relevant.reduce((sum, h) => sum + h.hours, 0)
     const paid = relevant.filter(h => h.paid).reduce((sum, h) => sum + h.hours, 0)
@@ -1013,7 +1109,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
             <button
               type="button"
               onClick={openAddHours}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
             >
               + Log hours
             </button>
