@@ -1,3 +1,30 @@
+/**
+ * server/src/routes/index.ts — Main API router
+ *
+ * Assembles all sub-routers and applies middleware in the correct order.
+ * This router is mounted at `/api` in index.ts, so all paths here are
+ * relative to `/api` (e.g. the classes router handles `/api/classes`).
+ *
+ * Middleware order matters:
+ *   1. requireAuth  — Applied first to ALL routes (including profiles).
+ *      No unauthenticated request reaches any handler.
+ *
+ *   2. profilesRouter — Mounted BEFORE requireCoordinator because all
+ *      authenticated users (trainers, trainees) need to read their own
+ *      profile (GET /profiles/me). The profiles router itself only exposes
+ *      safe, role-appropriate data.
+ *
+ *   3. requireCoordinator — Applied to all subsequent routers.
+ *      Trainers and trainees get 403 for any class management endpoint.
+ *
+ *   4. All other routers — Class management (CRUD for classes, drills,
+ *      trainers, enrollments, schedule, reports, and hours).
+ *
+ * The `as Router` type casts are necessary because Express's middleware
+ * type for async functions differs from the Router type in its type
+ * definitions; the cast is safe at runtime.
+ */
+
 import { Router } from 'express'
 import { requireAuth, requireCoordinator } from '../middleware/auth'
 import { classesRouter } from './classes'
@@ -11,13 +38,13 @@ import { profilesRouter } from './profiles'
 
 export const router = Router()
 
-// All routes require a valid JWT
+// All routes require a valid JWT — no anonymous access
 router.use(requireAuth as Router)
 
-// Read-only routes available to all authenticated users
+// Profiles are accessible to all authenticated users (GET /profiles/me, GET /profiles)
 router.use(profilesRouter)
 
-// All write operations (create/update/delete) require coordinator role
+// Everything below this line requires coordinator role
 router.use(requireCoordinator as Router)
 router.use(classesRouter)
 router.use(drillsRouter)

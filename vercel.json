@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install && cd web && npm install && npm run build",
+  "buildCommand": "npm install && cd server && npm install && cd ../web && npm install && npm run build",
   "outputDirectory": "web/dist",
   "functions": {
     "api/index.ts": {

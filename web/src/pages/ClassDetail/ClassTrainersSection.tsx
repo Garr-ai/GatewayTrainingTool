@@ -1,28 +1,55 @@
+/**
+ * pages/ClassDetail/ClassTrainersSection.tsx — Trainer assignment management tab
+ *
+ * Allows coordinators to assign existing trainer profiles to a class and manage
+ * their role (primary vs. assistant). Trainers assigned here appear in:
+ *   - The schedule slot "Trainer" dropdown (ClassScheduleSection)
+ *   - The daily report "Trainers for the day" checkboxes (ClassReportsSection)
+ *
+ * Workflow:
+ *   1. "Assign trainer" button opens a search modal that queries the `/profiles`
+ *      endpoint filtered by role="trainer".
+ *   2. Already-assigned trainers are filtered out of results by email comparison
+ *      so they cannot be added twice.
+ *   3. After selecting a profile, a `class_trainers` record is created with the
+ *      trainer's name, email, and selected role (primary/assistant).
+ *   4. Clicking a trainer row in the table opens an edit modal to change their
+ *      name, email, or role for this class (without affecting their profile).
+ *
+ * Note: trainer records store a snapshot of the name/email at assignment time.
+ * They are not automatically updated if the user profile changes later.
+ */
+
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/apiClient'
 import type { ClassTrainer, TrainerRole, Profile } from '../../types'
 
 interface ClassTrainersSectionProps {
-  classId: string
-  className: string
+  classId: string   // UUID of the class
+  className: string // Display name — used in the empty-state message
 }
 
 export function ClassTrainersSection({ classId, className }: ClassTrainersSectionProps) {
   const [trainers, setTrainers] = useState<ClassTrainer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Controls the assign-trainer search modal
   const [assignOpen, setAssignOpen] = useState(false)
+  // The role to assign when clicking a profile from the search results
   const [role, setRole] = useState<TrainerRole>('primary')
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Pick<Profile, 'id' | 'full_name' | 'email'>[]>(
     [],
   )
   const [searchLoading, setSearchLoading] = useState(false)
+  // Set when a trainer row is clicked to open the edit modal
   const [editingTrainer, setEditingTrainer] = useState<ClassTrainer | null>(null)
+  // Edit form field state
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editRole, setEditRole] = useState<TrainerRole>('primary')
 
+  /** Loads the current list of trainers assigned to this class. */
   async function loadTrainers() {
     setLoading(true)
     setError(null)
@@ -42,12 +69,18 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     loadTrainers()
   }, [classId])
 
+  /**
+   * Searches the profiles table for users with role="trainer" matching the term.
+   * Filters out trainers already assigned to this class by email to prevent
+   * duplicate assignments.
+   */
   async function searchProfiles(term: string) {
     setSearchLoading(true)
     setError(null)
     try {
       const raw = await api.profiles.search({ role: 'trainer', search: term || undefined })
       const existingEmails = new Set(trainers.map(t => t.trainer_email.toLowerCase()))
+      // Exclude profiles already assigned to avoid duplicates
       setSearchResults(raw.filter(p => !existingEmails.has(p.email.toLowerCase())))
     } catch (err) {
       console.error('searchTrainers error:', (err as Error).message)
@@ -58,6 +91,11 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     }
   }
 
+  /**
+   * Creates a class_trainers record for the selected profile.
+   * Falls back to the profile's email as the display name if full_name is not set.
+   * After assigning, refreshes both the trainers list and the search results.
+   */
   async function handleAssignTrainer(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setError(null)
     try {
@@ -66,6 +104,8 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
         trainer_email: profile.email,
         role,
       })
+      // Refresh both lists so the newly assigned trainer appears in the table
+      // and disappears from the search results
       await loadTrainers()
       await searchProfiles(searchTerm)
     } catch (err) {
@@ -74,6 +114,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     }
   }
 
+  /** Pre-fills the edit modal with the selected trainer's current values. */
   function openEditTrainer(t: ClassTrainer) {
     setEditingTrainer(t)
     setEditName(t.trainer_name)
@@ -81,6 +122,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     setEditRole(t.role)
   }
 
+  /** Saves changes to an existing class_trainers record (name, email, or role). */
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editingTrainer) return
@@ -100,6 +142,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     }
   }
 
+  /** Removes a trainer from this class after confirmation. */
   async function handleRemove(id: string, name: string) {
     if (!window.confirm(`Remove ${name} from this class?`)) return
     try {
@@ -126,7 +169,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
             setAssignOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-gw-blue px-3 py-2 text-xs font-medium text-white hover:bg-gw-blue-hover"
         >
           + Assign trainer
         </button>
@@ -277,7 +320,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-500"
+                  className="rounded-md bg-gw-blue px-3 py-1.5 text-[11px] font-medium text-white hover:bg-gw-blue-hover"
                 >
                   Save changes
                 </button>

@@ -1,19 +1,46 @@
+/**
+ * pages/ClassDetail/ClassScheduleSection.tsx — Schedule slot management tab
+ *
+ * Allows coordinators to create, edit, and delete time-slot entries for a class.
+ * Schedule slots define when a specific trainer will work with a specific student
+ * group (A, B, C) on a given date and time range.
+ *
+ * The component fetches both schedule slots and trainers in parallel on mount:
+ *   - Slots are the primary data (the schedule table)
+ *   - Trainers are loaded so the slot form can offer a "Trainer" dropdown; this
+ *     is non-critical and failures are silently ignored
+ *
+ * The form is rendered as a full-screen modal overlay (not inline) since it needs
+ * to be accessible above the table without shifting layout.
+ *
+ * Clicking a row in the schedule table opens the edit form pre-populated with
+ * that slot's data. Clicking the Remove button deletes without a confirmation
+ * dialog (low-stakes operation compared to deleting a class or report).
+ *
+ * The `trainerName` helper resolves a `trainer_id` (class_trainers.id) to a
+ * display name for the schedule table, falling back to em-dash if not found.
+ */
+
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/apiClient'
 import type { ClassScheduleSlot, ClassTrainer } from '../../types'
 
 interface ClassScheduleSectionProps {
-  classId: string
-  className: string
+  classId: string   // UUID of the class
+  className: string // Display name — used in the empty-state message
 }
 
 export function ClassScheduleSection({ classId, className }: ClassScheduleSectionProps) {
   const [slots, setSlots] = useState<ClassScheduleSlot[]>([])
+  // Trainers for the class — used to populate the trainer dropdown in the form
   const [trainers, setTrainers] = useState<ClassTrainer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Controls the slot form modal (both add and edit use the same form)
   const [formOpen, setFormOpen] = useState(false)
+  // Null when adding a new slot; set to the slot being edited when in edit mode
   const [editingSlot, setEditingSlot] = useState<ClassScheduleSlot | null>(null)
+  // Form field state
   const [slotDate, setSlotDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -22,6 +49,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
   const [groupLabel, setGroupLabel] = useState('')
   const [saving, setSaving] = useState(false)
 
+  /** Loads all schedule slots for the class, sorted by date then start time. */
   async function loadSlots() {
     setLoading(true)
     setError(null)
@@ -37,12 +65,17 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     }
   }
 
+  /**
+   * Loads trainers for the dropdown in the add/edit form.
+   * Failures are silently ignored because the form still works
+   * without trainers (the trainer field is optional).
+   */
   async function loadTrainers() {
     try {
       const data = await api.trainers.list(classId)
       setTrainers(data)
     } catch {
-      // non-critical
+      // non-critical — slot form can still be used without trainer selection
     }
   }
 
@@ -51,6 +84,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     loadTrainers()
   }, [classId])
 
+  /** Resets form fields and opens the modal in "add new slot" mode. */
   function openAddForm() {
     setEditingSlot(null)
     setSlotDate('')
@@ -62,6 +96,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     setFormOpen(true)
   }
 
+  /** Pre-fills the form with an existing slot's data and opens it in "edit" mode. */
   function openEditForm(slot: ClassScheduleSlot) {
     setEditingSlot(slot)
     setSlotDate(slot.slot_date)
@@ -73,11 +108,16 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     setFormOpen(true)
   }
 
+  /** Closes the modal and clears the editing state. */
   function closeForm() {
     setFormOpen(false)
     setEditingSlot(null)
   }
 
+  /**
+   * Handles both create and update depending on whether `editingSlot` is set.
+   * Empty string fields are converted to null before sending to the API.
+   */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!slotDate || !startTime || !endTime) return
@@ -109,6 +149,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     }
   }
 
+  /** Deletes a schedule slot without confirmation (low-risk action). */
   async function handleRemove(id: string) {
     try {
       await api.schedule.delete(classId, id)
@@ -119,6 +160,10 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     }
   }
 
+  /**
+   * Resolves a trainer ID to a display name for the schedule table.
+   * Returns em-dash if no trainer is assigned or the ID can't be found.
+   */
   function trainerName(id: string | null) {
     if (!id) return '—'
     return trainers.find(t => t.id === id)?.trainer_name ?? '—'
@@ -137,7 +182,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
         <button
           type="button"
           onClick={openAddForm}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
         >
           + Add schedule slot
         </button>
@@ -257,7 +302,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+                  className="rounded-md bg-gw-blue px-3 py-1.5 text-[11px] font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
                 >
                   {saving ? 'Saving…' : editingSlot ? 'Save changes' : 'Add slot'}
                 </button>

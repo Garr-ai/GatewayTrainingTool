@@ -1,16 +1,44 @@
+/**
+ * components/LoginForm.tsx — Email/password authentication form
+ *
+ * A single component that handles three authentication modes, toggled by
+ * the mode state:
+ *   - 'signin'  — Standard email + password login
+ *   - 'signup'  — New account creation
+ *   - 'reset'   — Password reset email request (password field is hidden)
+ *
+ * All Supabase auth calls are made directly from the frontend (not via the
+ * Express backend) since Supabase's auth service is separate from the API.
+ *
+ * On sign-in success, the AuthContext's `onAuthStateChange` listener in
+ * AuthContext.tsx picks up the new session automatically — no redirect
+ * code is needed here.
+ *
+ * The Google OAuth button is imported from GoogleLoginForm.tsx and shown
+ * for the 'signin' and 'signup' modes, but hidden in 'reset' mode.
+ */
+
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { GoogleButton } from './GoogleLoginForm'
 
+/** The three authentication states this form can be in. */
 type AuthMode = 'signin' | 'signup' | 'reset'
 
 export function LoginForm() {
+  // Which form is currently displayed
   const [mode, setMode] = useState<AuthMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Tracks the in-flight and result states to control button labels and messaging
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
 
+  /**
+   * Handles form submission for all three modes.
+   * Calls the appropriate Supabase auth method and updates status/message.
+   * On sign-in success, the session is picked up by AuthContext automatically.
+   */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setStatus('loading')
@@ -35,6 +63,7 @@ export function LoginForm() {
         setMessage('Account created. Check your email to confirm your account.')
       }
     } else if (mode === 'reset') {
+      // redirectTo is the URL Supabase includes in the reset email link
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })

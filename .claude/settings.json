@@ -5,7 +5,11 @@
       "Bash(grep -r \"innerHTML\\\\|dangerouslySetInnerHTML\" --include=*.ts --include=*.tsx)",
       "Bash(grep -r \"res\\\\.json.*error\\\\|res\\\\.status.*error\" server/src --include=*.ts)",
       "Bash(grep -n \"req\\\\.params\\\\|req\\\\.query\\\\|req\\\\.body\" server/src/routes/*.ts)",
-      "Bash(grep -n \"\\\\.or\\(\" server/src/routes/*.ts)"
+      "Bash(grep -n \"\\\\.or\\(\" server/src/routes/*.ts)",
+      "Bash(grep -n \"Add drill\\\\|Add schedule\\\\|Add trainer\\\\|Add student\\\\|Log hours\\\\|Add daily report\\\\|add.*report\\\\|add.*drill\\\\|add.*trainer\\\\|add.*student\\\\|log.*hours\" /home/gtse8/GatewayTrainingTool/web/src/pages/ClassDetail/*.tsx -i)",
+      "Bash(head -20 grep -n \"className=.*button\\\\|<button\" /home/gtse8/GatewayTrainingTool/web/src/pages/ClassDetail/ClassScheduleSection.tsx)",
+      "Bash(head -20 grep -n \"className=.*button\\\\|<button\" /home/gtse8/GatewayTrainingTool/web/src/pages/ClassDetail/ClassTrainersSection.tsx)",
+      "Bash(head -20 grep -n \"className=.*button\\\\|<button\" /home/gtse8/GatewayTrainingTool/web/src/pages/ClassDetail/ClassStudentsSection.tsx)"
     ]
   }
 }

@@ -1,23 +1,45 @@
+/**
+ * pages/ClassDetail/ClassDrillsSection.tsx — Drills and tests management tab
+ *
+ * Allows coordinators to define the drills and tests associated with a class.
+ * These definitions are used as reference for assessment — actual student
+ * drill results are tracked in daily reports.
+ *
+ * Features:
+ *   - Lists all drills/tests for the class in a table (name, type, par time, target score, active)
+ *   - Inline "Add drill / test" form (toggled by a button, collapses on save/cancel)
+ *   - `par_time_seconds` is the expected completion time for timed drills
+ *   - `target_score` is the minimum passing score for scored tests
+ *   - Both are optional; a drill can have neither, one, or both
+ *
+ * NaN guard: the form stores par time and target score as string inputs to allow
+ * empty values (null). On save, they are converted to Number and NaN-guarded
+ * before being sent to the API.
+ */
+
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/apiClient'
 import type { ClassDrill, DrillType } from '../../types'
 
 interface ClassDrillsSectionProps {
-  classId: string
-  className: string
+  classId: string   // UUID of the class — used for all API calls
+  className: string // Display name — used only in the empty-state message
 }
 
 export function ClassDrillsSection({ classId, className }: ClassDrillsSectionProps) {
   const [drills, setDrills] = useState<ClassDrill[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Controls visibility of the inline add-drill form
   const [formOpen, setFormOpen] = useState(false)
+  // Form field state — stored as strings to allow blank (→ null) inputs
   const [formName, setFormName] = useState('')
   const [formType, setFormType] = useState<DrillType>('drill')
   const [formParTime, setFormParTime] = useState('')
   const [formTargetScore, setFormTargetScore] = useState('')
   const [saving, setSaving] = useState(false)
 
+  /** Fetches the list of drills/tests for the current class. */
   async function loadDrills() {
     setLoading(true)
     setError(null)
@@ -37,6 +59,11 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
     loadDrills()
   }, [classId])
 
+  /**
+   * Validates and submits the add-drill form.
+   * Converts par time and target score from string to number, with NaN
+   * falling back to null so the API receives proper null values.
+   */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!formName.trim()) return
@@ -50,9 +77,11 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       await api.drills.create(classId, {
         name: formName.trim(),
         type: formType,
+        // Guard against NaN from invalid numeric input in the form field
         par_time_seconds: Number.isNaN(parSeconds) ? null : parSeconds,
         target_score: Number.isNaN(target) ? null : target,
       })
+      // Reset form fields after successful save
       setFormName('')
       setFormParTime('')
       setFormTargetScore('')
@@ -79,7 +108,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
         <button
           type="button"
           onClick={() => setFormOpen(o => !o)}
-          className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
         >
           {formOpen ? 'Cancel' : '+ Add drill / test'}
         </button>
@@ -147,7 +176,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
             <button
               type="submit"
               disabled={saving}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
+              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Save drill'}
             </button>

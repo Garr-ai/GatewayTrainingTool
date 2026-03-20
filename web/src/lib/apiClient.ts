@@ -1,3 +1,27 @@
+/**
+ * lib/apiClient.ts — Typed HTTP client for the Express backend API
+ *
+ * All data fetching (except auth) goes through this file. It provides a
+ * structured `api` object whose methods correspond to backend REST endpoints.
+ *
+ * How it works:
+ *   1. `authHeaders()` retrieves the current Supabase session JWT and formats
+ *      it as a Bearer token for the Authorization header.
+ *   2. `req<T>()` is a thin generic wrapper around `fetch` that automatically
+ *      attaches auth headers, sets the base URL, and converts errors to
+ *      thrown Error objects that callers can catch.
+ *   3. The exported `api` object groups methods by resource (classes, drills,
+ *      trainers, enrollments, schedule, reports, hours, profiles).
+ *
+ * Environment variable:
+ *   VITE_API_URL — Set to http://localhost:3001 for local dev. Leave empty
+ *                  for production (same-origin relative URLs are used).
+ *
+ * Example usage:
+ *   const classes = await api.classes.list({ archived: false })
+ *   const report  = await api.reports.get(reportId)
+ */
+
 import { supabase } from './supabase'
 import type {
   Class,
@@ -22,6 +46,11 @@ import type {
 // In local dev set VITE_API_URL=http://localhost:3001 in web/.env
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
+/**
+ * Retrieves the current user's JWT from Supabase and formats it as a
+ * Bearer token Authorization header. Throws if the user is not signed in,
+ * which will propagate as an error in any `req()` call.
+ */
 async function authHeaders(): Promise<HeadersInit> {
   const {
     data: { session },
@@ -30,6 +59,13 @@ async function authHeaders(): Promise<HeadersInit> {
   return { Authorization: `Bearer ${session.access_token}` }
 }
 
+/**
+ * Generic fetch wrapper used by all API methods.
+ * - Prepends API_BASE + "/api" to the path.
+ * - Attaches Content-Type and Authorization headers automatically.
+ * - Returns `undefined` (typed as T) for 204 No Content responses (e.g. DELETE).
+ * - Throws an Error with the server's `error` field message if the response is not ok.
+ */
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = await authHeaders()
   const res = await fetch(`${API_BASE}/api${path}`, {
@@ -40,6 +76,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...(init.headers ?? {}),
     },
   })
+  // 204 has no body; return undefined so callers can type the result as void
   if (res.status === 204) return undefined as T
   const body = await res.json()
   if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed: ${res.status}`)
@@ -48,12 +85,18 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 // ─── Nested report types ────────────────────────────────────────────────────
 
+/**
+ * The full report shape returned by GET /reports/:id.
+ * Extends the base ClassDailyReport with the three nested arrays that are
+ * stored in separate DB tables and fetched together by the backend.
+ */
 export interface ReportWithNested extends ClassDailyReport {
-  trainer_ids: string[]
-  timeline: ClassDailyReportTimelineItem[]
-  progress: ClassDailyReportTraineeProgress[]
+  trainer_ids: string[]                          // IDs of trainers present that day
+  timeline: ClassDailyReportTimelineItem[]       // Ordered list of training blocks
+  progress: ClassDailyReportTraineeProgress[]    // Per-student assessment rows
 }
 
+/** Input shape for a single timeline row when creating or updating a report. */
 interface TimelineItemInput {
   start_time: string | null
   end_time: string | null
@@ -62,6 +105,7 @@ interface TimelineItemInput {
   category: string | null
 }
 
+/** Input shape for a single trainee progress row when creating or updating a report. */
 interface ProgressRowInput {
   enrollment_id: string
   progress_text: string | null
@@ -72,6 +116,7 @@ interface ProgressRowInput {
   homework_completed: boolean
 }
 
+/** The full request body sent to POST /classes/:id/reports and PUT /classes/:id/reports/:id. */
 interface ReportBody {
   report_date: string
   group_label?: string | null
@@ -93,12 +138,21 @@ interface ReportBody {
 
 // ─── API client ─────────────────────────────────────────────────────────────
 
+/**
+ * The `api` object is the public interface for all backend communication.
+ * Each top-level key groups CRUD methods for one resource type.
+ *
+ * All methods return Promises and throw on HTTP errors so callers can use
+ * try/catch or .catch() for error handling.
+ */
 export const api = {
   classes: {
+    /** Fetch all classes. Pass `{ archived: false }` (default) or `{ archived: true }`. */
     list: (params?: { archived?: boolean }) => {
       const qs = params?.archived !== undefined ? `?archived=${params.archived}` : ''
       return req<Class[]>(`/classes${qs}`)
     },
+    /** Look up a class by its display name (used for URL-slug-based navigation). */
     getByName: (name: string) =>
       req<Class>(`/classes/by-name/${encodeURIComponent(name)}`),
     get: (id: string) => req<Class>(`/classes/${id}`),
@@ -240,6 +294,11 @@ export const api = {
   },
 
   profiles: {
+    /**
+     * Search user profiles by role and/or name/email substring.
+     * Used by the trainer and student assignment modals to find existing users.
+     * Filters out undefined/empty values before building the query string.
+     */
     search: (params: { role?: string; search?: string }) => {
       const qs = new URLSearchParams(
         Object.fromEntries(
@@ -248,6 +307,7 @@ export const api = {
       ).toString()
       return req<Pick<Profile, 'id' | 'full_name' | 'email'>[]>(`/profiles${qs ? `?${qs}` : ''}`)
     },
+    /** Fetch the currently authenticated user's full profile record. */
     me: () => req<Profile>('/profiles/me'),
   },
 }

@@ -1,10 +1,32 @@
+/**
+ * components/GoogleLoginForm.tsx — Google OAuth sign-in button
+ *
+ * Exports `GoogleButton`, a standalone button that initiates a Google OAuth
+ * flow via Supabase's `signInWithOAuth`. This triggers a browser redirect to
+ * Google's consent screen; on completion, Supabase redirects back to `redirectTo`
+ * (the app's root), where the AuthContext session listener picks up the new session.
+ *
+ * This component is rendered inside LoginForm.tsx for the signin and signup modes.
+ * The `GoogleIcon` SVG is a local inline copy of the official Google brand icon.
+ *
+ * Note: For Google OAuth to work, the Google provider must be enabled in the
+ * Supabase project dashboard under Authentication > Providers > Google.
+ */
+
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function GoogleButton() {
+  // True while the OAuth redirect is being initiated
   const [loading, setLoading] = useState(false)
+  // Error message if the OAuth initiation fails (e.g. provider not enabled)
   const [error, setError] = useState('')
 
+  /**
+   * Starts the Google OAuth flow. If Supabase returns an error (e.g. provider
+   * misconfigured), it is shown in the UI. On success, the browser is redirected
+   * to Google — no further action is needed in this component.
+   */
   async function handleGoogleSignIn() {
     setLoading(true)
     setError('')
@@ -12,6 +34,7 @@ export function GoogleButton() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
+        // Supabase will redirect the browser here after the OAuth callback
         redirectTo: `${window.location.origin}/`,
       },
     })

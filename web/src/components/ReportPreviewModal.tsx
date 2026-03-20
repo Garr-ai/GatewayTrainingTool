@@ -1,25 +1,59 @@
+/**
+ * components/ReportPreviewModal.tsx — Full-screen report preview and export modal
+ *
+ * Opens a full-screen overlay that shows a formatted daily report in an <iframe>.
+ * The report HTML is generated client-side by `generateReportHtml()` in reportPdf.ts
+ * and loaded via a Blob URL rather than a server-rendered PDF.
+ *
+ * Features:
+ *   - Live preview in an <iframe> (the generated HTML has its own styles)
+ *   - Print button triggers the browser's print dialog on the iframe's content window
+ *   - Download button saves the HTML file locally with a descriptive filename
+ *   - Clicking the dark backdrop or the X button closes the modal
+ *
+ * Blob URL lifecycle:
+ *   - Created once on mount via URL.createObjectURL()
+ *   - Revoked on unmount via URL.revokeObjectURL() (cleanup in useEffect return)
+ *   - The eslint-disable comment suppresses the exhaustive-deps warning — the blob
+ *     is intentionally generated only once using the args at mount time.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import { generateReportHtml } from '../lib/reportPdf'
 import type { ReportPdfArgs } from '../lib/reportPdf'
 
 export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onClose: () => void }) {
+  // Ref to the iframe so we can call contentWindow.print() on it
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  // Blob URL for the generated HTML — null until the effect runs
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  // Filename used when the user downloads the report
   const filename = `report-${args.className.replace(/\s+/g, '-')}-${args.report.report_date}.html`
 
   useEffect(() => {
+    // Generate the full HTML document and wrap it in a Blob for iframe src
     const html = generateReportHtml(args)
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     setBlobUrl(url)
+    // Clean up the blob URL when the modal unmounts to avoid memory leaks
     return () => URL.revokeObjectURL(url)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /**
+   * Triggers the browser's print dialog for the iframe's document.
+   * This prints only the report content, not the surrounding modal chrome.
+   */
   function handlePrint() {
     iframeRef.current?.contentWindow?.print()
   }
 
+  /**
+   * Programmatically triggers a file download of the HTML report.
+   * Creates a temporary <a> element, sets its download attribute,
+   * clicks it, then discards it — the standard JS download trick.
+   */
   function handleDownload() {
     if (!blobUrl) return
     const a = document.createElement('a')

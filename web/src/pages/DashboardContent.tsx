@@ -1,3 +1,18 @@
+/**
+ * pages/DashboardContent.tsx — Coordinator dashboard overview
+ *
+ * The main landing page for coordinators after login. Currently shows
+ * three placeholder summary cards (today's classes, attendance alerts,
+ * pending sign-offs) and a stub "Active classes" section.
+ *
+ * This is intentionally left as a scaffold — the placeholder text will be
+ * replaced with live data as features are built. The layout uses CSS Grid
+ * so adding new cards is straightforward.
+ *
+ * The sign-out button and coordinator email are shown in the header for
+ * quick access without navigating to Settings.
+ */
+
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 

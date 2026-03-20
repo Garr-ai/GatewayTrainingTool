@@ -1,3 +1,17 @@
+/**
+ * pages/LoginView.tsx — Public login page
+ *
+ * Renders the full-page login layout with a branded hero panel on the left
+ * and the authentication form on the right. On smaller screens, the hero
+ * panel is hidden and a wordmark is shown above the form instead.
+ *
+ * If the user is already authenticated (has an active session), they are
+ * immediately redirected to /dashboard — this prevents logged-in users
+ * from seeing the login page when they navigate to /login directly.
+ *
+ * The actual authentication logic lives in LoginForm.tsx and GoogleLoginForm.tsx.
+ */
+
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { LoginForm } from '../components/LoginForm'
@@ -5,6 +19,7 @@ import { LoginForm } from '../components/LoginForm'
 export function LoginView() {
   const { session } = useAuth()
 
+  // Already authenticated — redirect to the main app
   if (session) {
     return <Navigate to="/dashboard" replace />
   }

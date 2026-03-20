@@ -1,5 +1,16 @@
+/**
+ * pages/InProgressPage.tsx — "Work in progress" placeholder for non-coordinator users
+ *
+ * Shown to trainers and trainees when they log in. Their role-specific dashboard
+ * (e.g. drill logging, schedule view) has not been built yet, so this page acts
+ * as a friendly placeholder that confirms they're logged in and provides a sign-out
+ * option.
+ *
+ * Rendered by DashboardView when role !== 'coordinator'.
+ */
+
 interface InProgressPageProps {
-  email: string
+  email: string        // Displayed so the user knows which account is signed in
   onSignOut: () => void
 }
 

@@ -1,10 +1,43 @@
+/**
+ * server/src/routes/hours.ts — Logged hours CRUD routes
+ *
+ * All routes require: authentication (via requireAuth in routes/index.ts)
+ *                     + coordinator role (via requireCoordinator in routes/index.ts)
+ *
+ * Routes:
+ *   GET    /classes/:classId/hours         — List all logged hours for a class
+ *   POST   /classes/:classId/hours         — Log hours for a trainer or enrolled student
+ *   PUT    /classes/:classId/hours/:id     — Update a logged hours record
+ *   DELETE /classes/:classId/hours/:id     — Permanently delete a logged hours record
+ *
+ * Each logged hours record refers to either a trainer (`trainer_id` set, `enrollment_id`
+ * null) or an enrolled student (`enrollment_id` set, `trainer_id` null). These fields
+ * are mutually exclusive — `person_type` ('trainer' | 'trainee') signals which one.
+ *
+ * The `paid` flag marks hours as payable (used for payroll totals). The `live_training`
+ * flag distinguishes live-training hours from preparatory or administrative time.
+ * The `hours` field is validated server-side (0–24) on every write because it feeds
+ * into payroll calculations where bad values could cause significant errors.
+ *
+ * All write operations are audit-logged to the `audit_logs` table via logAudit()
+ * so changes to sensitive payroll-adjacent records can be traced.
+ *
+ * IDOR protection: classId is matched in all write queries so coordinators cannot
+ * modify hours records belonging to a different class.
+ */
+
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 
 export const hoursRouter = Router()
 
-// GET /classes/:classId/hours
+/**
+ * GET /classes/:classId/hours
+ * Auth: coordinator
+ * Returns all logged hours records for a class, sorted by log_date descending
+ * then created_at descending (most recently entered first within the same day).
+ */
 hoursRouter.get('/classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data, error } = await supabase
@@ -20,7 +53,14 @@ hoursRouter.get('/classes/:classId/hours', async (req: Request, res: Response, n
   }
 })
 
-// POST /classes/:classId/hours
+/**
+ * POST /classes/:classId/hours
+ * Auth: coordinator
+ * Logs hours for a trainer or enrolled student. The `person_type` field indicates
+ * which — 'trainer' uses trainer_id, 'trainee' uses enrollment_id (mutually exclusive).
+ * `hours` is validated server-side (0–24) before inserting to protect payroll accuracy.
+ * The operation is audit-logged (CREATE). Returns 201 with the created record.
+ */
 hoursRouter.post('/classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
@@ -64,7 +104,14 @@ hoursRouter.post('/classes/:classId/hours', async (req: Request, res: Response, 
   }
 })
 
-// PUT /classes/:classId/hours/:id  — classId in path prevents cross-class modification (IDOR)
+/**
+ * PUT /classes/:classId/hours/:id
+ * Auth: coordinator
+ * Updates a logged hours record. `hours` is validated (0–24) if provided. Both the
+ * record UUID and classId are matched in the query (IDOR protection). Returns 404 if
+ * either doesn't match. The operation is audit-logged (UPDATE).
+ * Supabase error code PGRST116 = "no rows found".
+ */
 hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
@@ -104,7 +151,7 @@ hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Respons
       userId: req.userId!,
       action: 'UPDATE',
       tableName: 'class_logged_hours',
-      recordId: req.params.id,
+      recordId: req.params.id as string,
       metadata: { class_id: req.params.classId, hours, paid, person_type },
       ipAddress: req.ip,
     })
@@ -115,7 +162,14 @@ hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Respons
   }
 })
 
-// DELETE /classes/:classId/hours/:id  — classId in path prevents cross-class deletion (IDOR)
+/**
+ * DELETE /classes/:classId/hours/:id
+ * Auth: coordinator
+ * Permanently deletes a logged hours record. The audit log entry is written BEFORE
+ * the delete so the record ID is still valid at the time of logging. Pre-fetches
+ * using both id and class_id to return a proper 404 and enforce IDOR protection.
+ * Returns 204 No Content on success.
+ */
 hoursRouter.delete('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: existing, error: fetchError } = await supabase
@@ -133,7 +187,7 @@ hoursRouter.delete('/classes/:classId/hours/:id', async (req: Request, res: Resp
       userId: req.userId!,
       action: 'DELETE',
       tableName: 'class_logged_hours',
-      recordId: req.params.id,
+      recordId: req.params.id as string,
       metadata: { class_id: req.params.classId },
       ipAddress: req.ip,
     })
