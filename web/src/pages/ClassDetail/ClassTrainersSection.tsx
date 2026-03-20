@@ -87,7 +87,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
     if (!editName.trim() || !editEmail.trim()) return
     setError(null)
     try {
-      await api.trainers.update(editingTrainer.id, {
+      await api.trainers.update(classId, editingTrainer.id, {
         trainer_name: editName.trim(),
         trainer_email: editEmail.trim(),
         role: editRole,
@@ -103,7 +103,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
   async function handleRemove(id: string, name: string) {
     if (!window.confirm(`Remove ${name} from this class?`)) return
     try {
-      await api.trainers.delete(id)
+      await api.trainers.delete(classId, id)
       loadTrainers()
     } catch (err) {
       console.error('removeTrainer error:', (err as Error).message)

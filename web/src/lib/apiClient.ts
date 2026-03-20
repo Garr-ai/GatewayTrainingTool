@@ -135,9 +135,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: Partial<ClassDrill>) =>
-      req<ClassDrill>(`/drills/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/drills/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: Partial<ClassDrill>) =>
+      req<ClassDrill>(`/classes/${classId}/drills/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/drills/${id}`, { method: 'DELETE' }),
   },
 
   trainers: {
@@ -150,9 +150,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: Partial<ClassTrainer>) =>
-      req<ClassTrainer>(`/trainers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/trainers/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: Partial<ClassTrainer>) =>
+      req<ClassTrainer>(`/classes/${classId}/trainers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/trainers/${id}`, { method: 'DELETE' }),
   },
 
   enrollments: {
@@ -173,9 +173,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: { status: EnrollmentStatus; group_label?: string | null }) =>
-      req<ClassEnrollment>(`/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/enrollments/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: { status: EnrollmentStatus; group_label?: string | null }) =>
+      req<ClassEnrollment>(`/classes/${classId}/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/enrollments/${id}`, { method: 'DELETE' }),
   },
 
   schedule: {
@@ -196,9 +196,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: Partial<ClassScheduleSlot>) =>
-      req<ClassScheduleSlot>(`/schedule/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/schedule/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: Partial<ClassScheduleSlot>) =>
+      req<ClassScheduleSlot>(`/classes/${classId}/schedule/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/schedule/${id}`, { method: 'DELETE' }),
   },
 
   reports: {
@@ -210,9 +210,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: ReportBody) =>
-      req<ClassDailyReport>(`/reports/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/reports/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: ReportBody) =>
+      req<ClassDailyReport>(`/classes/${classId}/reports/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/reports/${id}`, { method: 'DELETE' }),
   },
 
   hours: {
@@ -234,9 +234,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    update: (id: string, body: Partial<ClassLoggedHours>) =>
-      req<ClassLoggedHours>(`/hours/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-    delete: (id: string) => req<void>(`/hours/${id}`, { method: 'DELETE' }),
+    update: (classId: string, id: string, body: Partial<ClassLoggedHours>) =>
+      req<ClassLoggedHours>(`/classes/${classId}/hours/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (classId: string, id: string) => req<void>(`/classes/${classId}/hours/${id}`, { method: 'DELETE' }),
   },
 
   profiles: {

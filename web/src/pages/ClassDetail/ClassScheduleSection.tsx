@@ -95,7 +95,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
 
     try {
       if (editingSlot) {
-        await api.schedule.update(editingSlot.id, payload)
+        await api.schedule.update(classId, editingSlot.id, payload)
       } else {
         await api.schedule.create(classId, payload)
       }
@@ -111,7 +111,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
 
   async function handleRemove(id: string) {
     try {
-      await api.schedule.delete(id)
+      await api.schedule.delete(classId, id)
       loadSlots()
     } catch (err) {
       console.error('removeSlot error:', (err as Error).message)

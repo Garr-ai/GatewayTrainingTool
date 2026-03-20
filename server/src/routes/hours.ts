@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
 
 export const hoursRouter = Router()
 
@@ -47,14 +48,24 @@ hoursRouter.post('/classes/:classId/hours', async (req: Request, res: Response, 
       .select()
       .single()
     if (error) throw error
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_logged_hours',
+      recordId: (data as { id: string }).id,
+      metadata: { class_id: req.params.classId, hours, paid, person_type },
+      ipAddress: req.ip,
+    })
+
     res.status(201).json(data)
   } catch (err) {
     next(err)
   }
 })
 
-// PUT /hours/:id
-hoursRouter.put('/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
+// PUT /classes/:classId/hours/:id  — classId in path prevents cross-class modification (IDOR)
+hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
       req.body
@@ -78,6 +89,7 @@ hoursRouter.put('/hours/:id', async (req: Request, res: Response, next: NextFunc
         notes: notes ?? null,
       })
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .select()
       .single()
     if (error) {
@@ -87,25 +99,45 @@ hoursRouter.put('/hours/:id', async (req: Request, res: Response, next: NextFunc
       }
       throw error
     }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_logged_hours',
+      recordId: req.params.id,
+      metadata: { class_id: req.params.classId, hours, paid, person_type },
+      ipAddress: req.ip,
+    })
+
     res.json(data)
   } catch (err) {
     next(err)
   }
 })
 
-// DELETE /hours/:id
-hoursRouter.delete('/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
+// DELETE /classes/:classId/hours/:id  — classId in path prevents cross-class deletion (IDOR)
+hoursRouter.delete('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Verify the record exists before deleting so we can return a meaningful 404
     const { data: existing, error: fetchError } = await supabase
       .from('class_logged_hours')
       .select('id')
       .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
       .single()
     if (fetchError || !existing) {
       res.status(404).json({ error: 'Hours record not found' })
       return
     }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_logged_hours',
+      recordId: req.params.id,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
+
     const { error } = await supabase.from('class_logged_hours').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()
