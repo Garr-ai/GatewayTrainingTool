@@ -19,6 +19,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import html2pdf from 'html2pdf.js'
 import { generateReportHtml } from '../lib/reportPdf'
 import type { ReportPdfArgs } from '../lib/reportPdf'
 
@@ -27,8 +28,8 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
   const iframeRef = useRef<HTMLIFrameElement>(null)
   // Blob URL for the generated HTML — null until the effect runs
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
-  // Filename used when the user downloads the report
-  const filename = `report-${args.className.replace(/\s+/g, '-')}-${args.report.report_date}.html`
+  // Filename used when the user downloads the report (no extension — html2pdf appends .pdf)
+  const filename = `report-${args.className.replace(/\s+/g, '-')}-${args.report.report_date}`
 
   useEffect(() => {
     // Generate the full HTML document and wrap it in a Blob for iframe src
@@ -50,16 +51,29 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
   }
 
   /**
-   * Programmatically triggers a file download of the HTML report.
-   * Creates a temporary <a> element, sets its download attribute,
-   * clicks it, then discards it — the standard JS download trick.
+   * Renders the report HTML to a PDF using html2pdf.js (html2canvas + jsPDF)
+   * and triggers a direct file download — no print dialog shown.
+   * A temporary hidden div is used to hold the HTML for rendering.
    */
   function handleDownload() {
-    if (!blobUrl) return
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = filename
-    a.click()
+    const html = generateReportHtml(args)
+    const container = document.createElement('div')
+    container.innerHTML = html
+    // Must be in the DOM for html2canvas to render it, but hidden from view
+    container.style.position = 'fixed'
+    container.style.left = '-9999px'
+    document.body.appendChild(container)
+
+    html2pdf()
+      .set({
+        margin: [10, 10, 10, 10],
+        filename: `${filename}.pdf`,
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+      })
+      .from(container)
+      .save()
+      .finally(() => document.body.removeChild(container))
   }
 
   return (

@@ -15,46 +15,21 @@
  * the class name to a URL-safe slug (e.g. "BJ APR 01" → "BJ-APR-01").
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
 import { CreateClassModal } from '../components/CreateClassModal'
 import { useAuth } from '../contexts/AuthContext'
+import { useClasses } from '../contexts/ClassesContext'
 import { classSlug, provinceLabel } from '../lib/utils'
 
 export function ClassesPage() {
   const { email, signOut } = useAuth()
-  // Separate state arrays for active vs. archived classes
-  const [active, setActive] = useState<Class[]>([])
-  const [archived, setArchived] = useState<Class[]>([])
-  const [loading, setLoading] = useState(true)
+  // Classes are cached in context — no local fetch needed
+  const { active, archived, loading, refresh: fetchClasses } = useClasses()
   // Controls visibility of the CreateClassModal
   const [createOpen, setCreateOpen] = useState(false)
-
-  /**
-   * Fetches active and archived classes in parallel and updates state.
-   * Called on mount and after any create/archive/unarchive/delete action.
-   */
-  async function fetchClasses() {
-    setLoading(true)
-    try {
-      const [activeData, archivedData] = await Promise.all([
-        api.classes.list({ archived: false }),
-        api.classes.list({ archived: true }),
-      ])
-      setActive(activeData)
-      setArchived(archivedData)
-    } catch (err) {
-      console.error('fetchClasses error:', (err as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchClasses()
-  }, [])
 
   const navigate = useNavigate()
 

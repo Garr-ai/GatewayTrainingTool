@@ -24,6 +24,7 @@
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ClassesProvider } from './contexts/ClassesContext'
 import { CoordinatorRoute } from './layouts/CoordinatorRoute'
 import { ProtectedLayout } from './layouts/ProtectedLayout'
 import { LoginView } from './pages/LoginView'
@@ -45,7 +46,7 @@ function App() {
           <Route path="/login" element={<LoginView />} />
 
           {/* Protected shell — ProtectedLayout checks auth and renders the sidebar layout */}
-          <Route path="/" element={<ProtectedLayout />}>
+          <Route path="/" element={<ClassesProvider><ProtectedLayout /></ClassesProvider>}>
             {/* Default redirect from / to /dashboard */}
             <Route index element={<Navigate to="/dashboard" replace />} />
 
