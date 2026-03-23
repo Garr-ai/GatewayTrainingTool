@@ -22,8 +22,12 @@
  * API call is in flight, since the modal stays open for batch enrollments.
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../lib/apiClient'
+import { useToast } from '../../contexts/ToastContext'
+import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { SkeletonTable } from '../../components/Skeleton'
 import type { ClassEnrollment, EnrollmentStatus, Profile } from '../../types'
 
 interface ClassStudentsSectionProps {
@@ -32,9 +36,10 @@ interface ClassStudentsSectionProps {
 }
 
 export function ClassStudentsSection({ classId, className }: ClassStudentsSectionProps) {
-  const [students, setStudents] = useState<ClassEnrollment[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const { enrollments: students, loading, refreshEnrollments } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; confirmVariant: 'danger' | 'primary'; onConfirm: () => void } | null>(null)
   // Controls the enroll-student search modal
   const [enrollOpen, setEnrollOpen] = useState(false)
   // Status and group to assign when enrolling from the search modal
@@ -52,26 +57,6 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   // Edit form field state
   const [editStatus, setEditStatus] = useState<EnrollmentStatus>('enrolled')
   const [editGroupLabel, setEditGroupLabel] = useState('')
-
-  /** Loads all enrollments for the class (all statuses). */
-  async function loadStudents() {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await api.enrollments.list(classId)
-      setStudents(data)
-    } catch (err) {
-      console.error('loadStudents error:', (err as Error).message)
-      setError('Unable to load students for this class.')
-      setStudents([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadStudents()
-  }, [classId])
 
   /**
    * Searches for trainee profiles matching the search term.
@@ -111,11 +96,12 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       // Reset to defaults for the next enrollment in the same modal session
       setStatus('enrolled')
       setGroupLabel('')
-      await loadStudents()
+      await refreshEnrollments()
       await searchProfiles(searchTerm)
+      toast('Student enrolled', 'success')
     } catch (err) {
       console.error('createEnrollment error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
     }
@@ -139,23 +125,33 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
         group_label: editGroupLabel.trim() || null,
       })
       setEditingEnrollment(null)
-      loadStudents()
+      refreshEnrollments()
+      toast('Student updated', 'success')
     } catch (err) {
       console.error('updateEnrollment error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
   /** Removes a student's enrollment from this class after confirmation. */
-  async function handleRemove(id: string, name: string) {
-    if (!window.confirm(`Remove ${name} from this class?`)) return
-    try {
-      await api.enrollments.delete(classId, id)
-      loadStudents()
-    } catch (err) {
-      console.error('removeEnrollment error:', (err as Error).message)
-      setError((err as Error).message)
-    }
+  function handleRemove(id: string, name: string) {
+    setConfirmState({
+      title: 'Remove student',
+      message: `Remove "${name}" from this class?`,
+      confirmLabel: 'Remove',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.enrollments.delete(classId, id)
+          await refreshEnrollments()
+          toast('Student removed', 'success')
+        } catch (err) {
+          console.error('removeEnrollment error:', (err as Error).message)
+          toast((err as Error).message, 'error')
+        }
+      },
+    })
   }
 
   return (
@@ -345,7 +341,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       )}
 
       {loading ? (
-        <p className="text-xs text-slate-500">Loading students…</p>
+        <SkeletonTable rows={3} cols={5} />
       ) : students.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
           No students enrolled yet for{' '}
@@ -394,6 +390,16 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message ?? ''}
+        confirmLabel={confirmState?.confirmLabel}
+        confirmVariant={confirmState?.confirmVariant}
+        onConfirm={confirmState?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmState(null)}
+      />
     </section>
   )
 }

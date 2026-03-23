@@ -20,6 +20,7 @@ A personal reference for understanding how this codebase works, why it's built t
 12. [Key design decisions and why](#12-key-design-decisions-and-why)
 13. [How to add new features](#13-how-to-add-new-features)
 14. [Glossary of domain terms](#14-glossary-of-domain-terms)
+15. [ClassDetailContext caching](#15-classdetailcontext-caching)
 
 ---
 
@@ -158,10 +159,60 @@ When you click a class in the list:
 1. React Router navigates to `/classes/BJ-APR-01` (hyphenated slug).
 2. `ClassDetailView.tsx` reads the `:className` param, converts hyphens back to spaces.
 3. `ClassDetailPage.tsx` calls `api.classes.getByName("BJ APR 01")` to fetch the class.
-4. The page renders tabs: Overview, Schedule, Students, Trainers, Drills, Reports.
+4. The page renders tabs: Overview, Schedule, Students, Trainers, Drills, Reports, Hours.
 5. Each tab is a separate section component in `pages/ClassDetail/`.
+6. The **Edit class** button opens `EditClassModal`, which pre-fills all fields from the current class data. On save, the class state updates in place (no re-fetch needed).
 
-### 3.6 How components fetch data
+### 3.5.1 Overview tab — real data
+
+The Overview tab (`ClassOverviewSection`) fetches all class-related data on mount via `Promise.all`:
+- **Trainers card** — shows count and list with role badges (primary/assistant)
+- **Students & Schedule card** — enrolled count, next upcoming session, total reports, total logged hours
+- If no data, shows appropriate empty messages
+
+### 3.6 Dashboard — real-time overview
+
+The dashboard (`DashboardContent.tsx`) shows live data:
+- **Summary cards**: Active class count (with province breakdown badges), today's sessions count, recent reports count (last 7 days)
+- **Today's sessions table**: Fetched via `api.schedule.listAll({ date_from: today, date_to: today })`. Shows class name, time range, trainer, and group. Rows click through to the class.
+- **Active classes list**: From `useClasses()` context. Each row shows name, site, province badge, and date range.
+
+### 3.7 Classes page — client-side filtering
+
+The classes page filters both active and archived lists client-side using `useMemo`:
+- Province, site (derived from classes, scoped by province), game type dropdowns
+- Free-text search on class name
+- Reset button clears all filters
+
+### 3.8 Reports & Schedule pages — server-side filtering
+
+Both pages use the same architecture:
+1. A custom hook (`useReportsQuery` / `useScheduleQuery`) manages filter, sort, and page state
+2. A filter bar component renders dropdowns, date pickers, search input, and archived toggle
+3. A sortable table shows results with clickable column headers
+4. A shared `Pagination` component handles page navigation
+
+Search is debounced at 300ms. Any filter/sort change resets to page 0.
+
+### 3.9 Settings page
+
+Shows the coordinator's profile (fetched from `api.profiles.me()`) in a read-only card:
+- Full name, email, role, province, member since date
+- Sign-out button in a separate "Account" section
+
+### 3.10 UI polish patterns
+
+The app uses several reusable UI patterns for consistency:
+
+**Toast notifications** (`ToastContext`): A global notification system. Call `useToast().toast(message, type)` after any async action. Toasts stack in the bottom-right corner, auto-dismiss after 4 seconds. Types: success (green), error (red), info (blue).
+
+**Confirmation dialogs** (`ConfirmDialog`): Replaces `window.confirm()` with styled in-app dialogs. Uses a `confirmState` pattern — set state to open the dialog, clear it on cancel/confirm. Danger variant (red button) for destructive actions like delete, primary variant (blue) for archive.
+
+**Skeleton loading** (`Skeleton.tsx`): Animated placeholder components (`SkeletonText`, `SkeletonCard`, `SkeletonTable`) that use Tailwind's `animate-pulse`. Shown instead of "Loading..." text while data fetches.
+
+**Modal animations** (`index.css`): CSS keyframe animations for modals — backdrop fades in, content slides up with a subtle scale. Applied via `animate-backdrop-in` and `animate-modal-in` classes.
+
+### 3.11 How components fetch data
 
 Components use the `api` object from `apiClient.ts`:
 
@@ -459,6 +510,7 @@ When updating a report, the backend doesn't try to diff what changed. Instead:
 - No input validation beyond what Supabase enforces (column types, NOT NULL constraints).
 - No request body validation library (like Zod or Joi).
 - RLS policies exist but are bypassed by the service role key.
+- Profile editing (Settings page is read-only — no `PATCH /profiles/me` endpoint yet).
 
 ---
 
@@ -675,3 +727,38 @@ attendance: {
 | **Anon key** | A Supabase key that respects RLS — used on the frontend (safe to expose) |
 | **PGRST116** | Supabase error code meaning "no rows found" when using `.single()` |
 | **IDOR** | Insecure Direct Object Reference — an attack where a user manipulates IDs to access unauthorized data |
+
+---
+
+## 15. ClassDetailContext caching
+
+### The problem
+
+Previously, each tab section inside `ClassDetailPage` fetched its own data independently on mount. This led to significant redundancy — trainers were fetched 4 times, enrollments 3 times, and schedule slots 3 times per page load. Navigating between tabs or opening modals compounded the issue further.
+
+### How it works now
+
+All class detail data (trainers, enrollments, schedule, reports, hours, drills) is fetched once when `ClassDetailPage` mounts. This happens inside `ClassDetailProvider`, which wraps the entire tabbed page and stores everything in React context.
+
+Tab sections consume the shared data via the `useClassDetail()` hook instead of making their own API calls:
+
+```typescript
+const { trainers, enrollments, schedule, reports, hours, drills, loading } = useClassDetail()
+```
+
+### Refreshing after mutations
+
+When a section modifies data (e.g. adding a trainer, creating a report), it calls the corresponding refresh function to update just that slice of the shared cache:
+
+- `refreshTrainers()` — after assigning or removing a trainer
+- `refreshEnrollments()` — after enrolling or removing a student
+- `refreshSchedule()` — after adding or editing schedule slots
+- `refreshReports()` — after creating or updating a daily report
+- `refreshHours()` — after logging or editing hours
+- `refreshDrills()` — after adding or modifying drills
+
+These functions re-fetch only the specific resource, not the entire cache.
+
+### Loading states
+
+All class detail sections now use skeleton components (`SkeletonTable`, `SkeletonCard`, etc.) instead of plain "Loading..." text while data is being fetched. This applies to both the initial load and individual refreshes.

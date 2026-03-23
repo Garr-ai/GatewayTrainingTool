@@ -24,6 +24,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
+import { EditClassModal } from '../components/EditClassModal'
+import { ClassDetailProvider } from '../contexts/ClassDetailContext'
+import { SkeletonTable } from '../components/Skeleton'
 import { ClassOverviewSection } from './ClassDetail/ClassOverviewSection'
 import { ClassDrillsSection } from './ClassDetail/ClassDrillsSection'
 import { ClassScheduleSection } from './ClassDetail/ClassScheduleSection'
@@ -52,6 +55,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
   const [error, setError] = useState<string | null>(null)
   // Which tab is currently active; defaults to overview on load
   const [activeTab, setActiveTab] = useState<ClassDetailTab>('overview')
+  const [editOpen, setEditOpen] = useState(false)
 
   useEffect(() => {
     /**
@@ -78,7 +82,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
   }, [className])  // Re-fetch if the class name in the URL changes
 
   if (loading) {
-    return <div className="text-sm text-slate-500">Loading class…</div>
+    return <SkeletonTable rows={5} cols={6} />
   }
 
   if (error || !classData) {
@@ -115,6 +119,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setEditOpen(true)}
             className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400"
           >
             Edit class
@@ -142,29 +147,42 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
       </div>
 
       {/* All tabs stay mounted (hidden via CSS) so switching tabs doesn't re-fetch data */}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <div className={activeTab === 'overview' ? '' : 'hidden'}>
-          <ClassOverviewSection classData={classData} />
+      <ClassDetailProvider classId={classData.id}>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className={activeTab === 'overview' ? '' : 'hidden'}>
+            <ClassOverviewSection classData={classData} />
+          </div>
+          <div className={activeTab === 'drills' ? '' : 'hidden'}>
+            <ClassDrillsSection classId={classData.id} className={classData.name} />
+          </div>
+          <div className={activeTab === 'schedule' ? '' : 'hidden'}>
+            <ClassScheduleSection classId={classData.id} className={classData.name} />
+          </div>
+          <div className={activeTab === 'trainers' ? '' : 'hidden'}>
+            <ClassTrainersSection classId={classData.id} className={classData.name} />
+          </div>
+          <div className={activeTab === 'students' ? '' : 'hidden'}>
+            <ClassStudentsSection classId={classData.id} className={classData.name} />
+          </div>
+          <div className={activeTab === 'dailyReports' ? '' : 'hidden'}>
+            <ClassReportsSection classId={classData.id} className={classData.name} mode="reports" />
+          </div>
+          <div className={activeTab === 'hours' ? '' : 'hidden'}>
+            <ClassReportsSection classId={classData.id} className={classData.name} mode="hours" />
+          </div>
         </div>
-        <div className={activeTab === 'drills' ? '' : 'hidden'}>
-          <ClassDrillsSection classId={classData.id} className={classData.name} />
-        </div>
-        <div className={activeTab === 'schedule' ? '' : 'hidden'}>
-          <ClassScheduleSection classId={classData.id} className={classData.name} />
-        </div>
-        <div className={activeTab === 'trainers' ? '' : 'hidden'}>
-          <ClassTrainersSection classId={classData.id} className={classData.name} />
-        </div>
-        <div className={activeTab === 'students' ? '' : 'hidden'}>
-          <ClassStudentsSection classId={classData.id} className={classData.name} />
-        </div>
-        <div className={activeTab === 'dailyReports' ? '' : 'hidden'}>
-          <ClassReportsSection classId={classData.id} className={classData.name} mode="reports" />
-        </div>
-        <div className={activeTab === 'hours' ? '' : 'hidden'}>
-          <ClassReportsSection classId={classData.id} className={classData.name} mode="hours" />
-        </div>
-      </div>
+      </ClassDetailProvider>
+
+      {editOpen && (
+        <EditClassModal
+          classData={classData}
+          onClose={() => setEditOpen(false)}
+          onSuccess={(updated) => {
+            setClassData(updated)
+            setEditOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

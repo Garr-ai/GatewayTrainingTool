@@ -1,52 +1,43 @@
 /**
- * components/CreateClassModal.tsx — Modal form for creating a new training class
+ * components/EditClassModal.tsx — Modal form for editing an existing training class
  *
- * Renders a modal dialog with a form containing all required and optional fields
- * for a new class. On successful creation, calls `onSuccess` (which typically
- * re-fetches the class list) and then calls `onClose`.
+ * Renders a modal dialog with a form pre-filled from the existing class data.
+ * On successful update, calls `onSuccess` with the updated class object
+ * (so the parent can update its state) and then calls `onClose`.
  *
- * Validation rules (client-side, mirrored on the backend):
+ * Validation rules are identical to CreateClassModal:
  *   - Class name is required and must not contain `. , ? / \` characters
- *     (these break the URL slug system used to navigate to class detail pages)
  *   - Site and province are required
  *   - Both start and end dates are required, and end must be >= start
- *
- * The modal uses ARIA attributes (role="dialog", aria-modal, aria-labelledby)
- * for accessibility.
  */
 
 import { useState } from 'react'
 import { api } from '../lib/apiClient'
 import { useToast } from '../contexts/ToastContext'
 import { PROVINCES } from '../types'
-import type { Province } from '../types'
+import type { Province, Class } from '../types'
 
-interface CreateClassModalProps {
-  onClose: () => void    // Called when the user cancels or after successful creation
-  onSuccess: () => void  // Called after the class is created so the parent can refresh its list
+interface EditClassModalProps {
+  classData: Class                        // The class being edited, used to pre-fill all fields
+  onClose: () => void                     // Called when the user cancels or after successful update
+  onSuccess: (updated: Class) => void     // Called with the updated class so the parent can refresh
 }
 
-export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) {
+export function EditClassModal({ classData, onClose, onSuccess }: EditClassModalProps) {
   const { toast } = useToast()
-  const [name, setName] = useState('')
-  const [site, setSite] = useState('')
-  // Province defaults to BC — the most common training location
-  const [province, setProvince] = useState<Province>('BC')
-  const [gameType, setGameType] = useState('')
-  // Start date defaults to today so the coordinator only needs to adjust end date
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })
-  const [endDate, setEndDate] = useState('')
-  const [description, setDescription] = useState('')
-  const [loading, setLoading] = useState(false)  // True while the API call is in flight
-  const [error, setError] = useState('')          // Validation or API error shown to the user
+  const [name, setName] = useState(classData.name)
+  const [site, setSite] = useState(classData.site)
+  const [province, setProvince] = useState<Province>(classData.province)
+  const [gameType, setGameType] = useState(classData.game_type ?? '')
+  const [startDate, setStartDate] = useState(classData.start_date)
+  const [endDate, setEndDate] = useState(classData.end_date)
+  const [description, setDescription] = useState(classData.description ?? '')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   /**
-   * Validates the form and POSTs a new class to the API.
-   * Calls onSuccess (to refresh the class list) then onClose on success.
-   * On error, sets the `error` state which renders an alert inside the form.
+   * Validates the form and PUTs the updated class to the API.
+   * Calls onSuccess (with the returned class) then onClose on success.
    */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -56,8 +47,6 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
       setError('Class name is required.')
       return
     }
-    // Disallow characters that would break the URL slug (classSlug in utils.ts
-    // converts spaces to hyphens; these characters cause ambiguity or broken URLs)
     if (/[.,?/#\\]/.test(trimmedName)) {
       setError('Class name cannot contain characters like . , ? / or \\')
       return
@@ -77,7 +66,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
     setLoading(true)
     try {
-      await api.classes.create({
+      const updated = await api.classes.update(classData.id, {
         name: trimmedName,
         site: site.trim(),
         province,
@@ -86,8 +75,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
         end_date: endDate,
         description: description.trim() || null,
       })
-      onSuccess()
-      toast('Class created', 'success')
+      onSuccess(updated)
+      toast('Class updated', 'success')
       onClose()
     } catch (err) {
       setError((err as Error).message)
@@ -105,25 +94,25 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-backdrop-in"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="create-class-title"
+      aria-labelledby="edit-class-title"
     >
       <div className="w-full max-w-md rounded-xl bg-white shadow-xl animate-modal-in">
         <div className="border-b border-slate-200 px-5 py-4">
-          <h2 id="create-class-title" className="text-lg font-semibold text-slate-900">
-            Create class
+          <h2 id="edit-class-title" className="text-lg font-semibold text-slate-900">
+            Edit class
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            Add a new training class. Required fields are marked.
+            Update class details.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
           <div>
-            <label htmlFor="class-name" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="edit-class-name" className="block text-sm font-medium text-slate-700">
               Class name <span className="text-rose-500">*</span>
             </label>
             <input
-              id="class-name"
+              id="edit-class-name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -135,11 +124,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-site" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="edit-class-site" className="block text-sm font-medium text-slate-700">
                 Site <span className="text-rose-500">*</span>
               </label>
               <input
-                id="class-site"
+                id="edit-class-site"
                 type="text"
                 value={site}
                 onChange={e => setSite(e.target.value)}
@@ -148,11 +137,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-province" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="edit-class-province" className="block text-sm font-medium text-slate-700">
                 Province <span className="text-rose-500">*</span>
               </label>
               <select
-                id="class-province"
+                id="edit-class-province"
                 value={province}
                 onChange={e => setProvince(e.target.value as Province)}
                 className={inputClass}
@@ -167,11 +156,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-game" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="edit-class-game" className="block text-sm font-medium text-slate-700">
               Game type
             </label>
             <input
-              id="class-game"
+              id="edit-class-game"
               type="text"
               value={gameType}
               onChange={e => setGameType(e.target.value)}
@@ -182,11 +171,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-start" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="edit-class-start" className="block text-sm font-medium text-slate-700">
                 Start date <span className="text-rose-500">*</span>
               </label>
               <input
-                id="class-start"
+                id="edit-class-start"
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
@@ -195,11 +184,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-end" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="edit-class-end" className="block text-sm font-medium text-slate-700">
                 End date <span className="text-rose-500">*</span>
               </label>
               <input
-                id="class-end"
+                id="edit-class-end"
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
@@ -210,11 +199,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-desc" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="edit-class-desc" className="block text-sm font-medium text-slate-700">
               Description
             </label>
             <textarea
-              id="class-desc"
+              id="edit-class-desc"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Optional notes"
@@ -242,7 +231,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               disabled={loading}
               className="rounded-lg bg-gw-blue px-4 py-2 text-sm font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
             >
-              {loading ? 'Creating…' : 'Create class'}
+              {loading ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>

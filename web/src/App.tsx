@@ -24,6 +24,7 @@
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { ClassesProvider } from './contexts/ClassesContext'
 import { CoordinatorRoute } from './layouts/CoordinatorRoute'
 import { ProtectedLayout } from './layouts/ProtectedLayout'
@@ -40,6 +41,7 @@ function App() {
   return (
     // AuthProvider must wrap everything so routing decisions can read auth state
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           {/* Public — accessible without authentication */}
@@ -67,6 +69,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }

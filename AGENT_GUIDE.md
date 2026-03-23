@@ -44,7 +44,9 @@ GatewayTrainingTool/
 │       ├── main.tsx              # React entry point
 │       ├── contexts/
 │       │   ├── AuthContext.tsx    # Session + role + signOut (useAuth hook)
-│       │   └── ClassesContext.tsx # Cached active/archived class lists (useClasses hook)
+│       │   ├── ClassesContext.tsx # Cached active/archived class lists (useClasses hook)
+│       │   ├── ClassDetailContext.tsx # Cached class detail data for all tab sections (useClassDetail hook)
+│       │   └── ToastContext.tsx  # Toast notification system (useToast hook)
 │       ├── layouts/
 │       │   ├── ProtectedLayout.tsx   # Auth gate + coordinator sidebar / non-coordinator header
 │       │   └── CoordinatorRoute.tsx  # Role guard wrapper (redirects non-coordinators)
@@ -53,11 +55,20 @@ GatewayTrainingTool/
 │       │   ├── LoginForm.tsx          # Email/password form
 │       │   ├── GoogleLoginForm.tsx    # Google OAuth button
 │       │   ├── CreateClassModal.tsx   # Class creation modal form
-│       │   └── ReportPreviewModal.tsx # Report preview + PDF download
+│       │   ├── EditClassModal.tsx    # Class editing modal form (same fields as create, pre-filled)
+│       │   ├── Pagination.tsx        # Shared pagination component (configurable itemLabel)
+│       │   ├── ReportsFilterBar.tsx   # Filter bar for reports page (province, site, search, etc.)
+│       │   ├── ReportsTable.tsx       # Sortable table for reports
+│       │   ├── ScheduleFilterBar.tsx  # Filter bar for schedule page
+│       │   ├── ScheduleTable.tsx      # Sortable table for schedule
+│       │   ├── ReportPreviewModal.tsx # Report preview + PDF download
+│       │   ├── ConfirmDialog.tsx     # Reusable confirmation dialog (replaces window.confirm)
+│       │   └── Skeleton.tsx          # SkeletonText, SkeletonCard, SkeletonTable loading components
 │       ├── pages/
 │       │   ├── LoginView.tsx           # Public login page
-│       │   ├── DashboardView.tsx       # Coordinator dashboard with tiles
-│       │   ├── ClassesPage.tsx         # Class list + create button
+│       │   ├── DashboardContent.tsx     # Coordinator dashboard (live summary cards, today's sessions, active classes)
+│       │   ├── DashboardView.tsx       # Dashboard wrapper
+│       │   ├── ClassesPage.tsx         # Class list + create button + filter bar (province, site, game type, search)
 │       │   ├── ClassDetailView.tsx     # Slug → name conversion wrapper
 │       │   ├── ClassDetailPage.tsx     # Tabbed class detail (fetches class by name)
 │       │   ├── ClassDetail/            # Tab sections:
@@ -68,9 +79,9 @@ GatewayTrainingTool/
 │       │   │   ├── ClassDrillsSection.tsx
 │       │   │   └── ClassReportsSection.tsx
 │       │   ├── RosterPage.tsx          # Reusable trainer/student list (role prop)
-│       │   ├── ReportsPage.tsx         # Cross-class daily reports
-│       │   ├── SchedulePage.tsx        # Upcoming schedule across classes
-│       │   ├── SettingsContent.tsx      # Account settings placeholder
+│       │   ├── ReportsPage.tsx         # Cross-class daily reports (server-side filtering, sorting, pagination)
+│       │   ├── SchedulePage.tsx        # Upcoming schedule across classes (server-side filtering, sorting, pagination)
+│       │   ├── SettingsContent.tsx      # Profile display + sign-out
 │       │   └── InProgressPage.tsx       # "Work in progress" placeholder for non-coordinators
 │       ├── lib/
 │       │   ├── supabase.ts       # Supabase client (anon key — respects RLS)
@@ -177,6 +188,76 @@ The Gateway brand colors are defined in `web/tailwind.config.js`:
 - `gw-blue`: `#1E69B3`
 
 Use white backgrounds with `#134270` accents for the main UI. Sidebar uses the dark gradient.
+
+### 4.10 Toast notifications
+
+`ToastContext` provides a global toast system. Use `useToast()` to get the `toast(message, type)` function.
+
+Types: `'success'` (green), `'error'` (red), `'info'` (blue). Auto-dismiss after 4 seconds.
+
+**Always add toast calls** after async mutations (create, update, delete, archive). Pattern:
+```ts
+const { toast } = useToast()
+try {
+  await api.resource.delete(id)
+  toast('Item deleted', 'success')
+} catch (err) {
+  toast((err as Error).message, 'error')
+}
+```
+
+### 4.11 Confirmation dialogs
+
+Use `<ConfirmDialog>` instead of `window.confirm()` for all destructive or significant actions. Pattern:
+```ts
+const [confirmState, setConfirmState] = useState<{ ... } | null>(null)
+// On action: setConfirmState({ title, message, confirmLabel, confirmVariant, onConfirm })
+// Render: <ConfirmDialog open={confirmState !== null} ... onCancel={() => setConfirmState(null)} />
+```
+Use `confirmVariant: 'danger'` for destructive actions, `'primary'` for non-destructive.
+
+### 4.12 Loading states
+
+Use skeleton components from `components/Skeleton.tsx` instead of "Loading..." text:
+- `<SkeletonText>` — single animated line
+- `<SkeletonCard lines={n}>` — card placeholder
+- `<SkeletonTable rows={n} cols={n}>` — table placeholder
+
+### 4.13 Modal animations
+
+All modals use CSS animations defined in `index.css`:
+- Backdrop: `animate-backdrop-in` (fade in 0.2s)
+- Content: `animate-modal-in` (slide up + fade in 0.25s)
+
+Add these classes to any new modals.
+
+### 4.14 ClassDetailContext — shared class detail data
+
+`ClassDetailContext` provides cached trainers, enrollments, schedule, reports, hours, and drills for the class detail page. It fetches all six data sets once via `Promise.all` when the page mounts, then shares them across every tab section.
+
+**Provider:** `ClassDetailProvider` wraps all tab sections in `ClassDetailPage`. It accepts a `classId` prop and fetches all data on mount.
+
+**Hook:** `useClassDetail()` — returns all cached data plus individual refresh functions.
+
+**Refresh functions:** Each data type has its own refresh function so a mutation in one tab can update only the relevant cache:
+- `refreshTrainers()` — re-fetches trainer assignments
+- `refreshEnrollments()` — re-fetches student enrollments
+- `refreshSchedule()` — re-fetches schedule slots
+- `refreshReports()` — re-fetches daily reports
+- `refreshHours()` — re-fetches logged hours
+- `refreshDrills()` — re-fetches drills/tests
+
+**Pattern:** Tab sections read data from the context instead of fetching their own. After a mutation (create, update, delete), the section calls the appropriate refresh function to update the shared cache. Example:
+```ts
+const { trainers, refreshTrainers } = useClassDetail()
+
+// After adding a trainer:
+await api.trainers.create(classId, payload)
+await refreshTrainers()
+toast('Trainer added', 'success')
+```
+
+This eliminates redundant API calls — previously trainers were fetched 4 times, enrollments 3 times, and schedule 3 times across the different tab sections.
 
 ---
 
@@ -321,14 +402,42 @@ When adding a new resource (e.g. "attendance"):
 
 ---
 
+### 4.8 Server-side filtering, sorting, and pagination pattern
+
+The Reports and Schedule pages use a shared pattern for server-side filtering:
+
+**Backend:**
+- Accept query params for filtering (province, site, class_id, archived, game_type, date_from, date_to, search), sorting (sort_by, sort_dir), and pagination (page, limit).
+- Use `!inner` join syntax so filters on joined columns actually exclude rows: `classes!inner(id, name, site, province, game_type, archived)`.
+- Use `{ count: 'exact' }` for total count to enable pagination.
+- Whitelist sortable columns to prevent injection.
+- Return envelope: `{ data, total, page, limit }`.
+- When `archived !== 'true'`, filter to active classes only. When `archived === 'true'`, include ALL classes (not just archived).
+
+**Frontend:**
+- Custom hook (`useReportsQuery`, `useScheduleQuery`) manages filter/sort/page state.
+- Changing any filter or sort resets page to 0.
+- Search input is debounced (300ms).
+- Reusable `Pagination` component with configurable `itemLabel`.
+
+**Follow this pattern** when adding new paginated list pages.
+
+### 4.9 Edit Class modal
+
+The `EditClassModal` mirrors `CreateClassModal` but:
+- Accepts `classData: Class` and pre-fills all fields.
+- Uses `api.classes.update(id, body)` instead of `create`.
+- Returns the updated `Class` via `onSuccess(updated)` so the parent can update state without re-fetching.
+
+---
+
 ## 12. What's NOT implemented yet
 
 Refer to `CURRENT_STATE.md` for the full status, but the main gaps:
 - Trainer and trainee dashboards (show "in progress" placeholder)
 - Drill timer and drill entry UI
 - Attendance tracking UI
-- Province-based filtering on class lists
-- Settings page (placeholder only)
+- Profile editing (Settings page shows profile read-only; no update endpoint yet)
 - Database migrations are NOT in the repo — run SQL in Supabase SQL editor
 - No automated tests exist yet
 - No CI/CD pipeline (Vercel auto-deploys from the Production branch)

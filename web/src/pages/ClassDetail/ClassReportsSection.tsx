@@ -30,17 +30,19 @@
  *   if the logged hours don't perfectly reflect reality (e.g. off-system hours).
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api, type ReportWithNested } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
+import { useToast } from '../../contexts/ToastContext'
+import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { SkeletonTable } from '../../components/Skeleton'
 import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
   ClassDailyReportTraineeProgress,
   ClassLoggedHours,
-  ClassTrainer,
-  ClassEnrollment,
   LoggedHoursPersonType,
   DailyRating,
 } from '../../types'
@@ -52,13 +54,25 @@ interface ClassReportsSectionProps {
 }
 
 export function ClassReportsSection({ classId, className, mode }: ClassReportsSectionProps) {
-  // Shared data loaded for both tabs
-  const [reports, setReports] = useState<ClassDailyReport[]>([])
-  const [hours, setHours] = useState<ClassLoggedHours[]>([])
-  const [trainers, setTrainers] = useState<ClassTrainer[]>([])
-  // Only enrolled students are loaded (waitlist/dropped are excluded from daily progress)
-  const [enrollments, setEnrollments] = useState<ClassEnrollment[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const [confirmState, setConfirmState] = useState<{
+    title: string
+    message: string
+    confirmLabel: string
+    confirmVariant: 'danger' | 'primary'
+    onConfirm: () => void
+  } | null>(null)
+
+  // Data comes from the shared ClassDetailContext cache
+  const {
+    trainers, enrollments: allEnrollments, reports, hours,
+    loading, refreshReports, refreshHours,
+  } = useClassDetail()
+  // Only enrolled students appear in daily progress (waitlisted/dropped are excluded)
+  const enrollments = useMemo(
+    () => allEnrollments.filter(e => e.status === 'enrolled'),
+    [allEnrollments],
+  )
   const [error, setError] = useState<string | null>(null)
 
   // ── Daily report form state ───────────────────────────────────────────────
@@ -106,35 +120,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [hoursNotes, setHoursNotes] = useState('')
   const [hoursSaving, setHoursSaving] = useState(false)
 
-  async function loadReports() {
-    const data = await api.reports.list(classId)
-    setReports(data)
-  }
-
-  async function loadHours() {
-    const data = await api.hours.list(classId)
-    setHours(data)
-  }
-
-  async function loadTrainers() {
-    const data = await api.trainers.list(classId)
-    setTrainers(data)
-  }
-
-  /** Only loads students with status='enrolled' — waitlisted/dropped don't appear in reports. */
-  async function loadEnrollments() {
-    const data = await api.enrollments.list(classId, 'enrolled')
-    setEnrollments(data)
-  }
-
-  // Load all four datasets in parallel on mount to avoid waterfall requests
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    Promise.all([loadReports(), loadHours(), loadTrainers(), loadEnrollments()])
-      .catch(err => setError((err as Error).message))
-      .finally(() => setLoading(false))
-  }, [classId])
 
   /** Resets all report form fields to their empty defaults. */
   function resetReportForm() {
@@ -258,27 +243,39 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     try {
       if (editingReport) {
         await api.reports.update(classId, editingReport.id, body)
+        toast('Report updated successfully.', 'success')
       } else {
         await api.reports.create(classId, body)
+        toast('Report created successfully.', 'success')
       }
       setReportFormOpen(false)
-      loadReports()
+      refreshReports()
     } catch (err) {
       setError((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setReportSaving(false)
     }
   }
 
   /** Deletes a daily report after confirmation. This also deletes all nested data. */
-  async function handleRemoveReport(id: string) {
-    if (!window.confirm('Remove this report? This cannot be undone.')) return
-    try {
-      await api.reports.delete(classId, id)
-      loadReports()
-    } catch (err) {
-      setError((err as Error).message)
-    }
+  function handleRemoveReport(id: string) {
+    setConfirmState({
+      title: 'Delete report',
+      message: 'Remove this report? This cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.reports.delete(classId, id)
+          refreshReports()
+          toast('Report deleted successfully.', 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
+        }
+      },
+    })
   }
 
   /**
@@ -361,13 +358,16 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     try {
       if (editingHours) {
         await api.hours.update(classId, editingHours.id, payload)
+        toast('Hours updated successfully.', 'success')
       } else {
         await api.hours.create(classId, payload)
+        toast('Hours logged successfully.', 'success')
       }
       setHoursFormOpen(false)
-      loadHours()
+      refreshHours()
     } catch (err) {
       setError((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setHoursSaving(false)
     }
@@ -377,7 +377,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   async function handleRemoveHours(id: string) {
     try {
       await api.hours.delete(classId, id)
-      loadHours()
+      refreshHours()
     } catch (err) {
       setError((err as Error).message)
     }
@@ -418,7 +418,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   }
 
   if (loading) {
-    return <p className="text-xs text-slate-500">Loading…</p>
+    return <SkeletonTable rows={4} cols={5} />
   }
 
   return (
@@ -1299,6 +1299,16 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     {previewArgs && (
       <ReportPreviewModal args={previewArgs} onClose={() => setPreviewArgs(null)} />
     )}
+
+    <ConfirmDialog
+      open={confirmState !== null}
+      title={confirmState?.title ?? ''}
+      message={confirmState?.message ?? ''}
+      confirmLabel={confirmState?.confirmLabel}
+      confirmVariant={confirmState?.confirmVariant}
+      onConfirm={confirmState?.onConfirm ?? (() => {})}
+      onCancel={() => setConfirmState(null)}
+    />
     </>
   )
 }

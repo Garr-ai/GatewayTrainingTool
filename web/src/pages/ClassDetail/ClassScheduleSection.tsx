@@ -21,9 +21,11 @@
  * display name for the schedule table, falling back to em-dash if not found.
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../lib/apiClient'
-import type { ClassScheduleSlot, ClassTrainer } from '../../types'
+import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { SkeletonTable } from '../../components/Skeleton'
+import type { ClassScheduleSlot } from '../../types'
 
 interface ClassScheduleSectionProps {
   classId: string   // UUID of the class
@@ -31,10 +33,7 @@ interface ClassScheduleSectionProps {
 }
 
 export function ClassScheduleSection({ classId, className }: ClassScheduleSectionProps) {
-  const [slots, setSlots] = useState<ClassScheduleSlot[]>([])
-  // Trainers for the class — used to populate the trainer dropdown in the form
-  const [trainers, setTrainers] = useState<ClassTrainer[]>([])
-  const [loading, setLoading] = useState(true)
+  const { schedule: slots, trainers, loading, refreshSchedule } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
   // Controls the slot form modal (both add and edit use the same form)
   const [formOpen, setFormOpen] = useState(false)
@@ -48,41 +47,6 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
   const [trainerId, setTrainerId] = useState<string>('')
   const [groupLabel, setGroupLabel] = useState('')
   const [saving, setSaving] = useState(false)
-
-  /** Loads all schedule slots for the class, sorted by date then start time. */
-  async function loadSlots() {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await api.schedule.list(classId)
-      setSlots(data)
-    } catch (err) {
-      console.error('loadSlots error:', (err as Error).message)
-      setError('Unable to load schedule for this class.')
-      setSlots([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * Loads trainers for the dropdown in the add/edit form.
-   * Failures are silently ignored because the form still works
-   * without trainers (the trainer field is optional).
-   */
-  async function loadTrainers() {
-    try {
-      const data = await api.trainers.list(classId)
-      setTrainers(data)
-    } catch {
-      // non-critical — slot form can still be used without trainer selection
-    }
-  }
-
-  useEffect(() => {
-    loadSlots()
-    loadTrainers()
-  }, [classId])
 
   /** Resets form fields and opens the modal in "add new slot" mode. */
   function openAddForm() {
@@ -140,7 +104,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
         await api.schedule.create(classId, payload)
       }
       closeForm()
-      loadSlots()
+      refreshSchedule()
     } catch (err) {
       console.error('saveSlot error:', (err as Error).message)
       setError((err as Error).message)
@@ -153,7 +117,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
   async function handleRemove(id: string) {
     try {
       await api.schedule.delete(classId, id)
-      loadSlots()
+      refreshSchedule()
     } catch (err) {
       console.error('removeSlot error:', (err as Error).message)
       setError((err as Error).message)
@@ -313,7 +277,7 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
       )}
 
       {loading ? (
-        <p className="text-xs text-slate-500">Loading schedule…</p>
+        <SkeletonTable rows={3} cols={7} />
       ) : slots.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
           No schedule slots yet for <span className="font-medium text-slate-700">{className}</span>.

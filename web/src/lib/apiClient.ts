@@ -136,6 +136,92 @@ interface ReportBody {
   progress: ProgressRowInput[]
 }
 
+// ─── Report list (paginated) types ──────────────────────────────────────────
+
+/** The expanded class fields returned by the paginated GET /reports endpoint. */
+export type ReportRowClass = {
+  id: string
+  name: string
+  site: string
+  province: Province
+  game_type: string | null
+  archived: boolean
+}
+
+/** A single row from the paginated reports list. */
+export type ReportRow = ClassDailyReport & { classes: ReportRowClass }
+
+/** Query params accepted by api.reports.listAll(). */
+export interface ReportListParams {
+  province?: Province | ''
+  site?: string
+  class_id?: string
+  archived?: boolean
+  game_type?: string
+  date_from?: string
+  date_to?: string
+  search?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+/** Paginated response envelope from GET /reports. */
+export interface PaginatedReports {
+  data: ReportRow[]
+  total: number
+  page: number
+  limit: number
+}
+
+// ─── Schedule list (paginated) types ────────────────────────────────────────
+
+/** The expanded class fields returned by the paginated GET /schedule endpoint. */
+export type ScheduleRowClass = {
+  id: string
+  name: string
+  site: string
+  province: Province
+  game_type: string | null
+  archived: boolean
+}
+
+/** Trainer info joined on a schedule slot's trainer_id FK. */
+export type ScheduleRowTrainer = {
+  id: string
+  trainer_name: string
+  role: string
+} | null
+
+/** A single row from the paginated schedule list. */
+export type ScheduleRow = ClassScheduleSlot & { classes: ScheduleRowClass; class_trainers: ScheduleRowTrainer }
+
+/** Query params accepted by api.schedule.listAll(). */
+export interface ScheduleListParams {
+  province?: Province | ''
+  site?: string
+  class_id?: string
+  archived?: boolean
+  game_type?: string
+  date_from?: string
+  date_to?: string
+  group_label?: string
+  search?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+  page?: number
+  limit?: number
+}
+
+/** Paginated response envelope from GET /schedule. */
+export interface PaginatedSchedule {
+  data: ScheduleRow[]
+  total: number
+  page: number
+  limit: number
+}
+
 // ─── API client ─────────────────────────────────────────────────────────────
 
 /**
@@ -233,7 +319,16 @@ export const api = {
   },
 
   schedule: {
-    listAll: () => req<(ClassScheduleSlot & { classes: { id: string; name: string; site: string } })[]>('/schedule'),
+    listAll: (params?: ScheduleListParams) => {
+      const entries: Record<string, string> = {}
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined && v !== '') entries[k] = String(v)
+        }
+      }
+      const qs = new URLSearchParams(entries).toString()
+      return req<PaginatedSchedule>(`/schedule${qs ? `?${qs}` : ''}`)
+    },
     list: (classId: string) => req<ClassScheduleSlot[]>(`/classes/${classId}/schedule`),
     create: (
       classId: string,
@@ -256,7 +351,16 @@ export const api = {
   },
 
   reports: {
-    listAll: () => req<(ClassDailyReport & { classes: { id: string; name: string; site: string } })[]>('/reports'),
+    listAll: (params?: ReportListParams) => {
+      const entries: Record<string, string> = {}
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          if (v !== undefined && v !== '') entries[k] = String(v)
+        }
+      }
+      const qs = new URLSearchParams(entries).toString()
+      return req<PaginatedReports>(`/reports${qs ? `?${qs}` : ''}`)
+    },
     list: (classId: string) => req<ClassDailyReport[]>(`/classes/${classId}/reports`),
     get: (id: string) => req<ReportWithNested>(`/reports/${id}`),
     create: (classId: string, body: ReportBody) =>

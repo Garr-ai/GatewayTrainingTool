@@ -7,11 +7,15 @@
  *
  * Middleware stack (in order of application):
  *   1. helmet         — Sets comprehensive security response headers
- *   2. globalLimiter  — Rate limits all requests to 100/15min per IP
- *   3. cors           — Allows the frontend origin; unrestricted in dev
+ *   2. cors           — Allows the frontend origin; unrestricted in dev
+ *   3. globalLimiter  — Rate limits all requests to 100/15min per IP
  *   4. express.json   — Parses JSON bodies (hard-capped at 50 KB)
  *   5. /api router    — All API routes (auth, coordinator checks inside)
  *   6. errorHandler   — Catches any thrown errors and returns JSON 500
+ *
+ * CORS is registered BEFORE the rate limiter so that browser preflight
+ * (OPTIONS) requests receive proper Access-Control-Allow-Origin headers
+ * even if the rate limit is hit.
  *
  * Deployment:
  *   - In development: the server listens on PORT (default 3001).
@@ -44,6 +48,19 @@ const app = express()
 // Referrer-Policy, X-XSS-Protection, Content-Security-Policy, and more.
 app.use(helmet())
 
+// CORS must be registered BEFORE the rate limiter so that preflight OPTIONS
+// requests get proper CORS headers even when rate-limited.
+app.use(
+  cors({
+    // In production, only allow requests from the configured frontend URL.
+    // In development, allow all origins (true) so local dev works without configuration.
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.FRONTEND_URL
+      : true,
+    credentials: true,
+  }),
+)
+
 // Rate limiting — applied globally. Adjust windowMs/limit per-route for sensitive endpoints.
 // These defaults allow 100 requests per 15 min per IP, suitable for an internal tool.
 const globalLimiter = rateLimit({
@@ -68,16 +85,6 @@ export const writeLimiter = rateLimit({
   message: { error: 'Too many write requests, please try again later.' },
 })
 
-app.use(
-  cors({
-    // In production, only allow requests from the configured frontend URL.
-    // In development, allow all origins (true) so local dev works without configuration.
-    origin: process.env.NODE_ENV === 'production'
-      ? process.env.FRONTEND_URL
-      : true,
-    credentials: true,
-  }),
-)
 // Explicit body size limit — prevents request body attacks; adjust if you need larger payloads
 app.use(express.json({ limit: '50kb' }))
 app.use('/api', router)
