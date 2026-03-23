@@ -20,8 +20,12 @@
  * They are not automatically updated if the user profile changes later.
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../lib/apiClient'
+import { useToast } from '../../contexts/ToastContext'
+import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { SkeletonTable } from '../../components/Skeleton'
 import type { ClassTrainer, TrainerRole, Profile } from '../../types'
 
 interface ClassTrainersSectionProps {
@@ -30,9 +34,10 @@ interface ClassTrainersSectionProps {
 }
 
 export function ClassTrainersSection({ classId, className }: ClassTrainersSectionProps) {
-  const [trainers, setTrainers] = useState<ClassTrainer[]>([])
-  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const { trainers, loading, refreshTrainers } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; confirmVariant: 'danger' | 'primary'; onConfirm: () => void } | null>(null)
   // Controls the assign-trainer search modal
   const [assignOpen, setAssignOpen] = useState(false)
   // The role to assign when clicking a profile from the search results
@@ -48,26 +53,6 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editRole, setEditRole] = useState<TrainerRole>('primary')
-
-  /** Loads the current list of trainers assigned to this class. */
-  async function loadTrainers() {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await api.trainers.list(classId)
-      setTrainers(data)
-    } catch (err) {
-      console.error('loadTrainers error:', (err as Error).message)
-      setError('Unable to load trainers for this class.')
-      setTrainers([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadTrainers()
-  }, [classId])
 
   /**
    * Searches the profiles table for users with role="trainer" matching the term.
@@ -106,11 +91,12 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       })
       // Refresh both lists so the newly assigned trainer appears in the table
       // and disappears from the search results
-      await loadTrainers()
+      await refreshTrainers()
       await searchProfiles(searchTerm)
+      toast('Trainer assigned', 'success')
     } catch (err) {
       console.error('createTrainer error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
@@ -135,23 +121,33 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
         role: editRole,
       })
       setEditingTrainer(null)
-      loadTrainers()
+      refreshTrainers()
+      toast('Trainer updated', 'success')
     } catch (err) {
       console.error('updateTrainer error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
   /** Removes a trainer from this class after confirmation. */
-  async function handleRemove(id: string, name: string) {
-    if (!window.confirm(`Remove ${name} from this class?`)) return
-    try {
-      await api.trainers.delete(classId, id)
-      loadTrainers()
-    } catch (err) {
-      console.error('removeTrainer error:', (err as Error).message)
-      setError((err as Error).message)
-    }
+  function handleRemove(id: string, name: string) {
+    setConfirmState({
+      title: 'Remove trainer',
+      message: `Remove "${name}" from this class?`,
+      confirmLabel: 'Remove',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.trainers.delete(classId, id)
+          await refreshTrainers()
+          toast('Trainer removed', 'success')
+        } catch (err) {
+          console.error('removeTrainer error:', (err as Error).message)
+          toast((err as Error).message, 'error')
+        }
+      },
+    })
   }
 
   return (
@@ -331,7 +327,7 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       )}
 
       {loading ? (
-        <p className="text-xs text-slate-500">Loading trainers…</p>
+        <SkeletonTable rows={3} cols={4} />
       ) : trainers.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
           No trainers assigned yet for{' '}
@@ -378,6 +374,16 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message ?? ''}
+        confirmLabel={confirmState?.confirmLabel}
+        confirmVariant={confirmState?.confirmVariant}
+        onConfirm={confirmState?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmState(null)}
+      />
     </section>
   )
 }

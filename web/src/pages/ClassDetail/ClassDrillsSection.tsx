@@ -17,9 +17,11 @@
  * before being sent to the API.
  */
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../../lib/apiClient'
-import type { ClassDrill, DrillType } from '../../types'
+import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { SkeletonTable } from '../../components/Skeleton'
+import type { DrillType } from '../../types'
 
 interface ClassDrillsSectionProps {
   classId: string   // UUID of the class — used for all API calls
@@ -27,8 +29,7 @@ interface ClassDrillsSectionProps {
 }
 
 export function ClassDrillsSection({ classId, className }: ClassDrillsSectionProps) {
-  const [drills, setDrills] = useState<ClassDrill[]>([])
-  const [loading, setLoading] = useState(true)
+  const { drills, loading, refreshDrills } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
   // Controls visibility of the inline add-drill form
   const [formOpen, setFormOpen] = useState(false)
@@ -38,26 +39,6 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
   const [formParTime, setFormParTime] = useState('')
   const [formTargetScore, setFormTargetScore] = useState('')
   const [saving, setSaving] = useState(false)
-
-  /** Fetches the list of drills/tests for the current class. */
-  async function loadDrills() {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await api.drills.list(classId)
-      setDrills(data)
-    } catch (err) {
-      console.error('loadDrills error:', (err as Error).message)
-      setError('Unable to load drills for this class.')
-      setDrills([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadDrills()
-  }, [classId])
 
   /**
    * Validates and submits the add-drill form.
@@ -87,7 +68,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       setFormTargetScore('')
       setFormType('drill')
       setFormOpen(false)
-      loadDrills()
+      refreshDrills()
     } catch (err) {
       console.error('createDrill error:', (err as Error).message)
       setError((err as Error).message)
@@ -185,7 +166,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       )}
 
       {loading ? (
-        <p className="text-xs text-slate-500">Loading drills…</p>
+        <SkeletonTable rows={3} cols={5} />
       ) : drills.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
           No drills or tests defined yet for{' '}

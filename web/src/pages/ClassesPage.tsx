@@ -13,39 +13,110 @@
  *
  * Navigation to a class detail page uses the `classSlug` utility to convert
  * the class name to a URL-safe slug (e.g. "BJ APR 01" → "BJ-APR-01").
+ *
+ * A filter bar above the tables allows filtering by province, site, game type,
+ * and a free-text search on class name. Filters apply to both active and
+ * archived lists.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
+import { PROVINCES } from '../types'
 import { CreateClassModal } from '../components/CreateClassModal'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../contexts/AuthContext'
 import { useClasses } from '../contexts/ClassesContext'
+import { useToast } from '../contexts/ToastContext'
 import { classSlug, provinceLabel } from '../lib/utils'
+import { SkeletonTable } from '../components/Skeleton'
 
 export function ClassesPage() {
   const { email, signOut } = useAuth()
+  const { toast } = useToast()
   // Classes are cached in context — no local fetch needed
   const { active, archived, loading, refresh: fetchClasses } = useClasses()
   // Controls visibility of the CreateClassModal
   const [createOpen, setCreateOpen] = useState(false)
+  const [confirmState, setConfirmState] = useState<{
+    title: string
+    message: string
+    confirmLabel: string
+    confirmVariant: 'danger' | 'primary'
+    onConfirm: () => void
+  } | null>(null)
+
+  // Filter state
+  const [province, setProvince] = useState('')
+  const [site, setSite] = useState('')
+  const [gameType, setGameType] = useState('')
+  const [search, setSearch] = useState('')
 
   const navigate = useNavigate()
+
+  const allClasses = useMemo(() => [...active, ...archived], [active, archived])
+
+  /** Unique sites derived from all classes, optionally narrowed by selected province. */
+  const siteOptions = useMemo(() => {
+    const source = province
+      ? allClasses.filter(c => c.province === province)
+      : allClasses
+    return [...new Set(source.map(c => c.site))].sort()
+  }, [allClasses, province])
+
+  /** Unique non-null game types derived from all classes. */
+  const gameTypeOptions = useMemo(() => {
+    return [...new Set(allClasses.map(c => c.game_type).filter((g): g is string => g != null))].sort()
+  }, [allClasses])
+
+  const hasFilters = province !== '' || site !== '' || gameType !== '' || search !== ''
+
+  function resetFilters() {
+    setProvince('')
+    setSite('')
+    setGameType('')
+    setSearch('')
+  }
+
+  /** Apply all active filters to a list of classes. */
+  function applyFilters(classes: Class[]): Class[] {
+    let result = classes
+    if (province) result = result.filter(c => c.province === province)
+    if (site) result = result.filter(c => c.site === site)
+    if (gameType) result = result.filter(c => c.game_type === gameType)
+    if (search) {
+      const q = search.toLowerCase()
+      result = result.filter(c => c.name.toLowerCase().includes(q))
+    }
+    return result
+  }
+
+  const filteredActive = useMemo(() => applyFilters(active), [active, province, site, gameType, search])
+  const filteredArchived = useMemo(() => applyFilters(archived), [archived, province, site, gameType, search])
 
   /**
    * Archives a class (soft-delete — it moves to the archived list).
    * `e.stopPropagation()` prevents the row click from navigating to the class detail.
    */
-  async function handleArchive(c: Class, e: React.MouseEvent) {
+  function handleArchive(c: Class, e: React.MouseEvent) {
     e.stopPropagation()
-    if (!window.confirm(`Archive "${c.name}"? It will be hidden from the active list.`)) return
-    try {
-      await api.classes.archive(c.id)
-      fetchClasses()
-    } catch (err) {
-      console.error('archive error:', (err as Error).message)
-    }
+    setConfirmState({
+      title: 'Archive class',
+      message: `Archive "${c.name}"? It will be hidden from the active list.`,
+      confirmLabel: 'Archive',
+      confirmVariant: 'primary',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.classes.archive(c.id)
+          fetchClasses()
+          toast('Class archived', 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
+        }
+      }
+    })
   }
 
   /** Moves an archived class back to the active list. */
@@ -53,21 +124,33 @@ export function ClassesPage() {
     try {
       await api.classes.unarchive(c.id)
       fetchClasses()
+      toast('Class restored', 'success')
     } catch (err) {
-      console.error('unarchive error:', (err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
   /** Permanently deletes a class. Only available for archived classes. */
-  async function handleDelete(c: Class) {
-    if (!window.confirm(`Permanently delete "${c.name}"? This cannot be undone.`)) return
-    try {
-      await api.classes.delete(c.id)
-      fetchClasses()
-    } catch (err) {
-      console.error('delete error:', (err as Error).message)
-    }
+  function handleDelete(c: Class) {
+    setConfirmState({
+      title: 'Delete class',
+      message: `Permanently delete "${c.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.classes.delete(c.id)
+          fetchClasses()
+          toast('Class deleted', 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
+        }
+      }
+    })
   }
+
+  const selectClass = "rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue"
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -95,9 +178,90 @@ export function ClassesPage() {
         </div>
       </header>
 
+      {/* Filter bar */}
+      {!loading && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 flex-shrink-0">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600">Province</label>
+              <select
+                value={province}
+                onChange={e => { setProvince(e.target.value); setSite('') }}
+                className={selectClass}
+              >
+                <option value="">All provinces</option>
+                {PROVINCES.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600">Site</label>
+              <select
+                value={site}
+                onChange={e => setSite(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">All sites</option>
+                {siteOptions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600">Game type</label>
+              <select
+                value={gameType}
+                onChange={e => setGameType(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">All game types</option>
+                {gameTypeOptions.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600">Search</label>
+              <input
+                type="text"
+                placeholder="Filter by name..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={selectClass}
+              />
+            </div>
+
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-xs text-gw-dark hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-6">
         {loading ? (
-          <p className="text-sm text-slate-500">Loading classes…</p>
+          <SkeletonTable rows={5} cols={6} />
+        ) : filteredActive.length === 0 && filteredArchived.length === 0 && hasFilters ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <p className="text-sm text-slate-600">No classes match your filters</p>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="mt-3 text-xs text-gw-dark hover:underline"
+            >
+              Reset filters
+            </button>
+          </div>
         ) : (
           <>
             {/* Active classes */}
@@ -105,7 +269,7 @@ export function ClassesPage() {
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Active
               </h3>
-              {active.length === 0 ? (
+              {filteredActive.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                   <p className="text-sm text-slate-600">No active classes</p>
                   <p className="mt-1 text-xs text-slate-500">Create your first class to get started.</p>
@@ -133,7 +297,7 @@ export function ClassesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {active.map(c => (
+                        {filteredActive.map(c => (
                           <tr
                             key={c.id}
                             className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer"
@@ -164,7 +328,7 @@ export function ClassesPage() {
             </div>
 
             {/* Archived classes */}
-            {archived.length > 0 && (
+            {filteredArchived.length > 0 && (
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Archived
@@ -183,7 +347,7 @@ export function ClassesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {archived.map(c => (
+                        {filteredArchived.map(c => (
                           <tr key={c.id} className="border-b border-slate-100">
                             <td className="px-4 py-3 font-medium text-slate-500">{c.name}</td>
                             <td className="px-4 py-3 text-slate-400">{c.site}</td>
@@ -223,6 +387,16 @@ export function ClassesPage() {
       {createOpen && (
         <CreateClassModal onClose={() => setCreateOpen(false)} onSuccess={fetchClasses} />
       )}
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ''}
+        message={confirmState?.message ?? ''}
+        confirmLabel={confirmState?.confirmLabel}
+        confirmVariant={confirmState?.confirmVariant}
+        onConfirm={confirmState?.onConfirm ?? (() => {})}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   )
 }

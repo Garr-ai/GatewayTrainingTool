@@ -41,22 +41,113 @@ import { logAudit } from '../lib/audit'
 
 export const reportsRouter = Router()
 
+/** Columns that can be used in the sort_by query param. */
+const SORTABLE_COLUMNS = new Set(['report_date', 'game', 'current_trainees'])
+
 /**
  * GET /reports
  * Auth: coordinator
- * Returns all daily reports across all classes, joined with the parent class's
- * id, name, and site. Sorted by report_date descending. Limited to 200 results.
- * Used by the global ReportsPage to give coordinators an overview of recent reports.
+ *
+ * Returns daily reports across all classes with server-side filtering,
+ * sorting, and pagination. The response includes a total count so the
+ * frontend can render pagination controls.
+ *
+ * Query params:
+ *   province   — filter by class province (BC|AB|ON)
+ *   site       — filter by class site (exact match)
+ *   class_id   — filter to a single class
+ *   archived   — 'true' to include archived classes only, default 'false'
+ *   game_type  — filter by class game_type
+ *   date_from  — reports on or after this date (YYYY-MM-DD)
+ *   date_to    — reports on or before this date (YYYY-MM-DD)
+ *   search     — free-text search on game, session_label, and class name
+ *   sort_by    — column to sort by (report_date|game|current_trainees)
+ *   sort_dir   — 'asc' or 'desc' (default 'desc')
+ *   page       — 0-indexed page number (default 0)
+ *   limit      — rows per page, 1-200 (default 50)
  */
-reportsRouter.get('/reports', async (_req: Request, res: Response, next: NextFunction) => {
+reportsRouter.get('/reports', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { data, error } = await supabase
+    const {
+      province,
+      site,
+      class_id,
+      archived,
+      game_type,
+      date_from,
+      date_to,
+      search,
+      sort_by,
+      sort_dir,
+      page: pageStr,
+      limit: limitStr,
+    } = req.query as Record<string, string | undefined>
+
+    // Pagination
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // Sorting — whitelist columns to prevent injection
+    const sortColumn = SORTABLE_COLUMNS.has(sort_by ?? '') ? sort_by! : 'report_date'
+    const ascending = sort_dir === 'asc'
+
+    // Build query with inner join so filters on classes.* actually exclude rows
+    const query = supabase
       .from('class_daily_reports')
-      .select('*, classes(id, name, site)')
-      .order('report_date', { ascending: false })
-      .limit(200)
+      .select('*, classes!inner(id, name, site, province, game_type, archived)', { count: 'exact' })
+
+    // --- Filters on the joined classes table ---
+    if (province) query.eq('classes.province', province)
+    if (site) query.eq('classes.site', site)
+    if (game_type) query.eq('classes.game_type', game_type)
+    // When archived is 'true', include ALL classes (active + archived).
+    // When archived is absent or 'false', restrict to active classes only.
+    if (archived !== 'true') query.eq('classes.archived', false)
+
+    // --- Filters on the reports table ---
+    if (class_id) query.eq('class_id', class_id)
+    if (date_from) query.gte('report_date', date_from)
+    if (date_to) query.lte('report_date', date_to)
+
+    // Free-text search on report fields + class name
+    if (search) {
+      const pattern = `%${search}%`
+      query.or(`game.ilike.${pattern},session_label.ilike.${pattern}`)
+    }
+
+    // Sorting and pagination
+    query.order(sortColumn, { ascending })
+    query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
     if (error) throw error
-    res.json(data)
+
+    // If searching by class name, do a secondary client-side filter since
+    // Supabase .or() doesn't reliably support ilike on joined columns
+    let filtered = data ?? []
+    if (search) {
+      const lower = search.toLowerCase()
+      filtered = filtered.filter(
+        (r: Record<string, unknown>) => {
+          const classes = r.classes as { name: string } | null
+          const game = r.game as string | null
+          const session = r.session_label as string | null
+          return (
+            classes?.name?.toLowerCase().includes(lower) ||
+            game?.toLowerCase().includes(lower) ||
+            session?.toLowerCase().includes(lower)
+          )
+        },
+      )
+    }
+
+    res.json({
+      data: filtered,
+      total: count ?? 0,
+      page,
+      limit,
+    })
   } catch (err) {
     next(err)
   }

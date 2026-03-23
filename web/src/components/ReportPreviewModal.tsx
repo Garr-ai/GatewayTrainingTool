@@ -77,10 +77,10 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 animate-backdrop-in" onClick={onClose}>
       {/* Toolbar */}
       <div
-        className="flex items-center justify-between bg-gw-darkest px-4 py-3 flex-shrink-0"
+        className="flex items-center justify-between bg-gw-darkest px-4 py-3 flex-shrink-0 animate-modal-in"
         onClick={e => e.stopPropagation()}
       >
         <span className="text-sm font-medium text-white truncate">
