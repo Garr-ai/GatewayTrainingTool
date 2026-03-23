@@ -411,7 +411,18 @@ export const api = {
       ).toString()
       return req<Pick<Profile, 'id' | 'full_name' | 'email'>[]>(`/profiles${qs ? `?${qs}` : ''}`)
     },
+    /** Paginated profile search. Returns { data, total, page, limit }. */
+    searchPaginated: (params: { role?: string; search?: string; page?: number; limit?: number }) => {
+      const entries: Record<string, string> = { page: String(params.page ?? 0), limit: String(params.limit ?? 25) }
+      if (params.role) entries.role = params.role
+      if (params.search) entries.search = params.search
+      const qs = new URLSearchParams(entries).toString()
+      return req<{ data: Pick<Profile, 'id' | 'full_name' | 'email'>[]; total: number; page: number; limit: number }>(`/profiles?${qs}`)
+    },
     /** Fetch the currently authenticated user's full profile record. */
     me: () => req<Profile>('/profiles/me'),
+    /** Update the currently authenticated user's profile (full_name, province). */
+    update: (body: { full_name?: string; province?: string }) =>
+      req<Profile>('/profiles/me', { method: 'PUT', body: JSON.stringify(body) }),
   },
 }

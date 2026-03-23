@@ -23,6 +23,7 @@
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
 
 export const profilesRouter = Router()
 
@@ -53,24 +54,79 @@ profilesRouter.get('/profiles/me', async (req: Request, res: Response, next: Nex
   }
 })
 
+/**
+ * PUT /profiles/me
+ * Auth: any authenticated user
+ * Updates the current user's profile. Only `full_name` and `province` are
+ * allowed — role changes are not permitted via this endpoint.
+ */
+const VALID_PROVINCES = new Set(['BC', 'AB', 'ON'])
+
+profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { full_name, province } = req.body as { full_name?: string; province?: string }
+
+    const updates: Record<string, unknown> = {}
+    if (full_name !== undefined) updates.full_name = full_name.trim() || null
+    if (province !== undefined) {
+      if (!VALID_PROVINCES.has(province)) {
+        res.status(400).json({ error: 'Invalid province value' })
+        return
+      }
+      updates.province = province
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' })
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', req.userId!)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'profiles',
+      recordId: req.userId!,
+      metadata: updates,
+      ipAddress: req.ip,
+    })
+
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
 // Whitelisted role values — only these are valid for the ?role= query param
 const VALID_ROLES = new Set(['coordinator', 'trainer', 'trainee'])
 
 /**
- * GET /profiles?role=<role>&search=<term>
+ * GET /profiles?role=<role>&search=<term>&page=<n>&limit=<n>
  * Auth: any authenticated user
  * Returns a filtered list of profiles (id, full_name, email only).
  * Both query params are optional and can be combined:
  *   - `?role=trainer` — returns only profiles with the trainer role
  *   - `?search=john`  — case-insensitive match on full_name or email
  *   - `?role=trainer&search=john` — both filters applied
+ *   - `?page=0&limit=25` — paginated response with { data, total, page, limit }
+ * Without pagination params, returns a flat array (backward compatible).
  * Without a search term, results are capped at 25 to prevent bulk enumeration.
  * The search string is sanitised before use (strips PostgREST DSL characters).
  * Returns 400 if `role` is not in VALID_ROLES.
  */
 profilesRouter.get('/profiles', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { role, search } = req.query as { role?: string; search?: string }
+    const { role, search, page: pageStr, limit: limitStr } = req.query as {
+      role?: string; search?: string; page?: string; limit?: string
+    }
 
     // Whitelist the role parameter to prevent unexpected filter injection
     if (role !== undefined && !VALID_ROLES.has(role)) {
@@ -78,9 +134,14 @@ profilesRouter.get('/profiles', async (req: Request, res: Response, next: NextFu
       return
     }
 
+    const paginated = pageStr !== undefined
+    const page = Math.max(0, parseInt(pageStr ?? '0', 10) || 0)
+    const limit = Math.min(200, Math.max(1, parseInt(limitStr ?? '25', 10) || 25))
+
+    // Build the base query with count for pagination
     let query = supabase
       .from('profiles')
-      .select('id, full_name, email')
+      .select('id, full_name, email', paginated ? { count: 'exact' } : {})
       .order('full_name', { ascending: true })
 
     if (role) {
@@ -91,13 +152,23 @@ profilesRouter.get('/profiles', async (req: Request, res: Response, next: NextFu
       // Strip characters that could abuse PostgREST's .or() DSL, then cap length
       const safeSearch = search.replace(/[(),"'\\]/g, '').slice(0, 100)
       query = query.or(`full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`)
-    } else {
+    }
+
+    if (paginated) {
+      const from = page * limit
+      query = query.range(from, from + limit - 1)
+    } else if (!search) {
       query = query.limit(25)
     }
 
-    const { data, error } = await query
+    const { data, error, count } = await query
     if (error) throw error
-    res.json(data)
+
+    if (paginated) {
+      res.json({ data, total: count ?? 0, page, limit })
+    } else {
+      res.json(data)
+    }
   } catch (err) {
     next(err)
   }

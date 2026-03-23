@@ -1,22 +1,30 @@
 /**
  * pages/SettingsContent.tsx — Settings page (coordinator only)
  *
- * Displays the authenticated user's profile in a read-only card and provides
- * a sign-out action. Profile data is fetched from the API on mount.
+ * Displays the authenticated user's profile with inline editing for name and
+ * province. Email, role, and member-since are read-only. Provides a sign-out action.
  *
  * Accessed via the Settings link pinned to the bottom of CoordinatorLayout's sidebar.
  */
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { api } from '../lib/apiClient'
 import { SkeletonCard } from '../components/Skeleton'
 import { PROVINCES, type Profile } from '../types'
 
 export function SettingsContent() {
   const { email, signOut } = useAuth()
+  const { toast } = useToast()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Edit mode state
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editProvince, setEditProvince] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     api.profiles.me()
@@ -24,6 +32,34 @@ export function SettingsContent() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  function startEditing() {
+    if (!profile) return
+    setEditName(profile.full_name ?? '')
+    setEditProvince(profile.province ?? '')
+    setEditing(true)
+  }
+
+  function cancelEditing() {
+    setEditing(false)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const updated = await api.profiles.update({
+        full_name: editName,
+        province: editProvince || undefined,
+      })
+      setProfile(updated)
+      setEditing(false)
+      toast('Profile updated', 'success')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const provinceLabel = (code: Profile['province']) =>
     PROVINCES.find((p) => p.value === code)?.label ?? null
@@ -56,12 +92,31 @@ export function SettingsContent() {
         <div className="mt-6 space-y-5">
           {/* ── Profile Section ── */}
           <section className="rounded-xl bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3">Profile</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-900">Profile</h3>
+              {!editing && (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:border-slate-400"
+                >
+                  Edit profile
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Full name</span>
-                {profile?.full_name ? (
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue"
+                    placeholder="Enter your name"
+                  />
+                ) : profile?.full_name ? (
                   <p className="text-sm text-slate-900">{profile.full_name}</p>
                 ) : (
                   <p className="text-sm italic text-slate-400">Not set</p>
@@ -82,7 +137,18 @@ export function SettingsContent() {
 
               <div>
                 <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Province</span>
-                {profile?.province ? (
+                {editing ? (
+                  <select
+                    value={editProvince}
+                    onChange={e => setEditProvince(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue"
+                  >
+                    <option value="">Select province</option>
+                    {PROVINCES.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                ) : profile?.province ? (
                   <p className="text-sm text-slate-900">{provinceLabel(profile.province)}</p>
                 ) : (
                   <p className="text-sm italic text-slate-400">Not set</p>
@@ -96,6 +162,27 @@ export function SettingsContent() {
                 </p>
               </div>
             </div>
+
+            {editing && (
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={saving}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="rounded-md bg-gw-blue px-3 py-1.5 text-sm font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
+                >
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
+            )}
           </section>
 
           {/* ── Account Section ── */}

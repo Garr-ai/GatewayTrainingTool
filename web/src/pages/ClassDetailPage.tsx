@@ -22,6 +22,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
 import { EditClassModal } from '../components/EditClassModal'
@@ -105,6 +106,12 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <nav className="mb-2 text-xs text-slate-500" aria-label="Breadcrumb">
+        <Link to="/classes" className="hover:text-gw-blue hover:underline">Classes</Link>
+        <span className="mx-1.5">/</span>
+        <span className="text-slate-700 font-medium">{classData.name}</span>
+      </nav>
+
       <header className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">{classData.name}</h2>
