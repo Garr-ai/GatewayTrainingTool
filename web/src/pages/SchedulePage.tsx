@@ -1,9 +1,20 @@
+/**
+ * pages/SchedulePage.tsx — Cross-class schedule listing
+ *
+ * Shows all upcoming schedule slots across all classes with filtering,
+ * sorting, and pagination. Supports both a table view and a calendar view.
+ */
+
+import { useState } from 'react'
 import { useScheduleQuery } from '../hooks/useScheduleQuery'
 import { useClasses } from '../contexts/ClassesContext'
 import { ScheduleFilterBar } from '../components/ScheduleFilterBar'
 import { ScheduleTable } from '../components/ScheduleTable'
+import { ScheduleCalendar } from '../components/ScheduleCalendar'
 import { Pagination } from '../components/Pagination'
 import { SkeletonTable } from '../components/Skeleton'
+
+type ScheduleView = 'table' | 'calendar'
 
 export function SchedulePage() {
   const { active, archived } = useClasses()
@@ -21,6 +32,8 @@ export function SchedulePage() {
     resetFilters,
   } = useScheduleQuery()
 
+  const [view, setView] = useState<ScheduleView>('table')
+
   const allClasses = filters.archived ? [...active, ...archived] : active
 
   const hasActiveFilters =
@@ -36,15 +49,40 @@ export function SchedulePage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="flex-shrink-0">
-        <h2 className="text-lg font-semibold text-slate-900">Schedule</h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Upcoming sessions across all {filters.archived ? '' : 'active '}classes
-        </p>
+      <header className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Schedule</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Upcoming sessions across all {filters.archived ? '' : 'active '}classes
+          </p>
+        </div>
+
+        {/* View toggle */}
+        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setView('table')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${view === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+            Table
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('calendar')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${view === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" />
+            </svg>
+            Calendar
+          </button>
+        </div>
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-4">
-        {/* Filter bar */}
         <ScheduleFilterBar
           filters={filters}
           setFilter={setFilter}
@@ -52,7 +90,6 @@ export function SchedulePage() {
           classes={allClasses}
         />
 
-        {/* Content */}
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : slots.length === 0 ? (
@@ -75,11 +112,13 @@ export function SchedulePage() {
               </>
             )}
           </div>
-        ) : (
+        ) : view === 'table' ? (
           <>
             <ScheduleTable slots={slots} sort={sort} onSort={setSort} />
             <Pagination page={page} limit={limit} total={total} onPageChange={setPage} itemLabel="session" />
           </>
+        ) : (
+          <ScheduleCalendar slots={slots} />
         )}
       </div>
     </div>
