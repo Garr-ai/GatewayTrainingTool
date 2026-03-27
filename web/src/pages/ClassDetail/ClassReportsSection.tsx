@@ -42,6 +42,7 @@ import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
   ClassDailyReportTraineeProgress,
+  ClassDailyReportDrillTime,
   ClassLoggedHours,
   LoggedHoursPersonType,
   DailyRating,
@@ -65,7 +66,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
   // Data comes from the shared ClassDetailContext cache
   const {
-    trainers, enrollments: allEnrollments, reports, hours,
+    trainers, enrollments: allEnrollments, reports, hours, drills,
     loading, refreshReports, refreshHours,
   } = useClassDetail()
   // Only enrolled students appear in daily progress (waitlisted/dropped are excluded)
@@ -101,6 +102,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [timelineItems, setTimelineItems] = useState<ClassDailyReportTimelineItem[]>([])
   // Per-trainee progress rows — one per enrolled student
   const [progressRows, setProgressRows] = useState<ClassDailyReportTraineeProgress[]>([])
+  // Per-student drill/test time recordings
+  const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
   const [reportSaving, setReportSaving] = useState(false)
   // Non-null when the coordinator clicks "View PDF" — triggers ReportPreviewModal
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
@@ -139,6 +142,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setSelectedTrainerIds([])
     setTimelineItems([])
     setProgressRows([])
+    setDrillTimeRows([])
   }
 
   /**
@@ -153,6 +157,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     setSelectedTrainerIds(full.trainer_ids)
     setTimelineItems(full.timeline)
     setProgressRows(full.progress)
+    setDrillTimeRows(full.drill_times)
   }
 
   /** Resets the form and opens it in "add new report" mode. */
@@ -238,11 +243,19 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
         coming_back_next_day: row.coming_back_next_day ?? false,
         homework_completed: row.homework_completed ?? false,
       })),
+      drill_times: drillTimeRows.map(row => ({
+        enrollment_id: row.enrollment_id,
+        drill_id: row.drill_id,
+        time_seconds: row.time_seconds,
+        score: row.score,
+      })),
     }
 
     try {
       if (editingReport) {
         await api.reports.update(classId, editingReport.id, body)
+        // Invalidate cache so View PDF fetches fresh data with drill_times
+        delete reportCacheRef.current[editingReport.id]
         toast('Report updated successfully.', 'success')
       } else {
         await api.reports.create(classId, body)
@@ -288,7 +301,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       // Use cached report detail if available (e.g. from a recent edit), otherwise fetch
       const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
       reportCacheRef.current[r.id] = full
-      setPreviewArgs({ report: full, className, trainers, enrollments })
+      setPreviewArgs({ report: full, className, trainers, enrollments, drills })
     } catch (err) {
       setError((err as Error).message)
     }
@@ -432,7 +445,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
 
       {mode === 'reports' && (
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <header className="flex items-center justify-between mb-3">
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Daily reports</h3>
               <p className="mt-0.5 text-xs text-slate-500">
@@ -443,7 +456,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
             <button
               type="button"
               onClick={openAddReport}
-              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
+              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
             >
               + Add daily report
             </button>
@@ -1024,6 +1037,131 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   )}
                 </div>
 
+                {/* Drill / test times */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-semibold text-slate-700">Drill & test times</p>
+                    {drills.filter(d => d.active).length > 0 && enrollments.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const activeDrills = drills.filter(d => d.active)
+                          setDrillTimeRows(prev => {
+                            const rows: ClassDailyReportDrillTime[] = []
+                            for (const enr of enrollments) {
+                              for (const drill of activeDrills) {
+                                const existing = prev.find(
+                                  r => r.enrollment_id === enr.id && r.drill_id === drill.id,
+                                )
+                                rows.push(
+                                  existing ?? {
+                                    id: crypto.randomUUID(),
+                                    report_id: editingReport?.id ?? 'new',
+                                    enrollment_id: enr.id,
+                                    drill_id: drill.id,
+                                    time_seconds: null,
+                                    score: null,
+                                    created_at: new Date().toISOString(),
+                                  },
+                                )
+                              }
+                            }
+                            return rows
+                          })
+                        }}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
+                      >
+                        Load drills for trainees
+                      </button>
+                    )}
+                  </div>
+
+                  {drills.filter(d => d.active).length === 0 ? (
+                    <p className="text-[11px] text-slate-500">
+                      No active drills or tests defined. Add them in the Drills &amp; tests tab.
+                    </p>
+                  ) : drillTimeRows.length === 0 ? (
+                    <p className="text-[11px] text-slate-500">
+                      Click &quot;Load drills for trainees&quot; to populate the grid.
+                    </p>
+                  ) : (
+                    <div className="overflow-auto rounded-lg border border-slate-200">
+                      <table className="min-w-full text-[11px]">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-2 py-1 text-left font-medium text-slate-900 sticky left-0 bg-slate-50">
+                              Trainee
+                            </th>
+                            {drills.filter(d => d.active).map(drill => (
+                              <th key={drill.id} className="px-2 py-1 text-left font-medium text-slate-900">
+                                <div>{drill.name}</div>
+                                <div className="font-normal text-[10px] text-slate-500">
+                                  {drill.type === 'drill'
+                                    ? `Time (s)${drill.par_time_seconds ? ` · par ${drill.par_time_seconds}` : ''}`
+                                    : `Score${drill.target_score ? ` · target ${drill.target_score}` : ''}`}
+                                </div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {enrollments.map(enr => (
+                            <tr key={enr.id} className="border-b border-slate-100">
+                              <td className="px-2 py-1 text-slate-900 whitespace-nowrap sticky left-0 bg-white">
+                                {enr.student_name}
+                              </td>
+                              {drills.filter(d => d.active).map(drill => {
+                                const row = drillTimeRows.find(
+                                  r => r.enrollment_id === enr.id && r.drill_id === drill.id,
+                                )
+                                if (!row) return <td key={drill.id} className="px-2 py-1 text-slate-400">—</td>
+                                const value = drill.type === 'drill' ? row.time_seconds : row.score
+                                return (
+                                  <td key={drill.id} className="px-2 py-1">
+                                    <input
+                                      type="number"
+                                      step={drill.type === 'drill' ? '0.1' : '1'}
+                                      min="0"
+                                      value={value ?? ''}
+                                      onChange={e => {
+                                        const v = e.target.value.trim()
+                                        const num = v === '' ? null : Number(v)
+                                        setDrillTimeRows(prev =>
+                                          prev.map(r =>
+                                            r.enrollment_id === enr.id && r.drill_id === drill.id
+                                              ? {
+                                                  ...r,
+                                                  time_seconds: drill.type === 'drill' ? num : r.time_seconds,
+                                                  score: drill.type === 'test' ? num : r.score,
+                                                }
+                                              : r,
+                                          ),
+                                        )
+                                      }}
+                                      className={`w-20 rounded-md border px-1 py-0.5 ${
+                                        drill.type === 'drill' && row.time_seconds != null && drill.par_time_seconds != null
+                                          ? row.time_seconds <= drill.par_time_seconds
+                                            ? 'border-emerald-300 bg-emerald-50'
+                                            : 'border-amber-300 bg-amber-50'
+                                          : drill.type === 'test' && row.score != null && drill.target_score != null
+                                            ? row.score >= drill.target_score
+                                              ? 'border-emerald-300 bg-emerald-50'
+                                              : 'border-amber-300 bg-amber-50'
+                                            : 'border-slate-300'
+                                      }`}
+                                      placeholder={drill.type === 'drill' ? 'sec' : 'score'}
+                                    />
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -1050,7 +1188,47 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
               <span className="font-medium text-slate-700">{className}</span>.
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <>
+            {/* Mobile: card layout */}
+            <div className="sm:hidden space-y-2">
+              {reports.map(r => (
+                <div key={r.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="text-xs">
+                      <p className="font-medium text-slate-900">{r.report_date}</p>
+                      <p className="text-slate-500 mt-0.5">
+                        {r.group_label ?? '—'} &middot; {r.session_label ?? '—'} &middot; {r.game ?? '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditReport(r)}
+                      className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleViewPdf(r)}
+                      className="rounded-md border border-gw-blue px-2.5 py-1.5 text-xs text-gw-blue hover:bg-blue-50"
+                    >
+                      View PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveReport(r.id)}
+                      className="rounded-md border border-rose-200 px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table layout */}
+            <div className="hidden sm:block rounded-lg border border-slate-200 overflow-hidden">
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -1098,13 +1276,14 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}
 
       {mode === 'hours' && (
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <header className="flex items-center justify-between mb-3">
+          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Logged hours</h3>
               <p className="mt-0.5 text-xs text-slate-500">
@@ -1115,7 +1294,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
             <button
               type="button"
               onClick={openAddHours}
-              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
+              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
             >
               + Log hours
             </button>
@@ -1252,7 +1431,38 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
               <span className="font-medium text-slate-700">{className}</span>.
             </div>
           ) : (
-            <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <>
+            {/* Mobile: card layout */}
+            <div className="sm:hidden space-y-2">
+              {hours.map(h => (
+                <div
+                  key={h.id}
+                  className="rounded-lg border border-slate-200 bg-white p-3 cursor-pointer active:bg-slate-50"
+                  onClick={() => openEditHours(h)}
+                >
+                  <div className="flex items-start justify-between gap-2 text-xs">
+                    <div>
+                      <p className="font-medium text-slate-900">{h.log_date}</p>
+                      <p className="text-slate-500 mt-0.5">
+                        <span className="capitalize">{h.person_type}</span> &middot; {personName(h)} &middot; {h.hours} hrs
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleRemoveHours(h.id)
+                      }}
+                      className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex-shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table layout */}
+            <div className="hidden sm:block rounded-lg border border-slate-200 overflow-hidden">
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -1291,6 +1501,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

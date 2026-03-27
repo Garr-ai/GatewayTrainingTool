@@ -17,7 +17,7 @@
  */
 
 import type { ReportWithNested } from './apiClient'
-import type { ClassTrainer, ClassEnrollment } from '../types'
+import type { ClassTrainer, ClassEnrollment, ClassDrill } from '../types'
 
 /** Arguments passed to `generateReportHtml()`. */
 export interface ReportPdfArgs {
@@ -25,6 +25,7 @@ export interface ReportPdfArgs {
   className: string
   trainers: ClassTrainer[]   // Full trainer list for the class (used to resolve trainer names from IDs)
   enrollments: ClassEnrollment[]  // Enrolled students (used to resolve student names from enrollment IDs)
+  drills: ClassDrill[]       // Active drills/tests for the class (used for drill times page)
 }
 
 /**
@@ -53,7 +54,7 @@ function esc(v: string | null | undefined): string {
  * Similarly, progress rows reference `class_enrollments.id`; these are resolved
  * to student names via the `enrollments` array.
  */
-export function generateReportHtml({ report, className, trainers, enrollments }: ReportPdfArgs): string {
+export function generateReportHtml({ report, className, trainers, enrollments, drills }: ReportPdfArgs): string {
   // Resolve trainer IDs to display names; fall back to ID if not found
   const trainerNames = report.trainer_ids.length
     ? report.trainer_ids.map(id => trainers.find(t => t.id === id)?.trainer_name ?? id).map(esc).join(', ')
@@ -123,9 +124,16 @@ export function generateReportHtml({ report, className, trainers, enrollments }:
     td.center { text-align: center; }
     td.empty { text-align: center; color: #94a3b8; padding: 12px; font-style: italic; }
     footer { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 8px; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; }
+    .page-break { page-break-before: always; margin-top: 32px; }
+    .drill-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #081C30; padding-bottom: 8px; margin-bottom: 16px; }
+    .drill-header h1 { font-size: 16px; }
+    .drill-header .subtitle { font-size: 11px; color: #475569; margin-top: 2px; }
+    .par-met { background: #dcfce7; }
+    .par-missed { background: #fef9c3; }
     @media print {
       body { padding: 16px 20px; }
       @page { margin: 12mm 14mm; }
+      .page-break { page-break-before: always; margin-top: 0; }
     }
   </style>
 </head>
@@ -190,6 +198,68 @@ export function generateReportHtml({ report, className, trainers, enrollments }:
     <span>${esc(className)} — ${esc(report.report_date)}</span>
     <span>Gateway Casinos &amp; Entertainment (Unofficial)</span>
   </footer>
+
+${report.drill_times.length > 0 ? (() => {
+  // Build the drill times page — only shown when there are recorded times
+  const activeDrills = drills.filter(d => d.active && report.drill_times.some(dt => dt.drill_id === d.id))
+  // Get unique student IDs from drill_times
+  const studentIds = [...new Set(report.drill_times.map(dt => dt.enrollment_id))]
+  const drillColHeaders = activeDrills.map(d =>
+    `<th style="min-width:70px">${esc(d.name)}<br/><span style="font-weight:400;font-size:9px;color:#94a3b8">${d.type === 'drill' ? `Time (s)${d.par_time_seconds ? ' · par ' + d.par_time_seconds : ''}` : `Score${d.target_score ? ' · target ' + d.target_score : ''}`}</span></th>`
+  ).join('')
+
+  const drillBodyRows = studentIds.map(enrollmentId => {
+    const enr = enrollments.find(e => e.id === enrollmentId)
+    const cells = activeDrills.map(drill => {
+      const dt = report.drill_times.find(r => r.enrollment_id === enrollmentId && r.drill_id === drill.id)
+      if (!dt) return '<td class="center">—</td>'
+      const value = drill.type === 'drill' ? dt.time_seconds : dt.score
+      if (value == null) return '<td class="center">—</td>'
+      // Highlight: green if met par/target, yellow if missed
+      let cls = 'center'
+      if (drill.type === 'drill' && drill.par_time_seconds != null) {
+        cls += value <= drill.par_time_seconds ? ' par-met' : ' par-missed'
+      } else if (drill.type === 'test' && drill.target_score != null) {
+        cls += value >= drill.target_score ? ' par-met' : ' par-missed'
+      }
+      return `<td class="${cls}">${value}</td>`
+    }).join('')
+    return `<tr><td>${enr?.student_name ?? 'Unknown'}</td>${cells}</tr>`
+  }).join('')
+
+  return `
+  <div class="page-break">
+    <div class="drill-header">
+      <div>
+        <h1>${esc(className)} — Drill &amp; Test Results</h1>
+        <div class="subtitle">${esc(report.report_date)}${report.group_label ? ' · Group ' + esc(report.group_label) : ''}${report.session_label ? ' · ' + esc(report.session_label) : ''}</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#64748b">
+        <div>Generated ${new Date().toLocaleDateString('en-CA')}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:18%">Trainee</th>
+          ${drillColHeaders}
+        </tr>
+      </thead>
+      <tbody>${drillBodyRows.length ? drillBodyRows : '<tr><td colspan="' + (activeDrills.length + 1) + '" class="empty">No drill time entries</td></tr>'}</tbody>
+    </table>
+
+    <div style="margin-top:12px;font-size:9px;color:#94a3b8">
+      <span style="display:inline-block;width:12px;height:12px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:3px;vertical-align:middle;margin-right:3px"></span> Met par/target &nbsp;&nbsp;
+      <span style="display:inline-block;width:12px;height:12px;background:#fef9c3;border:1px solid #fde68a;border-radius:3px;vertical-align:middle;margin-right:3px"></span> Did not meet par/target
+    </div>
+
+    <footer style="margin-top:16px">
+      <span>${esc(className)} — ${esc(report.report_date)} — Drill &amp; Test Results</span>
+      <span>Gateway Casinos &amp; Entertainment (Unofficial)</span>
+    </footer>
+  </div>`
+})() : ''}
 </body>
 </html>`
 }

@@ -190,6 +190,24 @@ export interface ClassDailyReportTraineeProgress {
   created_at: string
 }
 
+/**
+ * A recorded drill or test time/score for a single student in a daily report.
+ * `time_seconds` is used for drills (timed activities).
+ * `score` is used for tests (scored activities).
+ * This table is designed to also accept entries from trainers and students
+ * in a future self-service recording flow — the report_id links it to a
+ * specific training day for context.
+ */
+export interface ClassDailyReportDrillTime {
+  id: string
+  report_id: string
+  enrollment_id: string     // References class_enrollments.id
+  drill_id: string          // References class_drills.id
+  time_seconds: number | null   // Completion time in seconds (for drills)
+  score: number | null          // Score achieved (for tests)
+  created_at: string
+}
+
 /** Whether the hours entry is for a trainer or a student (trainee). */
 export type LoggedHoursPersonType = 'trainer' | 'student'
 
