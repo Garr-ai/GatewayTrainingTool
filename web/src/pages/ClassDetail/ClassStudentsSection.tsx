@@ -156,7 +156,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
   return (
     <section className="rounded-xl bg-white p-4 shadow-sm">
-      <header className="flex items-center justify-between mb-3">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Students</h3>
           <p className="mt-0.5 text-xs text-slate-500">
@@ -169,7 +169,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             setEnrollOpen(true)
             searchProfiles('')
           }}
-          className="rounded-md bg-gw-blue px-3 py-2 text-xs font-medium text-white hover:bg-gw-blue-hover"
+          className="rounded-md bg-gw-blue px-3 py-2 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
         >
           + Enroll student
         </button>

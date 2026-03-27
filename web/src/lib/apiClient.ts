@@ -32,6 +32,7 @@ import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
   ClassDailyReportTraineeProgress,
+  ClassDailyReportDrillTime,
   ClassLoggedHours,
   Profile,
   DrillType,
@@ -94,6 +95,7 @@ export interface ReportWithNested extends ClassDailyReport {
   trainer_ids: string[]                          // IDs of trainers present that day
   timeline: ClassDailyReportTimelineItem[]       // Ordered list of training blocks
   progress: ClassDailyReportTraineeProgress[]    // Per-student assessment rows
+  drill_times: ClassDailyReportDrillTime[]       // Per-student drill/test results
 }
 
 /** Input shape for a single timeline row when creating or updating a report. */
@@ -116,6 +118,14 @@ interface ProgressRowInput {
   homework_completed: boolean
 }
 
+/** Input shape for a single drill/test time recording when creating or updating a report. */
+interface DrillTimeInput {
+  enrollment_id: string
+  drill_id: string
+  time_seconds: number | null
+  score: number | null
+}
+
 /** The full request body sent to POST /classes/:id/reports and PUT /classes/:id/reports/:id. */
 interface ReportBody {
   report_date: string
@@ -134,6 +144,7 @@ interface ReportBody {
   trainer_ids: string[]
   timeline: TimelineItemInput[]
   progress: ProgressRowInput[]
+  drill_times: DrillTimeInput[]
 }
 
 // ─── Report list (paginated) types ──────────────────────────────────────────

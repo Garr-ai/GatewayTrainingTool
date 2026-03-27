@@ -134,14 +134,14 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         </div>
       </header>
 
-      <div className="flex-shrink-0 border-b border-slate-200 mb-3 overflow-x-auto">
-        <nav className="-mb-px flex gap-2 text-xs whitespace-nowrap" aria-label="Class detail sections">
+      <div className="flex-shrink-0 border-b border-slate-200 mb-3 overflow-x-auto scrollbar-thin">
+        <nav className="-mb-px flex gap-1 sm:gap-2 text-xs whitespace-nowrap min-w-max" aria-label="Class detail sections">
           {tabs.map(tab => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`inline-flex items-center rounded-t-lg border-b-2 px-3 py-2 font-medium ${
+              className={`inline-flex items-center rounded-t-lg border-b-2 px-2 sm:px-3 py-2 font-medium ${
                 activeTab === tab.id
                   ? 'border-gw-blue text-gw-blue bg-blue-50'
                   : 'border-transparent text-slate-500 hover:text-gw-dark hover:bg-slate-50'

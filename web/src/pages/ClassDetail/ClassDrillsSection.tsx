@@ -140,7 +140,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
 
   return (
     <section className="rounded-xl bg-white p-4 shadow-sm">
-      <header className="flex items-center justify-between mb-3">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">
             Drills & tests
@@ -155,7 +155,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
         <button
           type="button"
           onClick={() => formOpen ? resetForm() : openAddForm()}
-          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover"
+          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
         >
           {formOpen ? 'Cancel' : '+ Add drill / test'}
         </button>
@@ -251,8 +251,8 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
           <span className="font-medium text-slate-700">{className}</span>.
         </div>
       ) : (
-        <div className="rounded-lg border border-slate-200 overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="rounded-lg border border-slate-200 overflow-x-auto">
+          <table className="min-w-full text-xs">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-3 py-2 text-left font-medium text-slate-900">Name</th>

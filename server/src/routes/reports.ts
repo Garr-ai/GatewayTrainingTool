@@ -12,10 +12,11 @@
  *   PUT    /classes/:classId/reports/:id         — Replace a report and all its nested data
  *   DELETE /classes/:classId/reports/:id         — Permanently delete a report
  *
- * Reports have three nested tables that are stored separately:
+ * Reports have four nested tables that are stored separately:
  *   - class_daily_report_trainers         (many-to-many link to class_trainers)
  *   - class_daily_report_timeline_items   (ordered activity timeline for the session)
  *   - class_daily_report_trainee_progress (per-trainee progress ratings and notes)
+ *   - class_daily_report_drill_times      (per-student drill/test time and score recordings)
  *
  * The GET /reports/:id route fetches all four tables in parallel (Promise.all) and
  * merges them into a single response object for the frontend.
@@ -192,6 +193,7 @@ reportsRouter.get('/reports/:id', async (req: Request, res: Response, next: Next
       { data: trainerLinks },
       { data: timeline },
       { data: progress },
+      { data: drillTimes, error: drillTimesError },
     ] = await Promise.all([
       supabase.from('class_daily_reports').select('*').eq('id', id).single(),
       supabase.from('class_daily_report_trainers').select('trainer_id').eq('report_id', id),
@@ -202,6 +204,7 @@ reportsRouter.get('/reports/:id', async (req: Request, res: Response, next: Next
         .order('position', { ascending: true })
         .order('start_time', { ascending: true }),
       supabase.from('class_daily_report_trainee_progress').select('*').eq('report_id', id),
+      supabase.from('class_daily_report_drill_times').select('*').eq('report_id', id),
     ])
 
     if (reportError) {
@@ -211,12 +214,14 @@ reportsRouter.get('/reports/:id', async (req: Request, res: Response, next: Next
       }
       throw reportError
     }
+    if (drillTimesError) throw drillTimesError
 
     res.json({
       ...report,
       trainer_ids: (trainerLinks ?? []).map((t: { trainer_id: string }) => t.trainer_id),
       timeline: timeline ?? [],
       progress: progress ?? [],
+      drill_times: drillTimes ?? [],
     })
   } catch (err) {
     next(err)
@@ -255,6 +260,7 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
       trainer_ids = [],
       timeline = [],
       progress = [],
+      drill_times = [],
     } = req.body
 
     const { data: report, error: reportError } = await supabase
@@ -315,6 +321,19 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
         })),
       )
     }
+    if (drill_times.length > 0) {
+      const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        drill_times.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          drill_id: row.drill_id,
+          time_seconds: row.time_seconds ?? null,
+          score: row.score ?? null,
+        })),
+      )
+      if (dtError) throw dtError
+    }
 
     await logAudit({
       userId: req.userId!,
@@ -342,6 +361,7 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
  *   1. Delete all trainer links → re-insert from trainer_ids array
  *   2. Delete all timeline items → re-insert with position = array index
  *   3. Delete all progress rows → re-insert from progress array
+ *   4. Delete all drill time rows → re-insert from drill_times array
  *
  * The operation is audit-logged (UPDATE). Returns 404 if the report/classId
  * combination doesn't match (PGRST116 = "no rows found").
@@ -365,6 +385,7 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
       trainer_ids = [],
       timeline = [],
       progress = [],
+      drill_times = [],
     } = req.body
 
     const reportId = req.params.id as string
@@ -437,6 +458,22 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
           homework_completed: row.homework_completed ?? false,
         })),
       )
+    }
+
+    const { error: dtDelError } = await supabase.from('class_daily_report_drill_times').delete().eq('report_id', reportId)
+    if (dtDelError) throw dtDelError
+    if (drill_times.length > 0) {
+      const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        drill_times.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          drill_id: row.drill_id,
+          time_seconds: row.time_seconds ?? null,
+          score: row.score ?? null,
+        })),
+      )
+      if (dtError) throw dtError
     }
 
     await logAudit({
