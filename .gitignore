@@ -221,6 +221,8 @@ __marimo__/
 
 # Claude
 claude.md
+.claude/
+.claude/settings.json
 
 # Local dev script
 dev.sh

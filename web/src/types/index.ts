@@ -187,6 +187,7 @@ export interface ClassDailyReportTraineeProgress {
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
   homework_completed: boolean
+  attendance: boolean       // Whether the student was present for this session
   created_at: string
 }
 
@@ -230,6 +231,124 @@ export interface ClassLoggedHours {
   live_training: boolean
   notes: string | null
   created_at: string
+}
+
+/** Student progress response from GET /students/progress?email=... */
+export interface StudentProgressResponse {
+  student_name: string
+  student_email: string
+  classes: Array<{
+    class_id: string
+    class_name: string
+    enrollment_id: string
+    status: string
+    group_label: string | null
+  }>
+  progress: Array<{
+    report_date: string
+    session_label: string | null
+    group_label: string | null
+    class_name: string
+    progress_text: string | null
+    gk_rating: DailyRating | null
+    dex_rating: DailyRating | null
+    hom_rating: DailyRating | null
+    coming_back_next_day: boolean | null
+    homework_completed: boolean
+    attendance: boolean
+  }>
+  drill_times: Array<{
+    report_date: string
+    class_name: string
+    drill_name: string
+    drill_type: string
+    time_seconds: number | null
+    score: number | null
+    par_time_seconds: number | null
+    target_score: number | null
+  }>
+}
+
+/** Upcoming schedule slot shape used in self-service dashboards. */
+export interface UpcomingSlot {
+  id: string
+  slot_date: string
+  start_time: string
+  end_time: string
+  group_label: string | null
+  notes: string | null
+}
+
+/** Response from GET /me/trainer-dashboard. */
+export interface TrainerDashboardResponse {
+  trainer_name: string | null
+  trainer_email: string
+  classes: Array<{
+    class_id: string
+    class_name: string
+    site: string
+    province: string
+    game_type: string | null
+    start_date: string | null
+    end_date: string | null
+    archived: boolean
+    trainer_role: string
+    enrolled_count: number
+    upcoming_slots: UpcomingSlot[]
+  }>
+}
+
+/** Response from GET /me/trainee-progress — extends StudentProgressResponse with schedule slots. */
+export interface TraineeDashboardResponse {
+  student_name: string | null
+  student_email: string
+  classes: Array<{
+    class_id: string
+    class_name: string
+    site: string
+    province: string
+    game_type: string | null
+    start_date: string | null
+    end_date: string | null
+    enrollment_id: string
+    status: string
+    group_label: string | null
+    upcoming_slots: UpcomingSlot[]
+  }>
+  progress: Array<{
+    report_date: string
+    session_label: string | null
+    group_label: string | null
+    class_name: string
+    progress_text: string | null
+    gk_rating: DailyRating | null
+    dex_rating: DailyRating | null
+    hom_rating: DailyRating | null
+    coming_back_next_day: boolean | null
+    homework_completed: boolean
+    attendance: boolean
+  }>
+  drill_times: Array<{
+    report_date: string
+    class_name: string
+    drill_name: string
+    drill_type: string
+    time_seconds: number | null
+    score: number | null
+    par_time_seconds: number | null
+    target_score: number | null
+  }>
+}
+
+/** Aggregated payroll row returned by GET /payroll/trainers and /payroll/students. */
+export interface PayrollRow {
+  person_id: string
+  person_name: string
+  person_email: string
+  total_hours: number
+  paid_hours: number
+  live_hours: number
+  class_count: number
 }
 
 /** Static list of supported provinces used for dropdowns and display labels. */

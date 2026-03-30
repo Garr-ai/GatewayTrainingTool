@@ -1,12 +1,19 @@
+import { useState } from 'react'
 import { useReportsQuery } from '../hooks/useReportsQuery'
 import { useClasses } from '../contexts/ClassesContext'
 import { ReportsFilterBar } from '../components/ReportsFilterBar'
 import { ReportsTable } from '../components/ReportsTable'
 import { Pagination } from '../components/Pagination'
+import { ReportPreviewModal } from '../components/ReportPreviewModal'
 import { SkeletonTable } from '../components/Skeleton'
+import { useToast } from '../contexts/ToastContext'
+import { api } from '../lib/apiClient'
+import type { ReportRow } from '../lib/apiClient'
+import type { ReportPdfArgs } from '../lib/reportPdf'
 
 export function ReportsPage() {
   const { active, archived } = useClasses()
+  const { toast } = useToast()
   const {
     reports,
     total,
@@ -20,6 +27,33 @@ export function ReportsPage() {
     setPage,
     resetFilters,
   } = useReportsQuery()
+
+  const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  const [loadingReport, setLoadingReport] = useState<string | null>(null)
+
+  async function handleReportClick(row: ReportRow) {
+    if (loadingReport) return
+    setLoadingReport(row.id)
+    try {
+      const [fullReport, trainers, enrollments, drills] = await Promise.all([
+        api.reports.get(row.id),
+        api.trainers.list(row.class_id),
+        api.enrollments.list(row.class_id),
+        api.drills.list(row.class_id),
+      ])
+      setPreviewArgs({
+        report: fullReport,
+        className: row.classes.name,
+        trainers,
+        enrollments,
+        drills,
+      })
+    } catch {
+      toast('Failed to load report', 'error')
+    } finally {
+      setLoadingReport(null)
+    }
+  }
 
   // When "Include archived" is checked, show all classes in dropdowns;
   // otherwise only active classes
@@ -78,11 +112,23 @@ export function ReportsPage() {
           </div>
         ) : (
           <>
-            <ReportsTable reports={reports} sort={sort} onSort={setSort} />
+            <ReportsTable
+              reports={reports}
+              sort={sort}
+              onSort={setSort}
+              onReportClick={handleReportClick}
+            />
+            {loadingReport && (
+              <div className="text-center text-xs text-slate-500">Loading report…</div>
+            )}
             <Pagination page={page} limit={limit} total={total} onPageChange={setPage} itemLabel="report" />
           </>
         )}
       </div>
+
+      {previewArgs && (
+        <ReportPreviewModal args={previewArgs} onClose={() => setPreviewArgs(null)} />
+      )}
     </div>
   )
 }

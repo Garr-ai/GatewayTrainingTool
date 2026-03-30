@@ -41,6 +41,10 @@ import type {
   LoggedHoursPersonType,
   Province,
   DailyRating,
+  PayrollRow,
+  StudentProgressResponse,
+  TrainerDashboardResponse,
+  TraineeDashboardResponse,
 } from '../types'
 
 // In production (same Vercel project) this is empty → relative URLs /api/...
@@ -116,6 +120,7 @@ interface ProgressRowInput {
   hom_rating: DailyRating | null
   coming_back_next_day: boolean | null
   homework_completed: boolean
+  attendance: boolean
 }
 
 /** Input shape for a single drill/test time recording when creating or updating a report. */
@@ -231,6 +236,36 @@ export interface PaginatedSchedule {
   total: number
   page: number
   limit: number
+}
+
+// ─── Payroll types ─────────────────────────────────────────────────────────
+
+/** Query params accepted by api.payroll.trainers() and api.payroll.students(). */
+export interface PayrollListParams {
+  date_from?: string
+  date_to?: string
+  province?: Province | ''
+  site?: string
+  class_id?: string
+  page?: number
+  limit?: number
+}
+
+/** Paginated response envelope from GET /payroll/trainers and /payroll/students. */
+export interface PaginatedPayroll {
+  data: PayrollRow[]
+  total: number
+  page: number
+  limit: number
+}
+
+function payrollQs(params?: PayrollListParams): string {
+  if (!params) return ''
+  const entries: Record<string, string> = {}
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '') entries[k] = String(v)
+  }
+  return new URLSearchParams(entries).toString()
 }
 
 // ─── API client ─────────────────────────────────────────────────────────────
@@ -408,6 +443,46 @@ export const api = {
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/hours/${id}`, { method: 'DELETE' }),
   },
 
+  studentProgress: {
+    get: (email: string) =>
+      req<StudentProgressResponse>(`/students/progress?email=${encodeURIComponent(email)}`),
+  },
+
+  payroll: {
+    trainers: (params?: PayrollListParams) => {
+      const qs = payrollQs(params)
+      return req<PaginatedPayroll>(`/payroll/trainers${qs ? `?${qs}` : ''}`)
+    },
+    students: (params?: PayrollListParams) => {
+      const qs = payrollQs(params)
+      return req<PaginatedPayroll>(`/payroll/students${qs ? `?${qs}` : ''}`)
+    },
+    trainersCsv: async (params?: PayrollListParams) => {
+      const qs = payrollQs(params)
+      const headers = await authHeaders()
+      const res = await fetch(`${API_BASE}/api/payroll/trainers/csv${qs ? `?${qs}` : ''}`, { headers })
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1]) ?? 'trainer-payroll.csv'
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    studentsCsv: async (params?: PayrollListParams) => {
+      const qs = payrollQs(params)
+      const headers = await authHeaders()
+      const res = await fetch(`${API_BASE}/api/payroll/students/csv${qs ? `?${qs}` : ''}`, { headers })
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = (res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1]) ?? 'student-payroll.csv'
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+  },
+
   profiles: {
     /**
      * Search user profiles by role and/or name/email substring.
@@ -435,5 +510,12 @@ export const api = {
     /** Update the currently authenticated user's profile (full_name, province). */
     update: (body: { full_name?: string; province?: string }) =>
       req<Profile>('/profiles/me', { method: 'PUT', body: JSON.stringify(body) }),
+  },
+
+  selfService: {
+    /** Trainer dashboard: classes this trainer is assigned to with enrollment counts and upcoming schedule. */
+    trainerDashboard: () => req<TrainerDashboardResponse>('/me/trainer-dashboard'),
+    /** Trainee dashboard: enrolled classes, progress ratings, and drill times for the calling user. */
+    traineeDashboard: () => req<TraineeDashboardResponse>('/me/trainee-progress'),
   },
 }

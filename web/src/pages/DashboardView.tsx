@@ -11,16 +11,13 @@
 
 import { useAuth } from '../contexts/AuthContext'
 import { DashboardContent } from './DashboardContent'
-import { InProgressPage } from './InProgressPage'
+import { TrainerDashboard } from './TrainerDashboard'
+import { TraineeDashboard } from './TraineeDashboard'
 
 export function DashboardView() {
-  const { role, email, signOut } = useAuth()
+  const { role, email } = useAuth()
 
-  // Coordinators get the full management dashboard
-  if (role === 'coordinator') {
-    return <DashboardContent />
-  }
-
-  // Trainers and trainees see a placeholder until their views are built
-  return <InProgressPage email={email} onSignOut={signOut} />
+  if (role === 'coordinator') return <DashboardContent />
+  if (role === 'trainer') return <TrainerDashboard email={email} />
+  return <TraineeDashboard email={email} />
 }

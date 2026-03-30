@@ -35,6 +35,7 @@ declare global {
     interface Request {
       userId?: string    // Set by requireAuth — the Supabase user's UUID
       userRole?: string  // Set by requireAuth — the user's role from the profiles table
+      userEmail?: string // Set by requireAuth — the Supabase user's email address
     }
   }
 }
@@ -70,6 +71,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   req.userId = data.user.id
+  req.userEmail = data.user.email
 
   // Attach role so downstream middleware (requireCoordinator) doesn't need
   // to make another DB call — one round-trip here covers all downstream checks
