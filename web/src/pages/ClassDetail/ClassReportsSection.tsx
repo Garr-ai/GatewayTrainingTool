@@ -242,6 +242,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
         hom_rating: row.hom_rating,
         coming_back_next_day: row.coming_back_next_day ?? false,
         homework_completed: row.homework_completed ?? false,
+        attendance: row.attendance ?? true,
       })),
       drill_times: drillTimeRows.map(row => ({
         enrollment_id: row.enrollment_id,
@@ -907,6 +908,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                             homework_completed:
                               progressRows.find(p => p.enrollment_id === enr.id)
                                 ?.homework_completed ?? false,
+                            attendance:
+                              progressRows.find(p => p.enrollment_id === enr.id)
+                                ?.attendance ?? true,
                             created_at: new Date().toISOString(),
                           })),
                         )
@@ -934,6 +938,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                             </th>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
                               Ratings (GK / Dex / HoM)
+                            </th>
+                            <th className="px-2 py-1 text-left font-medium text-slate-900">
+                              Attended?
                             </th>
                             <th className="px-2 py-1 text-left font-medium text-slate-900">
                               Coming back?
@@ -1003,6 +1010,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                       ),
                                     )}
                                   </div>
+                                </td>
+                                <td className="px-2 py-1 align-top">
+                                  <label className="inline-flex items-center gap-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={row.attendance ?? true}
+                                      onChange={e =>
+                                        updateRow({ attendance: e.target.checked })
+                                      }
+                                    />
+                                    <span>Yes</span>
+                                  </label>
                                 </td>
                                 <td className="px-2 py-1 align-top">
                                   <label className="inline-flex items-center gap-1.5">

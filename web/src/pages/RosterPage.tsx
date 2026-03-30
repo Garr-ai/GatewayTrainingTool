@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import { SkeletonTable } from '../components/Skeleton'
 import { Pagination } from '../components/Pagination'
@@ -14,6 +15,7 @@ interface RosterPageProps {
 const PAGE_SIZE = 25
 
 export function RosterPage({ role, title, subtitle }: RosterPageProps) {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<RosterRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -102,7 +104,11 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
                 </thead>
                 <tbody>
                   {rows.map(r => (
-                    <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr
+                      key={r.id}
+                      className={`border-b border-slate-100 hover:bg-slate-50${role === 'trainee' ? ' cursor-pointer' : ''}`}
+                      onClick={role === 'trainee' ? () => navigate(`/students/progress/${encodeURIComponent(r.email)}`) : undefined}
+                    >
                       <td className="px-4 py-3 font-medium text-gw-dark">{r.full_name ?? '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{r.email}</td>
                     </tr>

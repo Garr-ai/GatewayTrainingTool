@@ -36,6 +36,9 @@ import { RosterPage } from './pages/RosterPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { SettingsContent } from './pages/SettingsContent'
+import { TrainerPayrollPage } from './pages/TrainerPayrollPage'
+import { StudentPayrollPage } from './pages/StudentPayrollPage'
+import { StudentProgressPage } from './pages/StudentProgressPage'
 
 function App() {
   return (
@@ -58,10 +61,13 @@ function App() {
             {/* Coordinator-only pages wrapped in CoordinatorRoute guard */}
             <Route path="classes" element={<CoordinatorRoute><ClassesPage /></CoordinatorRoute>} />
             <Route path="classes/:className" element={<ClassDetailView />} />
+            <Route path="students/progress/:email" element={<CoordinatorRoute><StudentProgressPage /></CoordinatorRoute>} />
             <Route path="students" element={<CoordinatorRoute><RosterPage role="trainee" title="Students" subtitle="All registered trainees" /></CoordinatorRoute>} />
             <Route path="trainers" element={<CoordinatorRoute><RosterPage role="trainer" title="Trainers" subtitle="All registered trainers" /></CoordinatorRoute>} />
             <Route path="reports" element={<CoordinatorRoute><ReportsPage /></CoordinatorRoute>} />
             <Route path="schedule" element={<CoordinatorRoute><SchedulePage /></CoordinatorRoute>} />
+            <Route path="payroll/trainers" element={<CoordinatorRoute><TrainerPayrollPage /></CoordinatorRoute>} />
+            <Route path="payroll/students" element={<CoordinatorRoute><StudentPayrollPage /></CoordinatorRoute>} />
             <Route path="settings" element={<CoordinatorRoute><SettingsContent /></CoordinatorRoute>} />
           </Route>
 

@@ -34,6 +34,9 @@ import { enrollmentsRouter } from './enrollments'
 import { scheduleRouter } from './schedule'
 import { reportsRouter } from './reports'
 import { hoursRouter } from './hours'
+import { payrollRouter } from './payroll'
+import { studentProgressRouter } from './studentProgress'
+import { selfServiceRouter } from './selfService'
 import { profilesRouter } from './profiles'
 
 export const router = Router()
@@ -44,6 +47,9 @@ router.use(requireAuth as Router)
 // Profiles are accessible to all authenticated users (GET /profiles/me, GET /profiles)
 router.use(profilesRouter)
 
+// Self-service routes are accessible to all authenticated users (trainers and trainees)
+router.use(selfServiceRouter)
+
 // Everything below this line requires coordinator role
 router.use(requireCoordinator as Router)
 router.use(classesRouter)
@@ -53,3 +59,5 @@ router.use(enrollmentsRouter)
 router.use(scheduleRouter)
 router.use(reportsRouter)
 router.use(hoursRouter)
+router.use(payrollRouter)
+router.use(studentProgressRouter)

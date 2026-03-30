@@ -1,13 +1,12 @@
-import { useNavigate } from 'react-router-dom'
 import type { ReportRow } from '../lib/apiClient'
 import type { ReportsSort } from '../hooks/useReportsQuery'
-import { classSlug } from '../lib/utils'
 import type { Province } from '../types'
 
 interface ReportsTableProps {
   reports: ReportRow[]
   sort: ReportsSort
   onSort: (column: string) => void
+  onReportClick: (report: ReportRow) => void
 }
 
 const PROVINCE_BADGE: Record<Province, string> = {
@@ -52,9 +51,7 @@ function SortArrow({ column, sort }: { column: string; sort: ReportsSort }) {
   )
 }
 
-export function ReportsTable({ reports, sort, onSort }: ReportsTableProps) {
-  const navigate = useNavigate()
-
+export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTableProps) {
   const hiddenClass = (col: Column) => {
     if (col.hideBelow === 'sm') return 'hidden sm:table-cell'
     if (col.hideBelow === 'md') return 'hidden md:table-cell'
@@ -95,7 +92,7 @@ export function ReportsTable({ reports, sort, onSort }: ReportsTableProps) {
                 <tr
                   key={r.id}
                   className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => navigate(`/classes/${classSlug(r.classes.name)}`)}
+                  onClick={() => onReportClick(r)}
                 >
                   <td className="px-4 py-3 font-medium text-gw-dark truncate">{r.classes.name}</td>
                   <td className="px-4 py-3 text-slate-600 truncate">

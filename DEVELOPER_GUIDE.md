@@ -21,6 +21,10 @@ A personal reference for understanding how this codebase works, why it's built t
 13. [How to add new features](#13-how-to-add-new-features)
 14. [Glossary of domain terms](#14-glossary-of-domain-terms)
 15. [ClassDetailContext caching](#15-classdetailcontext-caching)
+16. [Payroll hour summaries](#16-payroll-hour-summaries)
+17. [Student progress dashboard](#17-student-progress-dashboard)
+18. [Attendance tracking](#18-attendance-tracking)
+19. [Trainer and trainee self-service views](#19-trainer-and-trainee-self-service-views)
 
 ---
 
@@ -29,9 +33,9 @@ A personal reference for understanding how this codebase works, why it's built t
 This is a training management app for Gateway Casinos. Think of it like a lightweight LMS (Learning Management System), but purpose-built for casino table game training.
 
 **Who uses it:**
-- **Coordinators** are the admins. They create classes, assign trainers, enroll students, manage schedules, and review daily reports. Right now, the app is mostly built for them.
-- **Trainers** run the classes on the casino floor. They'll eventually log drills, mark attendance, and fill out daily reports. Their dashboard currently says "Work in progress."
-- **Trainees (students)** attend classes to learn games like Blackjack. They'll eventually see their schedule and progress. Also "Work in progress" for now.
+- **Coordinators** are the admins. They create classes, assign trainers, enroll students, manage schedules, review daily reports, and drill into per-student progress dashboards.
+- **Trainers** run the classes on the casino floor. They have a self-service dashboard showing their assigned classes, enrolled student counts, and upcoming schedule slots.
+- **Trainees (students)** attend classes to learn games like Blackjack. They have a self-service dashboard showing their enrolled classes, upcoming schedule, daily progress ratings, and drill results.
 
 **What it tracks:**
 - **Classes** — A cohort like "Blackjack April 2025" at a specific casino site.
@@ -90,6 +94,7 @@ This is a training management app for Gateway Casinos. Think of it like a lightw
 │          class_daily_report_trainers,                │
 │          class_daily_report_timeline_items,          │
 │          class_daily_report_trainee_progress,        │
+│          class_daily_report_drill_times,             │
 │          class_logged_hours, audit_logs              │
 │                                                     │
 │  Auth: email/password + Google OAuth                │
@@ -107,16 +112,19 @@ This is a training management app for Gateway Casinos. Think of it like a lightw
 The app starts at `web/src/main.tsx`, which renders `App.tsx`. App.tsx defines all the routes:
 
 ```
-/login                → LoginView (public)
-/                     → ProtectedLayout (auth gate)
-  /dashboard          → DashboardView
-  /classes            → ClassesPage (coordinator only)
-  /classes/:className → ClassDetailView → ClassDetailPage (tabbed)
-  /students           → RosterPage (coordinator only)
-  /trainers           → RosterPage (coordinator only)
-  /reports            → ReportsPage (coordinator only)
-  /schedule           → SchedulePage (coordinator only)
-  /settings           → SettingsContent (coordinator only)
+/login                          → LoginView (public)
+/                               → ProtectedLayout (auth gate)
+  /dashboard                    → DashboardView (dispatches by role)
+  /classes                      → ClassesPage (coordinator only)
+  /classes/:className           → ClassDetailView → ClassDetailPage (tabbed)
+  /students/progress/:email     → StudentProgressPage (coordinator only — registered BEFORE /students)
+  /students                     → RosterPage (coordinator only)
+  /trainers                     → RosterPage (coordinator only)
+  /reports                      → ReportsPage (coordinator only)
+  /schedule                     → SchedulePage (coordinator only)
+  /payroll/trainers             → TrainerPayrollPage (coordinator only)
+  /payroll/students             → StudentPayrollPage (coordinator only)
+  /settings                     → SettingsContent (coordinator only)
 ```
 
 ### 3.2 The auth system (AuthContext)
@@ -170,12 +178,14 @@ The Overview tab (`ClassOverviewSection`) fetches all class-related data on moun
 - **Students & Schedule card** — enrolled count, next upcoming session, total reports, total logged hours
 - If no data, shows appropriate empty messages
 
-### 3.6 Dashboard — real-time overview
+### 3.6 Dashboard — role-dispatched views
 
-The dashboard (`DashboardContent.tsx`) shows live data:
-- **Summary cards**: Active class count (with province breakdown badges), today's sessions count, recent reports count (last 7 days)
-- **Today's sessions table**: Fetched via `api.schedule.listAll({ date_from: today, date_to: today })`. Shows class name, time range, trainer, and group. Rows click through to the class.
-- **Active classes list**: From `useClasses()` context. Each row shows name, site, province badge, and date range.
+`DashboardView.tsx` reads the authenticated user's role and renders the appropriate component:
+- **Coordinator** → `DashboardContent` — live summary cards (active class count with province badges, today's sessions, recent reports), today's session table, and the active classes list.
+- **Trainer** → `TrainerDashboard` — class cards showing the trainer's assigned classes, their role (primary/assistant), enrolled student count, and the next upcoming schedule slots.
+- **Trainee** → `TraineeDashboard` — enrolled classes with upcoming schedule, a progress ratings table (GK/Dex/HOM with attendance status), and a drill results table.
+
+`InProgressPage.tsx` is no longer used by `DashboardView` but remains in the codebase as a fallback placeholder.
 
 ### 3.7 Classes page — client-side filtering
 
@@ -196,8 +206,11 @@ Search is debounced at 300ms. Any filter/sort change resets to page 0.
 
 ### 3.9 Settings page
 
-Shows the coordinator's profile (fetched from `api.profiles.me()`) in a read-only card:
-- Full name, email, role, province, member since date
+Shows the coordinator's profile (fetched from `api.profiles.me()`) with inline editing:
+- Full name and province are **editable** inline (Save/Cancel buttons appear on change)
+- Email, role, and member-since date are read-only
+- Uses `api.profiles.update()` → `PUT /profiles/me` to persist changes
+- Province is validated server-side against allowed values (BC, AB, ON)
 - Sign-out button in a separate "Account" section
 
 ### 3.10 UI polish patterns
@@ -240,10 +253,11 @@ Request → helmet → globalLimiter → cors → express.json(50kb) → /api ro
 
 Inside the `/api` router:
 ```
-→ requireAuth (validates JWT, sets req.userId + req.userRole)
+→ requireAuth (validates JWT, sets req.userId + req.userRole + req.userEmail)
 → profilesRouter (accessible to ALL authenticated users)
-→ requireCoordinator (blocks non-coordinators)
-→ classesRouter, drillsRouter, trainersRouter, etc.
+→ selfServiceRouter (accessible to ALL authenticated users — /me/trainer-dashboard, /me/trainee-progress)
+→ requireCoordinator (blocks non-coordinators from everything below)
+→ classesRouter, drillsRouter, trainersRouter, studentProgressRouter, etc.
 ```
 
 **This order matters.** If you add a route that trainers or trainees need, mount it BEFORE `requireCoordinator` in `routes/index.ts`.
@@ -302,7 +316,8 @@ classes
 └── class_daily_reports                    │   │
     ├── class_daily_report_trainers ───────┼───┘
     ├── class_daily_report_timeline_items   │
-    └── class_daily_report_trainee_progress─┘
+    ├── class_daily_report_trainee_progress─┘
+    └── class_daily_report_drill_times (FK → enrollments, drills)
 ```
 
 ### 5.2 Why class_trainers is a "snapshot"
@@ -335,6 +350,7 @@ This is the most complex data model. A daily report captures everything about on
 - Three rating axes: GK (Game Knowledge), Dex (Dexterity), HOM (Hands-on Mechanics)
 - Each rated on a 4-point scale: EE (Exceeds), ME (Meets), AD (Approaching), NI (Needs Improvement)
 - Tracks whether the student is coming back the next day and if homework was completed
+- `attendance boolean NOT NULL DEFAULT true` — whether the student was present for this session (added in migration `001_add_attendance_to_progress.sql`)
 
 ### 5.4 Logged hours
 
@@ -379,7 +395,8 @@ The `logAudit()` function **never throws** — if it fails (network issue, DB do
 2. This returns the JWT from localStorage (Supabase handles token refresh automatically).
 3. The JWT is sent as `Authorization: Bearer <token>`.
 4. The backend's `requireAuth` middleware calls `supabase.auth.getUser(token)` to validate it.
-5. It then queries `profiles` to get the role and attaches both to `req`.
+5. It then queries `profiles` to get the role and attaches `req.userId`, `req.userRole`, and `req.userEmail` to the request.
+6. Self-service routes (`/me/trainer-dashboard`, `/me/trainee-progress`) use `req.userEmail` to scope queries to the calling user — no coordinator-supplied ID is needed or accepted.
 
 ### Session persistence
 
@@ -433,27 +450,30 @@ A coordinator fills out a report for each training day. It includes:
 - **Trainers present:** which trainers were there (checkboxes)
 - **Timeline:** an ordered list of activities — "9:00-10:00 Lecture: Card Values" → "10:00-11:00 Dexterity: Chip Cutting"
 - **Trainee progress:** for each student, a rating on Game Knowledge, Dexterity, and Hands-on Mechanics
+- **Drill & test times:** per-student recordings of drill completion times and test scores, compared against par times/target scores
 - **Override fields:** manual corrections to computed hour totals (for when logged hours don't match reality)
 
 ### How the data is stored
 
-The report is split across 4 tables:
+The report is split across 5 tables:
 1. `class_daily_reports` — the main record
 2. `class_daily_report_trainers` — which trainers were present (junction table)
 3. `class_daily_report_timeline_items` — the activity timeline (ordered by `position`)
 4. `class_daily_report_trainee_progress` — per-student assessments
+5. `class_daily_report_drill_times` — per-student drill/test time and score recordings
 
 ### How it's fetched (GET /reports/:id)
 
-The backend fetches all 4 tables in parallel using `Promise.all`:
+The backend fetches all 5 tables in parallel using `Promise.all`:
 
 ```typescript
-const [report, trainerLinks, timeline, progress] = await Promise.all([
+const [report, trainerLinks, timeline, progress, drillTimes] = await Promise.all([
   supabase.from('class_daily_reports').select('*').eq('id', id).single(),
   supabase.from('class_daily_report_trainers').select('trainer_id').eq('report_id', id),
   supabase.from('class_daily_report_timeline_items').select('*').eq('report_id', id)
     .order('position').order('start_time'),
   supabase.from('class_daily_report_trainee_progress').select('*').eq('report_id', id),
+  supabase.from('class_daily_report_drill_times').select('*').eq('report_id', id),
 ])
 ```
 
@@ -463,7 +483,8 @@ Then merges them into one response:
   "id": "...", "report_date": "2025-03-15", ...
   "trainer_ids": ["uuid1", "uuid2"],
   "timeline": [{ "start_time": "09:00", "activity": "Lecture", ... }],
-  "progress": [{ "enrollment_id": "...", "gk_rating": "ME", ... }]
+  "progress": [{ "enrollment_id": "...", "gk_rating": "ME", ... }],
+  "drill_times": [{ "enrollment_id": "...", "drill_id": "...", "time_seconds": 45, "score": null }]
 }
 ```
 
@@ -474,8 +495,31 @@ When updating a report, the backend doesn't try to diff what changed. Instead:
 2. Delete ALL existing trainer links → re-insert the ones from the request.
 3. Delete ALL existing timeline items → re-insert from the request (with `position = array index`).
 4. Delete ALL existing progress rows → re-insert from the request.
+5. Delete ALL existing drill time rows → re-insert from the request.
 
 **Why full replace instead of diff:** It's simpler and more reliable. The frontend sends the complete state; the backend saves exactly that. No risk of orphaned rows, no complex merge logic, no race conditions. The trade-off is slightly more DB operations, but these are small tables (typically 10-30 rows) so the performance impact is negligible.
+
+### Drill times — how they work
+
+The drill times feature lets coordinators record per-student drill/test results within a daily report:
+
+**UI (ClassReportsSection):**
+- A "Drill & test times" section in the report form shows a grid: rows = enrolled students, columns = active drills/tests
+- Click "Load drills for trainees" to populate the grid (preserves existing values)
+- Drill columns show `time_seconds` inputs; test columns show `score` inputs
+- Color feedback: green border = met par/target, amber = missed
+
+**PDF (reportPdf.ts):**
+- Drill times appear as a separate page in the PDF (uses `page-break-before: always`)
+- Color-coded cells (green = met, yellow = missed) with a legend
+- Only shown when drill times exist in the report
+
+**Caching:**
+- After saving a report, `reportCacheRef.current[editingReport.id]` is deleted to invalidate the cache
+- The next "View PDF" click re-fetches fresh data from the server (including drill_times)
+
+**Future plans:**
+- Trainers and students will record drill times themselves (the `class_daily_report_drill_times` table schema supports this — `enrollment_id` + `drill_id` + `report_id` allow entries from any source)
 
 ---
 
@@ -510,7 +554,6 @@ When updating a report, the backend doesn't try to diff what changed. Instead:
 - No input validation beyond what Supabase enforces (column types, NOT NULL constraints).
 - No request body validation library (like Zod or Joi).
 - RLS policies exist but are bypassed by the service role key.
-- Profile editing (Settings page is read-only — no `PATCH /profiles/me` endpoint yet).
 
 ---
 
@@ -762,3 +805,131 @@ These functions re-fetch only the specific resource, not the entire cache.
 ### Loading states
 
 All class detail sections now use skeleton components (`SkeletonTable`, `SkeletonCard`, etc.) instead of plain "Loading..." text while data is being fetched. This applies to both the initial load and individual refreshes.
+
+---
+
+## 16. Payroll hour summaries
+
+### What it does
+
+The payroll feature provides aggregated hour breakdowns per trainer and per student, derived from `class_logged_hours`. Coordinators use it to review total paid/unpaid hours, classroom vs live floor time, and export the data as CSV for payroll processing.
+
+### Backend aggregation (`server/src/routes/payroll.ts`)
+
+Two endpoints serve trainer and student summaries: `GET /payroll/trainers` and `GET /payroll/students`. Rather than using SQL aggregation, each endpoint fetches filtered `class_logged_hours` rows and groups them in memory by person (trainer or enrollment). This approach was chosen because the grouping logic includes joins across `class_trainers`/`class_enrollments` and `classes` for filtering by province, site, and date range, which would be complex as a single Supabase query.
+
+Each summary includes: person name, total hours, paid hours, unpaid hours, live training hours, and classroom hours.
+
+### The `usePayrollQuery` hook (`web/src/hooks/usePayrollQuery.ts`)
+
+A single hook parameterized by `personType` (`'trainer'` or `'student'`). It manages filter state (province, site, date range, search), sort state, and calls the appropriate payroll endpoint. Both `TrainerPayrollPage` and `StudentPayrollPage` use this hook — the only difference is the `personType` argument. This follows the same pattern as `useReportsQuery` and `useScheduleQuery`.
+
+### The two payroll pages
+
+- **`TrainerPayrollPage.tsx`** — mounted at `/payroll/trainers`, calls `usePayrollQuery('trainer')`.
+- **`StudentPayrollPage.tsx`** — mounted at `/payroll/students`, calls `usePayrollQuery('student')`.
+
+Both render `PayrollFilterBar` and `PayrollTable`. The pages are coordinator-only (mounted after `requireCoordinator` in the route middleware).
+
+### CSV export
+
+The CSV export is entirely client-side. When the user clicks the export button in `PayrollFilterBar`, the current filtered and sorted data is serialized into a CSV string, wrapped in a `Blob`, and downloaded via a dynamically created anchor element (`URL.createObjectURL`). No server-side CSV endpoint exists — this keeps the implementation simple and avoids duplicating filter logic on the backend.
+
+---
+
+## 17. Student progress dashboard
+
+Coordinators can drill into a per-student view by clicking any trainee row on the Roster page. This is a coordinator-only feature that aggregates data across all classes a student is enrolled in.
+
+### How it works end-to-end
+
+1. **RosterPage** renders trainee rows as clickable. Clicking navigates to `/students/progress/<url-encoded-email>`.
+2. **App.tsx** registers `/students/progress/:email` **before** `/students` so React Router doesn't try to match "progress" as a username slug.
+3. **StudentProgressPage** reads the `:email` param, decodes it, and calls `api.studentProgress.get(email)`.
+4. The backend route (`GET /students/progress?email=`) finds all enrollments for that email, then in parallel fetches:
+   - Class metadata for each enrollment
+   - All `class_daily_report_trainee_progress` rows joined with report dates
+   - All `class_daily_report_drill_times` rows joined with report dates and drill metadata
+5. The page renders three sections: enrolled classes, a progress ratings table (with an "Attended" column), and a drill times table grouped by drill name.
+
+### Response shape (`StudentProgressResponse`)
+
+```typescript
+{
+  student_name: string
+  student_email: string
+  classes: Array<{ class_id, class_name, enrollment_id, status, group_label }>
+  progress: Array<{ report_date, session_label, class_name, gk_rating, dex_rating, hom_rating, attendance, ... }>
+  drill_times: Array<{ report_date, class_name, drill_name, drill_type, time_seconds, score, par_time_seconds, target_score }>
+}
+```
+
+---
+
+## 18. Attendance tracking
+
+Attendance is a simple boolean stored directly on each per-student-per-report row in `class_daily_report_trainee_progress`. It answers: "Did this student show up for this session?"
+
+### Why a boolean instead of a separate table
+
+A full attendance table (linked to schedule slots) would allow tracking absences even when a report isn't written. The current model is simpler: attendance is only meaningful in the context of a written report. The boolean approach was chosen to keep the schema minimal while satisfying the immediate need to distinguish "attended and assessed" from "absent."
+
+### Database migration
+
+```sql
+ALTER TABLE class_daily_report_trainee_progress
+  ADD COLUMN IF NOT EXISTS attendance boolean NOT NULL DEFAULT true;
+```
+
+The migration file lives at `server/src/migrations/001_add_attendance_to_progress.sql`. Run it in the Supabase SQL Editor before deploying. Future migrations should follow the same naming pattern (`NNN_description.sql`).
+
+### Where attendance appears in the UI
+
+- **Report form** (`ClassReportsSection.tsx`): an "Attended?" checkbox column for each trainee in the progress section. Unchecking marks the student absent.
+- **Student progress page** (`StudentProgressPage.tsx`): an "Attended" column in the Progress Ratings table showing a green checkmark for present or an amber "Absent" badge.
+- **Trainee self-service dashboard** (`TraineeDashboard.tsx`): the same progress table is shown to the trainee, including the attendance status.
+
+---
+
+## 19. Trainer and trainee self-service views
+
+Before Phase 4, non-coordinator users saw a "work in progress" placeholder after login. Now they land on a functional dashboard scoped to their own data.
+
+### The key architectural change: `req.userEmail`
+
+The `requireAuth` middleware now sets `req.userEmail` from the validated JWT in addition to `req.userId` and `req.userRole`. Self-service routes use this email to scope database queries — a trainer or trainee cannot query data for another user by changing a URL parameter.
+
+### The self-service router (`server/src/routes/selfService.ts`)
+
+This router is mounted **before** `requireCoordinator` in `routes/index.ts`. That means any authenticated user (coordinator, trainer, or trainee) can reach it, but in practice coordinators won't — they have richer coordinator-specific endpoints.
+
+**`GET /me/trainer-dashboard`**
+
+Finds all `class_trainers` rows where `trainer_email` matches `req.userEmail`, then fetches in parallel:
+- Class metadata for each assigned class
+- Enrolled student counts per class (status = 'enrolled')
+- Upcoming schedule slots on or after today (capped at the first 3 per class)
+
+Returns `TrainerDashboardResponse`: `{ trainer_name, trainer_email, classes[] }` where each class entry includes `trainer_role`, `enrolled_count`, and `upcoming_slots`.
+
+**`GET /me/trainee-progress`**
+
+Functionally equivalent to `GET /students/progress?email=...` (the coordinator endpoint) but uses `req.userEmail` instead of a query parameter. Additionally, each class entry includes `upcoming_slots` (next 3 schedule slots) so the trainee can see their upcoming sessions.
+
+Returns `TraineeDashboardResponse`: same shape as `StudentProgressResponse` but with `upcoming_slots` on each class.
+
+### Frontend pages
+
+**`TrainerDashboard.tsx`**
+- Calls `api.selfService.trainerDashboard()` on mount.
+- Renders a card per assigned class showing: class name, site, province, game type, trainer role badge (Primary / Assistant), enrolled student count, and a mini schedule list of upcoming slots.
+- Uses `SkeletonCard` during loading.
+
+**`TraineeDashboard.tsx`**
+- Calls `api.selfService.traineeDashboard()` on mount.
+- Renders enrolled classes with upcoming schedule, a progress ratings table (same GK/Dex/HOM/Attended columns as `StudentProgressPage`), and a drill results table.
+- Uses `SkeletonCard` and `SkeletonTable` during loading.
+
+### Why the two endpoints have different shapes
+
+`GET /students/progress` (coordinator) returns a flat list of classes with no schedule data — coordinators look at a specific student and don't need the student's upcoming schedule. `GET /me/trainee-progress` adds `upcoming_slots` because a trainee's primary concern is "when is my next session?" The two endpoints share the same underlying Supabase queries; the difference is the source of the email and the addition of the schedule fetch.
