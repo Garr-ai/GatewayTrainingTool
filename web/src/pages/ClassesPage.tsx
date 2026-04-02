@@ -17,7 +17,7 @@ const provinceBadge: Record<string, string> = {
   ON: 'bg-purple-500/15 text-purple-300',
 }
 
-const inputClass = 'bg-gw-elevated border border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+const inputClass = 'bg-gw-elevated border border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
 const labelClass = 'text-xs font-medium text-slate-400 mb-1 block'
 
 export function ClassesPage() {

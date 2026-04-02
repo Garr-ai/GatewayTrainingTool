@@ -63,7 +63,7 @@ export function ProtectedLayout() {
         </div>
 
         {/* Main content area */}
-        <section className="md:ml-16 pt-14 md:pt-0 pb-20 md:pb-0 min-h-screen px-4 md:px-6 py-5 flex flex-col gap-4 overflow-auto">
+        <section className="md:ml-16 pt-14 md:pt-4 pb-20 md:pb-6 min-h-screen px-4 md:px-6 flex flex-col gap-4 overflow-auto">
           <Outlet />
         </section>
 

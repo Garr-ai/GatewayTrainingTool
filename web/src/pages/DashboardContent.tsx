@@ -22,7 +22,7 @@ function toISODate(d: Date) {
 const MAX_CLASSES_SHOWN = 5
 
 export function DashboardContent() {
-  const { email, signOut } = useAuth()
+  useAuth()
   const { active, loading: classesLoading, refresh: refreshClasses } = useClasses()
   const navigate = useNavigate()
 
@@ -98,29 +98,16 @@ export function DashboardContent() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex flex-col items-end gap-0.5">
-            <span className="text-xs uppercase tracking-wide text-slate-500">Coordinator</span>
-            <span className="text-xs text-slate-300">{email}</span>
-            <button
-              type="button"
-              className="mt-1 text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors duration-150 text-xs"
-              onClick={signOut}
-            >
-              Sign out
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-4 py-2 text-sm hover:brightness-110 transition-all duration-150"
-          >
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            New Class
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-4 py-2 text-sm hover:brightness-110 transition-all duration-150"
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Class
+        </button>
       </header>
 
       {/* ── Stat cards ─────────────────────────────────────────────── */}
