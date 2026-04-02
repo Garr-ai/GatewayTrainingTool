@@ -9,10 +9,12 @@ import { useState } from 'react'
 import { useScheduleQuery } from '../hooks/useScheduleQuery'
 import { useClasses } from '../contexts/ClassesContext'
 import { ScheduleFilterBar } from '../components/ScheduleFilterBar'
+import { CollapsibleSection } from '../components/CollapsibleSection'
 import { ScheduleTable } from '../components/ScheduleTable'
 import { ScheduleCalendar } from '../components/ScheduleCalendar'
 import { Pagination } from '../components/Pagination'
 import { SkeletonTable } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 
 type ScheduleView = 'table' | 'calendar'
 
@@ -51,18 +53,18 @@ export function SchedulePage() {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Schedule</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <h2 className="text-xl font-bold text-slate-100">Schedule</h2>
+          <p className="mt-0.5 text-sm text-slate-300">
             Upcoming sessions across all {filters.archived ? '' : 'active '}classes
           </p>
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 self-start sm:self-auto">
+        <div className="flex items-center gap-1 rounded-md bg-gw-surface border border-white/10 p-0.5 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setView('table')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${view === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'table' ? 'bg-gw-elevated text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
@@ -72,7 +74,7 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => setView('calendar')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${view === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'calendar' ? 'bg-gw-elevated text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" />
@@ -83,33 +85,32 @@ export function SchedulePage() {
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-4">
-        <ScheduleFilterBar
-          filters={filters}
-          setFilter={setFilter}
-          resetFilters={resetFilters}
-          classes={allClasses}
-        />
+        <CollapsibleSection label="Filters">
+          <ScheduleFilterBar
+            filters={filters}
+            setFilter={setFilter}
+            resetFilters={resetFilters}
+            classes={allClasses}
+          />
+        </CollapsibleSection>
 
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : slots.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+          <div className="bg-gw-surface rounded-[10px]">
             {hasActiveFilters ? (
-              <>
-                <p className="text-sm text-slate-600">No sessions match your filters.</p>
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="mt-2 text-xs text-gw-dark hover:underline"
-                >
-                  Reset all filters
-                </button>
-              </>
+              <EmptyState
+                title="No sessions match your filters"
+                description="Try adjusting your filters or reset them."
+                action={{ label: 'Reset filters', onClick: resetFilters }}
+                variant="neutral"
+              />
             ) : (
-              <>
-                <p className="text-sm text-slate-600">No upcoming sessions.</p>
-                <p className="mt-1 text-xs text-slate-500">Schedule slots appear here once added inside a class.</p>
-              </>
+              <EmptyState
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>}
+                title="No upcoming sessions"
+                description="Schedule slots appear here once added inside a class."
+              />
             )}
           </div>
         ) : view === 'table' ? (

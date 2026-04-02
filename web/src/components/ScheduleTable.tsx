@@ -11,9 +11,9 @@ interface ScheduleTableProps {
 }
 
 const PROVINCE_BADGE: Record<Province, string> = {
-  BC: 'bg-emerald-100 text-emerald-700',
-  AB: 'bg-amber-100 text-amber-700',
-  ON: 'bg-blue-100 text-blue-700',
+  BC: 'bg-blue-500/15 text-blue-300',
+  AB: 'bg-orange-400/15 text-orange-300',
+  ON: 'bg-purple-500/15 text-purple-300',
 }
 
 type Column = {
@@ -61,7 +61,7 @@ export function ScheduleTable({ slots, sort, onSort }: ScheduleTableProps) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="bg-gw-surface rounded-[10px] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm table-fixed">
           <colgroup>
@@ -73,11 +73,11 @@ export function ScheduleTable({ slots, sort, onSort }: ScheduleTableProps) {
             <col className="hidden md:table-column w-[22%]" />  {/* Notes */}
           </colgroup>
           <thead>
-            <tr className="border-b border-slate-200 bg-gw-dark">
+            <tr className="bg-white/[0.02] border-b border-white/[0.06]">
               {COLUMNS.map(col => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 font-medium text-white ${hiddenClass(col)} ${col.sortable ? 'cursor-pointer select-none group hover:bg-white/10' : ''}`}
+                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 ${hiddenClass(col)} ${col.sortable ? 'cursor-pointer select-none group hover:text-slate-300 transition-colors' : ''}`}
                   onClick={col.sortable ? () => onSort(col.key) : undefined}
                 >
                   {col.label}
@@ -92,10 +92,10 @@ export function ScheduleTable({ slots, sort, onSort }: ScheduleTableProps) {
               return (
                 <tr
                   key={s.id}
-                  className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                  className="border-b border-white/[0.03] hover:bg-gw-elevated cursor-pointer transition-colors duration-100"
                   onClick={() => navigate(`/classes/${classSlug(s.classes.name)}`)}
                 >
-                  <td className="px-4 py-3 font-medium text-gw-dark truncate">
+                  <td className="px-4 py-3 font-medium text-slate-200 truncate">
                     {s.classes.name}
                     {province && (
                       <span className={`ml-1.5 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${PROVINCE_BADGE[province] ?? ''}`}>
@@ -103,20 +103,20 @@ export function ScheduleTable({ slots, sort, onSort }: ScheduleTableProps) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                  <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                     {new Date(s.slot_date + 'T00:00:00').toLocaleDateString('en-CA', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',
                     })}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                  <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                     {formatTime(s.start_time)} – {formatTime(s.end_time)}
                   </td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-slate-600 truncate">
+                  <td className="hidden sm:table-cell px-4 py-3 text-slate-400 truncate">
                     {s.class_trainers?.trainer_name ?? '—'}
                   </td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-slate-600">{s.group_label ?? '—'}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-slate-400">{s.group_label ?? '—'}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-slate-500 truncate">{s.notes ?? '—'}</td>
                 </tr>
               )

@@ -177,6 +177,7 @@ export interface ReportListParams {
   date_from?: string
   date_to?: string
   search?: string
+  status?: 'draft' | 'finalized' | ''
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
   page?: number
@@ -304,6 +305,8 @@ export const api = {
     unarchive: (id: string) =>
       req<Class>(`/classes/${id}`, { method: 'PUT', body: JSON.stringify({ archived: false }) }),
     delete: (id: string) => req<void>(`/classes/${id}`, { method: 'DELETE' }),
+    batch: (ids: string[], action: 'archive' | 'delete') =>
+      req<{ affected: number }>('/classes/batch', { method: 'PATCH', body: JSON.stringify({ ids, action }) }),
   },
 
   drills: {
@@ -362,6 +365,8 @@ export const api = {
     update: (classId: string, id: string, body: { status: EnrollmentStatus; group_label?: string | null }) =>
       req<ClassEnrollment>(`/classes/${classId}/enrollments/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/enrollments/${id}`, { method: 'DELETE' }),
+    createBatch: (classId: string, body: { students: { email: string; group_label?: string }[] }) =>
+      req<{ inserted: number; skipped: number; not_found: string[] }>(`/classes/${classId}/enrollments/batch`, { method: 'POST', body: JSON.stringify(body) }),
   },
 
   schedule: {
@@ -394,6 +399,8 @@ export const api = {
     update: (classId: string, id: string, body: Partial<ClassScheduleSlot>) =>
       req<ClassScheduleSlot>(`/classes/${classId}/schedule/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/schedule/${id}`, { method: 'DELETE' }),
+    createBatch: (classId: string, body: { days_of_week: number[]; start_time: string; end_time: string; trainer_id?: string; group_label?: string; date_from: string; date_to: string }) =>
+      req<{ inserted: number }>(`/classes/${classId}/schedule/batch`, { method: 'POST', body: JSON.stringify(body) }),
   },
 
   reports: {
@@ -417,6 +424,7 @@ export const api = {
     update: (classId: string, id: string, body: ReportBody) =>
       req<ClassDailyReport>(`/classes/${classId}/reports/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/reports/${id}`, { method: 'DELETE' }),
+    finalize: (id: string) => req<ClassDailyReport>(`/reports/${id}/finalize`, { method: 'PATCH' }),
   },
 
   hours: {
@@ -513,9 +521,16 @@ export const api = {
   },
 
   selfService: {
-    /** Trainer dashboard: classes this trainer is assigned to with enrollment counts and upcoming schedule. */
     trainerDashboard: () => req<TrainerDashboardResponse>('/me/trainer-dashboard'),
-    /** Trainee dashboard: enrolled classes, progress ratings, and drill times for the calling user. */
     traineeDashboard: () => req<TraineeDashboardResponse>('/me/trainee-progress'),
+  },
+
+  dashboard: {
+    hoursSummary: () => req<{ total_hours: number; trainer_count: number }>('/dashboard/hours-summary'),
+    enrollmentSummary: () => req<{ enrolled: number; waitlist: number }>('/dashboard/enrollment-summary'),
+    attendanceRate: () => req<{ rate: number | null }>('/dashboard/attendance-rate'),
+    unreportedSessions: () => req<{ classes: { class_id: string; class_name: string; session_date: string }[] }>('/dashboard/unreported-sessions'),
+    activity: (limit = 10) => req<{ items: { type: string; description: string; timestamp: string; link_to: string }[] }>(`/dashboard/activity?limit=${limit}`),
+    classAttendanceRates: () => req<{ rates: Record<string, number> }>('/dashboard/class-attendance-rates'),
   },
 }

@@ -9,8 +9,8 @@ interface ScheduleFilterBarProps {
   classes: Class[]
 }
 
-const selectClass = 'text-sm pl-3 pr-8 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark appearance-none cursor-pointer'
-const inputClass = 'text-sm px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark'
+const selectClass = 'bg-gw-elevated border border-white/10 rounded-md text-sm pl-3 pr-8 py-1.5 text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 appearance-none cursor-pointer [color-scheme:dark]'
+const inputClass  = 'bg-gw-elevated border border-white/10 rounded-md text-sm px-3 py-1.5 text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
 
 export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }: ScheduleFilterBarProps) {
   // Derive unique sites from classes, filtered by selected province
@@ -48,7 +48,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
     filters.archived !== false
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-col gap-2">
+    <div className="bg-gw-surface rounded-[10px] p-3 flex flex-col gap-2">
       {/* Row 1: Main filters */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Province */}
@@ -145,14 +145,13 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
           <button
             type="button"
             onClick={resetFilters}
-            className="text-xs text-slate-500 hover:text-gw-dark underline underline-offset-2 px-1"
+            className="text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors px-1"
           >
             Reset
           </button>
         )}
       </div>
 
-      {/* Row 2: Archived toggle */}
       <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer w-fit">
         <input
           type="checkbox"
@@ -161,7 +160,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
             setFilter('archived', e.target.checked)
             setFilter('class_id', '')
           }}
-          className="rounded border-slate-300 text-gw-dark focus:ring-gw-dark/30"
+          className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30"
         />
         Include archived classes
       </label>

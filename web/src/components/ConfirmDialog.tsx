@@ -21,35 +21,45 @@ export function ConfirmDialog({
 
   const confirmClass =
     confirmVariant === 'danger'
-      ? 'bg-rose-600 text-white hover:bg-rose-700'
-      : 'bg-gw-blue text-white hover:bg-gw-blue-hover'
+      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/25 hover:bg-rose-500/20'
+      : 'bg-gradient-to-r from-gw-blue to-gw-teal text-white hover:brightness-110'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-backdrop-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-backdrop-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
     >
-      <div className="w-full max-w-sm rounded-xl bg-white shadow-xl animate-modal-in">
-        <div className="px-5 py-4">
-          <h2 id="confirm-dialog-title" className="text-base font-semibold text-slate-900">
+      <div className="w-full max-w-sm bg-gw-surface border border-white/[0.08] rounded-[14px] p-6 shadow-2xl animate-modal-in">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h2 id="confirm-dialog-title" className="text-base font-bold text-slate-100">
             {title}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">{message}</p>
-        </div>
-        <div className="flex gap-2 justify-end border-t border-slate-200 px-5 py-3">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
+            aria-label="Close"
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-sm text-slate-300 mb-5">{message}</p>
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-gw-elevated transition-colors duration-150"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${confirmClass}`}
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-150 ${confirmClass}`}
           >
             {confirmLabel}
           </button>

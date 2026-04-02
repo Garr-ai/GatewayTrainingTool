@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import { SkeletonTable } from '../components/Skeleton'
 import { Pagination } from '../components/Pagination'
+import { EmptyState } from '../components/EmptyState'
 
 type RosterRow = { id: string; full_name: string | null; email: string }
 
@@ -60,63 +61,110 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
     fetchRows(search, newPage)
   }
 
+  const [sortCol, setSortCol] = useState<'full_name' | 'email'>('full_name')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  function toggleSort(col: 'full_name' | 'email') {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('asc') }
+  }
+
+  const sortedRows = useMemo(() =>
+    [...rows].sort((a, b) => {
+      const aVal = (sortCol === 'full_name' ? a.full_name ?? '' : a.email).toLowerCase()
+      const bVal = (sortCol === 'full_name' ? b.full_name ?? '' : b.email).toLowerCase()
+      const cmp = aVal.localeCompare(bVal)
+      return sortDir === 'asc' ? cmp : -cmp
+    }),
+    [rows, sortCol, sortDir],
+  )
+
   const itemLabel = role === 'trainer' ? 'trainer' : 'student'
+
+  function handleExportCsv() {
+    const header = 'Name,Email'
+    const csvRows = rows.map(r => `"${(r.full_name ?? '').replace(/"/g, '""')}","${r.email.replace(/"/g, '""')}"`)
+    const blob = new Blob([header + '\n' + csvRows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${role}-roster.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-xl font-bold text-slate-100">
             {title}
             {!loading && total > 0 && (
-              <span className="ml-1.5 text-sm font-normal text-slate-400">({total})</span>
+              <span className="ml-1.5 text-sm font-normal text-slate-500">({total})</span>
             )}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-slate-300">{subtitle}</p>
         </div>
-        <input
-          type="search"
-          placeholder="Search by name or email…"
-          value={search}
-          onChange={e => handleSearch(e.target.value)}
-          className="w-full sm:w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            placeholder="Search by name or email…"
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            className="w-full sm:w-64 bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15"
+          />
+          {rows.length > 0 && (
+            <button type="button" onClick={handleExportCsv} className="shrink-0 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-2 text-xs hover:bg-white/[0.08] transition-colors">
+              Export CSV
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto">
         {loading ? (
           <SkeletonTable rows={5} cols={2} />
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-            <p className="text-sm text-slate-600">
-              {search ? `No ${title.toLowerCase()} match your search.` : `No ${title.toLowerCase()} found.`}
-            </p>
+          <div className="bg-gw-surface rounded-[10px]">
+            <EmptyState
+              title={search ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} found`}
+              description={search ? 'Try a different search term.' : `${title} appear here once enrolled in a class.`}
+              variant="neutral"
+            />
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="bg-gw-surface rounded-[10px] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-gw-dark">
-                    <th className="px-4 py-3 font-medium text-white">Name</th>
-                    <th className="px-4 py-3 font-medium text-white">Email</th>
+                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    {([{ key: 'full_name' as const, label: 'Name' }, { key: 'email' as const, label: 'Email' }]).map(col => (
+                      <th key={col.key} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none group hover:text-slate-300 transition-colors" onClick={() => toggleSort(col.key)}>
+                        {col.label}
+                        {sortCol === col.key ? (
+                          <svg className="w-3 h-3 ml-1 inline text-gw-blue" viewBox="0 0 12 12" fill="currentColor">{sortDir === 'asc' ? <path d="M6 2l3 4H3z" /> : <path d="M6 10l-3-4h6z" />}</svg>
+                        ) : (
+                          <svg className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-30 inline" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l3 4H3z" /><path d="M6 10l-3-4h6z" /></svg>
+                        )}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(r => (
+                  {sortedRows.map(r => (
                     <tr
                       key={r.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50${role === 'trainee' ? ' cursor-pointer' : ''}`}
+                      className={`border-b border-white/[0.03] hover:bg-gw-elevated transition-colors duration-100${role === 'trainee' ? ' cursor-pointer' : ''}`}
                       onClick={role === 'trainee' ? () => navigate(`/students/progress/${encodeURIComponent(r.email)}`) : undefined}
                     >
-                      <td className="px-4 py-3 font-medium text-gw-dark">{r.full_name ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{r.email}</td>
+                      <td className="px-4 py-3 font-medium text-slate-200">{r.full_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-400">{r.email}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2 border-t border-slate-100">
+            <div className="px-4 py-2 border-t border-white/[0.03]">
               <Pagination
                 page={page}
                 limit={PAGE_SIZE}

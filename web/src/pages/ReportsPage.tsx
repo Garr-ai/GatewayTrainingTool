@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useReportsQuery } from '../hooks/useReportsQuery'
 import { useClasses } from '../contexts/ClassesContext'
 import { ReportsFilterBar } from '../components/ReportsFilterBar'
+import { CollapsibleSection } from '../components/CollapsibleSection'
 import { ReportsTable } from '../components/ReportsTable'
 import { Pagination } from '../components/Pagination'
 import { ReportPreviewModal } from '../components/ReportPreviewModal'
 import { SkeletonTable } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import { useToast } from '../contexts/ToastContext'
 import { api } from '../lib/apiClient'
 import type { ReportRow } from '../lib/apiClient'
@@ -26,9 +28,12 @@ export function ReportsPage() {
     setSort,
     setPage,
     resetFilters,
+    refetch,
   } = useReportsQuery()
 
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  const [previewReportId, setPreviewReportId] = useState<string | null>(null)
+  const [previewStatus, setPreviewStatus] = useState<string | undefined>(undefined)
   const [loadingReport, setLoadingReport] = useState<string | null>(null)
 
   async function handleReportClick(row: ReportRow) {
@@ -41,6 +46,8 @@ export function ReportsPage() {
         api.enrollments.list(row.class_id),
         api.drills.list(row.class_id),
       ])
+      setPreviewReportId(row.id)
+      setPreviewStatus(row.status)
       setPreviewArgs({
         report: fullReport,
         className: row.classes.name,
@@ -55,8 +62,18 @@ export function ReportsPage() {
     }
   }
 
-  // When "Include archived" is checked, show all classes in dropdowns;
-  // otherwise only active classes
+  async function handleFinalize() {
+    if (!previewReportId) return
+    try {
+      await api.reports.finalize(previewReportId)
+      setPreviewStatus('finalized')
+      refetch()
+      toast('Report finalized', 'success')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    }
+  }
+
   const allClasses = filters.archived ? [...active, ...archived] : active
 
   const hasActiveFilters =
@@ -71,43 +88,42 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="flex-shrink-0">
-        <h2 className="text-lg font-semibold text-slate-900">Reports</h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Daily reports across all {filters.archived ? '' : 'active '}classes
-        </p>
+      <header className="flex-shrink-0 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100">Reports</h2>
+          <p className="mt-0.5 text-sm text-slate-300">
+            Daily reports across all {filters.archived ? '' : 'active '}classes
+          </p>
+        </div>
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-4">
-        {/* Filter bar */}
-        <ReportsFilterBar
-          filters={filters}
-          setFilter={setFilter}
-          resetFilters={resetFilters}
-          classes={allClasses}
-        />
+        <CollapsibleSection label="Filters">
+          <ReportsFilterBar
+            filters={filters}
+            setFilter={setFilter}
+            resetFilters={resetFilters}
+            classes={allClasses}
+          />
+        </CollapsibleSection>
 
-        {/* Content */}
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : reports.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+          <div className="bg-gw-surface rounded-[10px]">
             {hasActiveFilters ? (
-              <>
-                <p className="text-sm text-slate-600">No reports match your filters.</p>
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="mt-2 text-xs text-gw-dark hover:underline"
-                >
-                  Reset all filters
-                </button>
-              </>
+              <EmptyState
+                title="No reports match your filters"
+                description="Try adjusting your filters or reset them."
+                action={{ label: 'Reset filters', onClick: resetFilters }}
+                variant="neutral"
+              />
             ) : (
-              <>
-                <p className="text-sm text-slate-600">No reports found.</p>
-                <p className="mt-1 text-xs text-slate-500">Reports appear here once created inside a class.</p>
-              </>
+              <EmptyState
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>}
+                title="No reports found"
+                description="Reports appear here once created inside a class."
+              />
             )}
           </div>
         ) : (
@@ -127,7 +143,12 @@ export function ReportsPage() {
       </div>
 
       {previewArgs && (
-        <ReportPreviewModal args={previewArgs} onClose={() => setPreviewArgs(null)} />
+        <ReportPreviewModal
+          args={previewArgs}
+          onClose={() => { setPreviewArgs(null); setPreviewReportId(null); setPreviewStatus(undefined) }}
+          onFinalize={handleFinalize}
+          status={previewStatus}
+        />
       )}
     </div>
   )

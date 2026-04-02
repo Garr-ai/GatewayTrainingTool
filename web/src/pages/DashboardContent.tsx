@@ -1,15 +1,5 @@
-/**
- * pages/DashboardContent.tsx — Coordinator dashboard overview
- *
- * The main landing page for coordinators after login. Shows live summary
- * cards (active classes with province breakdown, today's sessions count,
- * recent reports count), quick action buttons, alerts for items needing
- * attention, a today's sessions table, and a limited active classes list.
- */
-
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import { useClasses } from '../contexts/ClassesContext'
 import { api } from '../lib/apiClient'
 import type { ScheduleRow } from '../lib/apiClient'
@@ -19,126 +9,175 @@ import { CreateClassModal } from '../components/CreateClassModal'
 import type { Province } from '../types'
 
 const provinceBadge: Record<Province, string> = {
-  BC: 'bg-emerald-100 text-emerald-700',
-  AB: 'bg-amber-100 text-amber-700',
-  ON: 'bg-blue-100 text-blue-700',
+  BC: 'bg-blue-500/15 text-blue-300',
+  AB: 'bg-orange-400/15 text-orange-300',
+  ON: 'bg-purple-500/15 text-purple-300',
 }
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
-/** Maximum number of classes shown in the dashboard list */
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'yesterday'
+  return `${days}d ago`
+}
+
+function dayLabel(dateStr: string, today: string, tomorrow: string): string {
+  if (dateStr === today) return 'Today'
+  if (dateStr === tomorrow) return 'Tomorrow'
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+const ACTIVITY_ICONS: Record<string, string> = {
+  report: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+  enrollment: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2M9 11a4 4 0 100-8 4 4 0 000 8z',
+  schedule: 'M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18',
+  class: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14a2 2 0 012 2v12a2.5 2.5 0 01-2.5 2.5H4z',
+}
+
 const MAX_CLASSES_SHOWN = 5
 
 export function DashboardContent() {
-  const { email, signOut } = useAuth()
   const { active, loading: classesLoading, refresh: refreshClasses } = useClasses()
   const navigate = useNavigate()
 
-  const [todaySessions, setTodaySessions] = useState<ScheduleRow[]>([])
+  const [upcomingSessions, setUpcomingSessions] = useState<ScheduleRow[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
   const [recentReportsTotal, setRecentReportsTotal] = useState(0)
   const [reportsLoading, setReportsLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
 
-  // Alerts: track classes with no trainers
-  const [classesWithoutTrainers, setClassesWithoutTrainers] = useState<string[]>([])
-  const [alertsLoading, setAlertsLoading] = useState(true)
+  // New dashboard data
+  const [hoursSummary, setHoursSummary] = useState<{ total_hours: number; trainer_count: number } | null>(null)
+  const [enrollmentSummary, setEnrollmentSummary] = useState<{ enrolled: number; waitlist: number } | null>(null)
+  const [attendanceRate, setAttendanceRate] = useState<{ rate: number | null } | null>(null)
+  const [unreportedSessions, setUnreportedSessions] = useState<{ class_id: string; class_name: string }[]>([])
+  const [activityItems, setActivityItems] = useState<{ type: string; description: string; timestamp: string; link_to: string }[]>([])
+  const [activityLoading, setActivityLoading] = useState(true)
+
+  const today = toISODate(new Date())
+  const fiveDaysOut = toISODate(new Date(Date.now() + 5 * 86400000))
+  const tomorrow = toISODate(new Date(Date.now() + 86400000))
 
   useEffect(() => {
-    const today = toISODate(new Date())
-    const sevenDaysAgo = toISODate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+    const sevenDaysAgo = toISODate(new Date(Date.now() - 7 * 86400000))
 
-    api.schedule
-      .listAll({ date_from: today, date_to: today, limit: 200 })
-      .then((res) => setTodaySessions(res.data))
-      .catch(() => setTodaySessions([]))
+    api.schedule.listAll({ date_from: today, date_to: fiveDaysOut, limit: 200 })
+      .then(res => setUpcomingSessions(res.data))
+      .catch(() => setUpcomingSessions([]))
       .finally(() => setSessionsLoading(false))
 
-    api.reports
-      .listAll({ date_from: sevenDaysAgo, limit: 1 })
-      .then((res) => setRecentReportsTotal(res.total))
+    api.reports.listAll({ date_from: sevenDaysAgo, limit: 1 })
+      .then(res => setRecentReportsTotal(res.total))
       .catch(() => setRecentReportsTotal(0))
       .finally(() => setReportsLoading(false))
+
+    api.dashboard.hoursSummary().then(setHoursSummary).catch(() => {})
+    api.dashboard.enrollmentSummary().then(setEnrollmentSummary).catch(() => {})
+    api.dashboard.attendanceRate().then(setAttendanceRate).catch(() => {})
+    api.dashboard.unreportedSessions()
+      .then(res => setUnreportedSessions(res.classes))
+      .catch(() => {})
+    api.dashboard.activity(10)
+      .then(res => setActivityItems(res.items))
+      .catch(() => {})
+      .finally(() => setActivityLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Check for classes without trainers (lightweight: first 10 active classes)
-  useEffect(() => {
-    if (classesLoading || active.length === 0) {
-      setAlertsLoading(false)
-      return
-    }
-    const classesToCheck = active.slice(0, 10)
-    Promise.all(
-      classesToCheck.map(async (cls) => {
-        try {
-          const trainers = await api.trainers.list(cls.id)
-          return trainers.length === 0 ? cls.name : null
-        } catch {
-          return null
-        }
-      }),
-    ).then((results) => {
-      setClassesWithoutTrainers(results.filter((n): n is string => n !== null))
-      setAlertsLoading(false)
-    })
-  }, [active, classesLoading])
-
-  // Province breakdown for active classes
   const provinceCounts = active.reduce<Record<string, number>>((acc, c) => {
     acc[c.province] = (acc[c.province] || 0) + 1
     return acc
   }, {})
 
-  // Sort by start_date descending and limit
+  const todaySessionCount = useMemo(() =>
+    upcomingSessions.filter(s => s.slot_date === today).length,
+    [upcomingSessions, today],
+  )
+
+  const nextSession = useMemo(() => {
+    const todaySessions = upcomingSessions.filter(s => s.slot_date === today)
+    return todaySessions.length > 0 ? todaySessions[0] : null
+  }, [upcomingSessions, today])
+
+  // Group upcoming sessions by day
+  const sessionsByDay = useMemo(() => {
+    const groups: Record<string, ScheduleRow[]> = {}
+    for (const s of upcomingSessions) {
+      ;(groups[s.slot_date] ??= []).push(s)
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [upcomingSessions])
+
+  // Classes ending within 7 days (for alerts)
+  const classesEndingSoon7d = useMemo(() => {
+    const cutoff = toISODate(new Date(Date.now() + 7 * 86400000))
+    return active.filter(c => c.end_date >= today && c.end_date <= cutoff)
+  }, [active, today])
+
+  // Classes ending within 14 days (for dedicated section)
+  const classesEndingSoon14d = useMemo(() => {
+    const cutoff = toISODate(new Date(Date.now() + 14 * 86400000))
+    return active
+      .filter(c => c.end_date >= today && c.end_date <= cutoff)
+      .sort((a, b) => a.end_date.localeCompare(b.end_date))
+  }, [active, today])
+
   const displayedClasses = useMemo(() =>
-    [...active]
-      .sort((a, b) => b.start_date.localeCompare(a.start_date))
-      .slice(0, MAX_CLASSES_SHOWN),
+    [...active].sort((a, b) => b.start_date.localeCompare(a.start_date)).slice(0, MAX_CLASSES_SHOWN),
     [active],
   )
   const hiddenCount = Math.max(0, active.length - MAX_CLASSES_SHOWN)
 
+  const hasAlerts = classesEndingSoon7d.length > 0 || unreportedSessions.length > 0
+
   return (
     <>
-      <header className="flex items-center justify-between gap-4">
+      {/* Header with quick actions */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Dashboard</h2>
-          <p className="mt-0.5 text-xs text-slate-500">Coordinator overview</p>
+          <h2 className="text-xl font-bold text-slate-100">Dashboard</h2>
+          <p className="mt-0.5 text-sm text-slate-400">
+            {new Date().toLocaleDateString('en-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-slate-500">Coordinator</span>
-            <span className="text-xs text-slate-800">{email}</span>
-            <button
-              type="button"
-              className="mt-1 inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:border-slate-400"
-              onClick={signOut}
-            >
-              Sign out
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => navigate('/reports')} className="hidden sm:flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-white/[0.08] transition-colors">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6" /></svg>
+            Reports
+          </button>
+          <button type="button" onClick={() => navigate('/schedule')} className="hidden sm:flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-white/[0.08] transition-colors">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" /></svg>
+            Schedule
+          </button>
+          <button type="button" onClick={() => setCreateOpen(true)} className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-4 py-2 text-sm hover:brightness-110 transition-all duration-150">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+            New Class
+          </button>
         </div>
       </header>
 
-      {/* ── Summary cards ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Stat cards — 2x3 grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {/* Active classes */}
-        <section className="rounded-xl bg-white p-4 shadow-sm min-h-[110px]">
-          <h3 className="text-sm font-semibold text-slate-900 mb-2">Active classes</h3>
-          {classesLoading ? (
-            <SkeletonText className="h-6 w-16 mt-1" />
-          ) : (
+        <button type="button" onClick={() => navigate('/classes')} className="text-left bg-gradient-to-br from-gw-blue/20 to-gw-teal/20 border border-gw-blue/25 rounded-[10px] p-4 hover:brightness-110 transition-all">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Active classes</p>
+          {classesLoading ? <SkeletonText className="h-7 w-16 mt-1" /> : (
             <>
-              <p className="text-2xl font-bold text-gw-dark">{active.length}</p>
+              <p className="text-2xl font-bold text-slate-100">{active.length}</p>
               {Object.keys(provinceCounts).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1">
                   {Object.entries(provinceCounts).map(([prov, count]) => (
-                    <span
-                      key={prov}
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${provinceBadge[prov as Province] ?? 'bg-slate-100 text-slate-600'}`}
-                    >
+                    <span key={prov} className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${provinceBadge[prov as Province] ?? 'bg-white/10 text-slate-400'}`}>
                       {prov}: {count}
                     </span>
                   ))}
@@ -146,194 +185,246 @@ export function DashboardContent() {
               )}
             </>
           )}
-        </section>
+        </button>
 
         {/* Today's sessions */}
-        <section className="rounded-xl bg-white p-4 shadow-sm min-h-[110px]">
-          <h3 className="text-sm font-semibold text-slate-900 mb-2">Today&apos;s sessions</h3>
-          {sessionsLoading ? (
-            <SkeletonText className="h-6 w-16 mt-1" />
-          ) : (
-            <p className="text-2xl font-bold text-gw-dark">{todaySessions.length}</p>
-          )}
-        </section>
-
-        {/* Recent reports */}
-        <section className="rounded-xl bg-white p-4 shadow-sm min-h-[110px]">
-          <h3 className="text-sm font-semibold text-slate-900 mb-2">Recent reports</h3>
-          {reportsLoading ? (
-            <SkeletonText className="h-6 w-16 mt-1" />
-          ) : (
+        <button type="button" onClick={() => navigate('/schedule')} className="text-left bg-gw-surface rounded-[10px] p-4 hover:bg-gw-elevated transition-colors">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Today's sessions</p>
+          {sessionsLoading ? <SkeletonText className="h-7 w-16 mt-1" /> : (
             <>
-              <p className="text-2xl font-bold text-gw-dark">{recentReportsTotal}</p>
+              <p className="text-2xl font-bold text-slate-100">{todaySessionCount}</p>
+              {nextSession && (
+                <p className="mt-1 text-[11px] text-slate-500 truncate">Next: {nextSession.classes.name} at {formatTime(nextSession.start_time)}</p>
+              )}
+            </>
+          )}
+        </button>
+
+        {/* Reports 7d */}
+        <button type="button" onClick={() => navigate('/reports')} className="text-left bg-gw-surface rounded-[10px] p-4 hover:bg-gw-elevated transition-colors">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Reports (7d)</p>
+          {reportsLoading ? <SkeletonText className="h-7 w-16 mt-1" /> : (
+            <>
+              <p className="text-2xl font-bold text-slate-100">{recentReportsTotal}</p>
               <p className="mt-1 text-[11px] text-slate-500">in the last 7 days</p>
             </>
           )}
-        </section>
+        </button>
+
+        {/* Hours this month */}
+        <div className="text-left bg-gw-surface rounded-[10px] p-4">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Hours this month</p>
+          {!hoursSummary ? <SkeletonText className="h-7 w-16 mt-1" /> : (
+            <>
+              <p className="text-2xl font-bold text-slate-100">{hoursSummary.total_hours.toFixed(1)}</p>
+              <p className="mt-1 text-[11px] text-slate-500">{hoursSummary.trainer_count} active trainer{hoursSummary.trainer_count !== 1 ? 's' : ''}</p>
+            </>
+          )}
+        </div>
+
+        {/* Students enrolled */}
+        <button type="button" onClick={() => navigate('/students')} className="text-left bg-gw-surface rounded-[10px] p-4 hover:bg-gw-elevated transition-colors">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Students enrolled</p>
+          {!enrollmentSummary ? <SkeletonText className="h-7 w-16 mt-1" /> : (
+            <>
+              <p className="text-2xl font-bold text-slate-100">{enrollmentSummary.enrolled}</p>
+              {enrollmentSummary.waitlist > 0 && (
+                <p className="mt-1 text-[11px] text-amber-400">{enrollmentSummary.waitlist} on waitlist</p>
+              )}
+            </>
+          )}
+        </button>
+
+        {/* Attendance rate */}
+        <div className="bg-gw-surface rounded-[10px] p-4">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Attendance rate</p>
+          {!attendanceRate ? <SkeletonText className="h-7 w-16 mt-1" /> : (
+            <>
+              <p className="text-2xl font-bold text-slate-100">{attendanceRate.rate !== null ? `${attendanceRate.rate}%` : '—'}</p>
+              <p className="mt-1 text-[11px] text-slate-500">this month</p>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ── Quick actions ─────────────────────────────────────────── */}
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gw-blue px-3 py-2 text-xs font-medium text-white hover:bg-gw-blue-hover"
-        >
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Create class
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/reports')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
-          </svg>
-          View reports
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/schedule')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" />
-          </svg>
-          View schedule
-        </button>
-      </div>
-
-      {/* ── Alerts ────────────────────────────────────────────────── */}
-      {!alertsLoading && classesWithoutTrainers.length > 0 && (
-        <section className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <div className="flex items-start gap-2">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 mt-0.5 shrink-0">
+      {/* Alerts */}
+      {hasAlerts && (
+        <section className="rounded-[10px] border border-amber-500/25 bg-amber-500/10 px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
             </svg>
-            <div>
-              <p className="text-xs font-semibold text-amber-800">Needs attention</p>
-              <p className="mt-0.5 text-xs text-amber-700">
-                {classesWithoutTrainers.length} class{classesWithoutTrainers.length !== 1 ? 'es have' : ' has'} no trainers assigned:{' '}
-                {classesWithoutTrainers.map((name, i) => (
-                  <span key={name}>
-                    {i > 0 && ', '}
-                    <Link
-                      to={`/classes/${classSlug(name)}`}
-                      className="font-medium underline hover:text-amber-900"
-                    >
-                      {name}
-                    </Link>
-                  </span>
-                ))}
-              </p>
-            </div>
+            <p className="text-xs font-semibold text-amber-300">Needs attention</p>
+          </div>
+          {classesEndingSoon7d.length > 0 && (
+            <p className="text-xs text-amber-400/80">
+              {classesEndingSoon7d.length} class{classesEndingSoon7d.length !== 1 ? 'es' : ''} ending soon:{' '}
+              {classesEndingSoon7d.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ', '}
+                  <Link to={`/classes/${classSlug(c.name)}`} className="font-medium underline hover:text-amber-200">{c.name}</Link>
+                  <span className="text-amber-400/60"> ({c.end_date})</span>
+                </span>
+              ))}
+            </p>
+          )}
+          {unreportedSessions.length > 0 && (
+            <p className="text-xs text-amber-400/80">
+              {unreportedSessions.length} session{unreportedSessions.length !== 1 ? 's' : ''} today {unreportedSessions.length !== 1 ? 'have' : 'has'} no report:{' '}
+              {unreportedSessions.map((s, i) => (
+                <span key={s.class_id}>
+                  {i > 0 && ', '}
+                  <Link to={`/classes/${classSlug(s.class_name)}`} className="font-medium underline hover:text-amber-200">{s.class_name}</Link>
+                </span>
+              ))}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Classes ending soon — progress bars */}
+      {!classesLoading && classesEndingSoon14d.length > 0 && (
+        <section className="bg-gw-surface rounded-[10px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.06]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Classes ending soon</h3>
+          </div>
+          <div className="divide-y divide-white/[0.03]">
+            {classesEndingSoon14d.map(cls => {
+              const start = new Date(cls.start_date + 'T00:00:00')
+              const end = new Date(cls.end_date + 'T00:00:00')
+              const now = new Date()
+              const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000))
+              const elapsed = Math.max(0, Math.ceil((now.getTime() - start.getTime()) / 86400000))
+              const pct = Math.min(100, Math.max(0, Math.round((elapsed / totalDays) * 100)))
+              return (
+                <div key={cls.id} className="px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-gw-elevated transition-colors" onClick={() => navigate(`/classes/${classSlug(cls.name)}`)}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-200 truncate">{cls.name}</span>
+                      <span className={`shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${provinceBadge[cls.province] ?? 'bg-white/10 text-slate-400'}`}>{cls.province}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-gw-blue to-gw-teal rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-[10px] text-slate-500 shrink-0">Day {Math.min(elapsed, totalDays)} of {totalDays} ({pct}%)</span>
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-slate-500 shrink-0">Ends {cls.end_date}</span>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}
 
-      {/* ── Today's sessions table ────────────────────────────────── */}
-      <section className="mt-2 rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-900 mb-2">Today&apos;s sessions</h3>
-        {sessionsLoading ? (
-          <SkeletonTable rows={3} cols={4} />
-        ) : todaySessions.length === 0 ? (
-          <p className="text-xs text-slate-500">No sessions scheduled for today.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  <th className="pb-2 pr-4">Class</th>
-                  <th className="pb-2 pr-4">Time</th>
-                  <th className="pb-2 pr-4">Trainer</th>
-                  <th className="pb-2">Group</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todaySessions.map((slot) => (
-                  <tr
-                    key={slot.id}
-                    className="border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
-                    onClick={() => navigate(`/classes/${classSlug(slot.classes.name)}`)}
-                  >
-                    <td className="py-2 pr-4 font-medium text-gw-dark">{slot.classes.name}</td>
-                    <td className="py-2 pr-4 text-slate-600">
-                      {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
-                    </td>
-                    <td className="py-2 pr-4 text-slate-600">
-                      {slot.class_trainers?.trainer_name ?? '—'}
-                    </td>
-                    <td className="py-2 text-slate-600">{slot.group_label || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Coming Up + Activity + Active Classes */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Coming up — 5-day schedule */}
+        <section className="lg:col-span-2 bg-gw-surface rounded-[10px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.06]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Coming up</h3>
           </div>
-        )}
-      </section>
-
-      {/* ── Active classes list (limited) ─────────────────────────── */}
-      <section className="mt-2 rounded-xl bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-slate-900">Active classes</h3>
-          <Link to="/classes" className="text-xs font-medium text-gw-blue hover:underline">
-            View all
-          </Link>
-        </div>
-        {classesLoading ? (
-          <div className="space-y-2">
-            <SkeletonText className="h-4 w-2/3" />
-            <SkeletonText className="h-4 w-1/2" />
-            <SkeletonText className="h-4 w-3/4" />
-          </div>
-        ) : active.length === 0 ? (
-          <p className="text-xs text-slate-500">No active classes.</p>
-        ) : (
-          <>
-            <ul className="divide-y divide-slate-100">
-              {displayedClasses.map((cls) => (
-                <li
-                  key={cls.id}
-                  className="flex items-center justify-between gap-3 py-2 cursor-pointer hover:bg-slate-50 rounded-md px-1 transition-colors"
-                  onClick={() => navigate(`/classes/${classSlug(cls.name)}`)}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-medium text-gw-dark truncate">{cls.name}</span>
-                    <span className="text-[11px] text-slate-500 truncate">{cls.site}</span>
-                    <span
-                      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${provinceBadge[cls.province] ?? 'bg-slate-100 text-slate-600'}`}
-                    >
-                      {cls.province}
-                    </span>
+          {sessionsLoading ? (
+            <div className="p-4"><SkeletonTable rows={4} cols={4} /></div>
+          ) : sessionsByDay.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-slate-500">No upcoming sessions in the next 5 days.</p>
+          ) : (
+            <div className="divide-y divide-white/[0.06]">
+              {sessionsByDay.map(([date, slots]) => (
+                <div key={date}>
+                  <div className="px-4 py-2 bg-white/[0.02]">
+                    <span className="text-[11px] font-semibold text-slate-400">{dayLabel(date, today, tomorrow)}</span>
+                    <span className="text-[11px] text-slate-500 ml-2">— {date}</span>
                   </div>
-                  <span className="shrink-0 text-[11px] text-slate-400">
-                    {cls.start_date} – {cls.end_date}
-                  </span>
-                </li>
+                  {slots.map(slot => (
+                    <div key={slot.id} className="px-4 py-2 flex items-center gap-4 text-xs cursor-pointer hover:bg-gw-elevated transition-colors" onClick={() => navigate(`/classes/${classSlug(slot.classes.name)}`)}>
+                      <span className="font-medium text-slate-200 w-1/3 truncate">{slot.classes.name}</span>
+                      <span className="text-slate-400 w-1/4">{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</span>
+                      <span className="text-slate-500 flex-1 truncate">{slot.class_trainers?.trainer_name ?? '—'}</span>
+                      <span className="text-slate-500 shrink-0">{slot.group_label || '—'}</span>
+                    </div>
+                  ))}
+                </div>
               ))}
-            </ul>
-            {hiddenCount > 0 && (
-              <Link
-                to="/classes"
-                className="mt-2 block text-center text-xs font-medium text-gw-blue hover:underline"
-              >
-                and {hiddenCount} more →
-              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* Right column: Activity feed + Active classes */}
+        <div className="flex flex-col gap-4">
+          {/* Recent activity */}
+          <section className="bg-gw-surface rounded-[10px] overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/[0.06]">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Recent activity</h3>
+            </div>
+            {activityLoading ? (
+              <div className="p-4 space-y-2">
+                {[0,1,2].map(i => <SkeletonText key={i} className="h-4 w-full" />)}
+              </div>
+            ) : activityItems.length === 0 ? (
+              <p className="px-4 py-6 text-xs text-slate-500">No recent activity.</p>
+            ) : (
+              <ul className="divide-y divide-white/[0.03]">
+                {activityItems.map((item, i) => (
+                  <li key={i}>
+                    <Link to={item.link_to} className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-gw-elevated transition-colors">
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" className="text-slate-500 mt-0.5 shrink-0">
+                        <path d={ACTIVITY_ICONS[item.type] ?? ACTIVITY_ICONS.class} />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] text-slate-300 leading-relaxed">{item.description}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{relativeTime(item.timestamp)}</p>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             )}
-          </>
-        )}
-      </section>
+          </section>
+
+          {/* Active classes list */}
+          <section className="bg-gw-surface rounded-[10px] overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Active classes</h3>
+              <Link to="/classes" className="text-xs font-medium text-gw-blue hover:text-blue-300 transition-colors">View all</Link>
+            </div>
+            {classesLoading ? (
+              <div className="p-4 space-y-2">
+                <SkeletonText className="h-4 w-2/3" />
+                <SkeletonText className="h-4 w-1/2" />
+                <SkeletonText className="h-4 w-3/4" />
+              </div>
+            ) : active.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-slate-500">No active classes.</p>
+            ) : (
+              <>
+                <ul>
+                  {displayedClasses.map(cls => (
+                    <li key={cls.id} className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-white/[0.03] cursor-pointer hover:bg-gw-elevated transition-colors duration-100" onClick={() => navigate(`/classes/${classSlug(cls.name)}`)}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-medium text-slate-200 truncate">{cls.name}</span>
+                        <span className={`inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${provinceBadge[cls.province] ?? 'bg-white/10 text-slate-400'}`}>{cls.province}</span>
+                      </div>
+                      <span className="shrink-0 text-[11px] text-slate-500">{cls.start_date}</span>
+                    </li>
+                  ))}
+                </ul>
+                {hiddenCount > 0 && (
+                  <Link to="/classes" className="block px-4 py-2.5 text-center text-xs font-medium text-gw-blue hover:text-blue-300 transition-colors">
+                    and {hiddenCount} more →
+                  </Link>
+                )}
+              </>
+            )}
+          </section>
+        </div>
+      </div>
 
       {createOpen && (
         <CreateClassModal
           onClose={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false)
-            refreshClasses()
-          }}
+          onSuccess={() => { setCreateOpen(false); refreshClasses() }}
         />
       )}
     </>

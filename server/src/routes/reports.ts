@@ -110,6 +110,8 @@ reportsRouter.get('/reports', async (req: Request, res: Response, next: NextFunc
     if (class_id) query.eq('class_id', class_id)
     if (date_from) query.gte('report_date', date_from)
     if (date_to) query.lte('report_date', date_to)
+    const { status } = req.query as Record<string, string | undefined>
+    if (status && (status === 'draft' || status === 'finalized')) query.eq('status', status)
 
     // Free-text search on report fields + class name
     if (search) {
@@ -488,6 +490,32 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
     })
 
     res.json(report)
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * PATCH /reports/:id/finalize
+ * Auth: coordinator
+ * Sets the report status to 'finalized'.
+ */
+reportsRouter.patch('/reports/:id/finalize', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data, error } = await supabase
+      .from('class_daily_reports')
+      .update({ status: 'finalized' })
+      .eq('id', req.params.id)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      throw error
+    }
+    res.json(data)
   } catch (err) {
     next(err)
   }

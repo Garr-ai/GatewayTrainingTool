@@ -184,6 +184,32 @@ classesRouter.put('/classes/:id', async (req: Request, res: Response, next: Next
 })
 
 /**
+ * PATCH /classes/batch
+ * Auth: coordinator
+ * Bulk archive or delete classes by IDs.
+ */
+classesRouter.patch('/classes/batch', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { ids, action } = req.body as { ids: string[]; action: 'archive' | 'delete' }
+    if (!ids?.length || !['archive', 'delete'].includes(action)) {
+      res.status(400).json({ error: 'ids and action (archive|delete) are required' })
+      return
+    }
+    if (action === 'archive') {
+      const { error } = await supabase.from('classes').update({ archived: true }).in('id', ids)
+      if (error) throw error
+      res.json({ affected: ids.length })
+    } else {
+      const { error } = await supabase.from('classes').delete().in('id', ids)
+      if (error) throw error
+      res.status(200).json({ affected: ids.length })
+    }
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
  * DELETE /classes/:id
  * Auth: coordinator
  * Permanently deletes a class and all its associated data (cascaded by DB foreign keys).

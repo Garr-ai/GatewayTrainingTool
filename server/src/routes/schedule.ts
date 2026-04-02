@@ -165,6 +165,75 @@ scheduleRouter.get('/classes/:classId/schedule', async (req: Request, res: Respo
 })
 
 /**
+ * POST /classes/:classId/schedule/batch
+ * Auth: coordinator
+ * Creates recurring schedule slots by generating dates from a date range + day-of-week mask.
+ * Skips duplicates (same class_id + slot_date + start_time + end_time).
+ */
+scheduleRouter.post('/classes/:classId/schedule/batch', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { days_of_week, start_time, end_time, trainer_id, group_label, date_from, date_to } = req.body
+    if (!days_of_week?.length || !start_time || !end_time || !date_from || !date_to) {
+      res.status(400).json({ error: 'days_of_week, start_time, end_time, date_from, and date_to are required' })
+      return
+    }
+
+    const classId = req.params.classId as string
+    const daySet = new Set<number>(days_of_week as number[])
+    const slots: { class_id: string; slot_date: string; start_time: string; end_time: string; trainer_id: string | null; group_label: string | null }[] = []
+    const cursor = new Date(date_from + 'T12:00:00')
+    const endDate = new Date(date_to + 'T12:00:00')
+
+    while (cursor <= endDate) {
+      if (daySet.has(cursor.getDay())) {
+        slots.push({
+          class_id: classId,
+          slot_date: cursor.toISOString().slice(0, 10),
+          start_time,
+          end_time,
+          trainer_id: trainer_id || null,
+          group_label: group_label || null,
+        })
+      }
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    if (slots.length === 0) {
+      res.status(200).json({ inserted: 0 })
+      return
+    }
+
+    // Fetch existing to skip duplicates
+    const { data: existing } = await supabase
+      .from('class_schedule_slots')
+      .select('slot_date, start_time, end_time')
+      .eq('class_id', classId)
+      .gte('slot_date', date_from)
+      .lte('slot_date', date_to)
+
+    const existingKeys = new Set(
+      (existing ?? []).map((e: { slot_date: string; start_time: string; end_time: string }) =>
+        `${e.slot_date}|${e.start_time}|${e.end_time}`,
+      ),
+    )
+
+    const toInsert = slots.filter(s => !existingKeys.has(`${s.slot_date}|${s.start_time}|${s.end_time}`))
+
+    if (toInsert.length === 0) {
+      res.status(200).json({ inserted: 0 })
+      return
+    }
+
+    const { error } = await supabase.from('class_schedule_slots').insert(toInsert)
+    if (error) throw error
+
+    res.status(201).json({ inserted: toInsert.length })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
  * POST /classes/:classId/schedule
  * Auth: coordinator
  * Creates a new schedule slot for the class. `trainer_id`, `notes`, and
