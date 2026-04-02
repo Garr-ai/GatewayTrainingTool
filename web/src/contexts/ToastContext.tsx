@@ -14,10 +14,39 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-const TOAST_COLORS: Record<ToastType, string> = {
-  success: 'border-emerald-300 bg-emerald-50 text-emerald-800',
-  error: 'border-rose-300 bg-rose-50 text-rose-800',
-  info: 'border-blue-300 bg-blue-50 text-blue-800',
+const TOAST_ACCENT: Record<ToastType, string> = {
+  success: 'border-l-4 border-emerald-400',
+  error:   'border-l-4 border-rose-400',
+  info:    'border-l-4 border-gw-blue',
+}
+
+const TOAST_ICON_BG: Record<ToastType, string> = {
+  success: 'bg-emerald-500/15 text-emerald-400',
+  error:   'bg-rose-500/15 text-rose-400',
+  info:    'bg-gw-blue/15 text-gw-blue',
+}
+
+function ToastIcon({ type }: { type: ToastType }) {
+  if (type === 'success') {
+    return (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+      </svg>
+    )
+  }
+  if (type === 'error') {
+    return (
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M1 1l10 10M11 1L1 11" />
+      </svg>
+    )
+  }
+  return (
+    <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 5v3M6 3h.01" />
+      <circle cx="6" cy="6" r="5" />
+    </svg>
+  )
 }
 
 let nextId = 0
@@ -55,13 +84,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`pointer-events-auto animate-toast-in flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm shadow-lg ${TOAST_COLORS[t.type]}`}
+            className={`pointer-events-auto animate-toast-in flex items-start gap-3 bg-gw-surface border border-white/[0.08] rounded-[10px] px-4 py-3 shadow-xl ${TOAST_ACCENT[t.type]}`}
           >
-            <span className="flex-1">{t.message}</span>
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${TOAST_ICON_BG[t.type]}`}>
+              <ToastIcon type={t.type} />
+            </div>
+            <span className="flex-1 text-sm font-semibold text-slate-100">{t.message}</span>
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="ml-2 shrink-0 rounded p-0.5 opacity-60 hover:opacity-100"
+              className="ml-1 shrink-0 rounded p-0.5 opacity-50 hover:opacity-100 text-slate-400 transition-opacity"
               aria-label="Dismiss"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">

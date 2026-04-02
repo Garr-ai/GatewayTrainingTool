@@ -98,29 +98,39 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
   }
 
   const inputClass =
-    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue'
+    'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-backdrop-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-backdrop-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-class-title"
     >
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl animate-modal-in">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 id="create-class-title" className="text-lg font-semibold text-slate-900">
-            Create class
-          </h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Add a new training class. Required fields are marked.
-          </p>
+      <div className="w-full max-w-md bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl animate-modal-in overflow-hidden">
+        <div className="border-b border-white/[0.06] px-6 py-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 id="create-class-title" className="text-base font-bold text-slate-100">
+              Create class
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Add a new training class. Required fields are marked.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
+            aria-label="Close"
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-6 py-5">
           <div>
-            <label htmlFor="class-name" className="block text-sm font-medium text-slate-700">
-              Class name <span className="text-rose-500">*</span>
+            <label htmlFor="class-name" className="block text-xs font-medium text-slate-400 mb-1.5">
+              Class name <span className="text-rose-400">*</span>
             </label>
             <input
               id="class-name"
@@ -135,8 +145,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-site" className="block text-sm font-medium text-slate-700">
-                Site <span className="text-rose-500">*</span>
+              <label htmlFor="class-site" className="block text-xs font-medium text-slate-400 mb-1.5">
+                Site <span className="text-rose-400">*</span>
               </label>
               <input
                 id="class-site"
@@ -148,8 +158,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-province" className="block text-sm font-medium text-slate-700">
-                Province <span className="text-rose-500">*</span>
+              <label htmlFor="class-province" className="block text-xs font-medium text-slate-400 mb-1.5">
+                Province <span className="text-rose-400">*</span>
               </label>
               <select
                 id="class-province"
@@ -167,7 +177,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-game" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="class-game" className="block text-xs font-medium text-slate-400 mb-1.5">
               Game type
             </label>
             <input
@@ -182,8 +192,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-start" className="block text-sm font-medium text-slate-700">
-                Start date <span className="text-rose-500">*</span>
+              <label htmlFor="class-start" className="block text-xs font-medium text-slate-400 mb-1.5">
+                Start date <span className="text-rose-400">*</span>
               </label>
               <input
                 id="class-start"
@@ -195,8 +205,8 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-end" className="block text-sm font-medium text-slate-700">
-                End date <span className="text-rose-500">*</span>
+              <label htmlFor="class-end" className="block text-xs font-medium text-slate-400 mb-1.5">
+                End date <span className="text-rose-400">*</span>
               </label>
               <input
                 id="class-end"
@@ -210,7 +220,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-desc" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="class-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
               Description
             </label>
             <textarea
@@ -224,23 +234,23 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           {error && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+            <p className="rounded-md bg-rose-500/10 border border-rose-500/25 px-3 py-2 text-xs text-rose-400" role="alert">
               {error}
             </p>
           )}
 
-          <div className="flex gap-2 justify-end border-t border-slate-200 pt-4">
+          <div className="flex gap-2 justify-end border-t border-white/[0.06] pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-gw-elevated transition-colors duration-150"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-gw-blue px-4 py-2 text-sm font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
+              className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-4 py-2 text-sm font-semibold hover:brightness-110 transition-all duration-150 disabled:opacity-50"
             >
               {loading ? 'Creating…' : 'Create class'}
             </button>

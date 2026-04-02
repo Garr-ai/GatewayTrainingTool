@@ -66,20 +66,20 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-xl font-bold text-slate-100">
             {title}
             {!loading && total > 0 && (
-              <span className="ml-1.5 text-sm font-normal text-slate-400">({total})</span>
+              <span className="ml-1.5 text-sm font-normal text-slate-500">({total})</span>
             )}
           </h2>
-          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-slate-300">{subtitle}</p>
         </div>
         <input
           type="search"
           placeholder="Search by name or email…"
           value={search}
           onChange={e => handleSearch(e.target.value)}
-          className="w-full sm:w-64 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-gw-blue focus:outline-none focus:ring-1 focus:ring-gw-blue"
+          className="w-full sm:w-64 bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15"
         />
       </header>
 
@@ -87,36 +87,36 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
         {loading ? (
           <SkeletonTable rows={5} cols={2} />
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-            <p className="text-sm text-slate-600">
+          <div className="bg-gw-surface rounded-[10px] p-10 text-center">
+            <p className="text-sm text-slate-300">
               {search ? `No ${title.toLowerCase()} match your search.` : `No ${title.toLowerCase()} found.`}
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="bg-gw-surface rounded-[10px] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-gw-dark">
-                    <th className="px-4 py-3 font-medium text-white">Name</th>
-                    <th className="px-4 py-3 font-medium text-white">Email</th>
+                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map(r => (
                     <tr
                       key={r.id}
-                      className={`border-b border-slate-100 hover:bg-slate-50${role === 'trainee' ? ' cursor-pointer' : ''}`}
+                      className={`border-b border-white/[0.03] hover:bg-gw-elevated transition-colors duration-100${role === 'trainee' ? ' cursor-pointer' : ''}`}
                       onClick={role === 'trainee' ? () => navigate(`/students/progress/${encodeURIComponent(r.email)}`) : undefined}
                     >
-                      <td className="px-4 py-3 font-medium text-gw-dark">{r.full_name ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{r.email}</td>
+                      <td className="px-4 py-3 font-medium text-slate-200">{r.full_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-400">{r.email}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2 border-t border-slate-100">
+            <div className="px-4 py-2 border-t border-white/[0.03]">
               <Pagination
                 page={page}
                 limit={PAGE_SIZE}

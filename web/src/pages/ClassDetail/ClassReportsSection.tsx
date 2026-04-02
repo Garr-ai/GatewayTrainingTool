@@ -435,177 +435,86 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     return <SkeletonTable rows={4} cols={5} />
   }
 
+  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+  const inlineFieldClass = 'bg-gw-elevated border border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
+
   return (
     <>
     <section className="space-y-4">
       {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+        <p className="rounded-md bg-rose-500/10 border border-rose-500/25 px-3 py-2 text-xs text-rose-400" role="alert">
           {error}
         </p>
       )}
 
       {mode === 'reports' && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="bg-gw-surface rounded-[10px] p-4">
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Daily reports</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Daily reports</h3>
               <p className="mt-0.5 text-xs text-slate-500">
-                Detailed daily reports by group, including schedule, homework/tests, and trainee
-                progress.
+                Detailed daily reports by group, including schedule, homework/tests, and trainee progress.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={openAddReport}
-              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
-            >
+            <button type="button" onClick={openAddReport} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0">
               + Add daily report
             </button>
           </header>
 
           {reportFormOpen && (
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-4 text-xs">
+            <div className="mb-4 bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3 space-y-4 text-xs">
               <form onSubmit={handleSaveReport} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label className="block font-medium text-slate-700">
-                    Date
-                    <input
-                      type="date"
-                      value={reportDate}
-                      onChange={e => setReportDate(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      required
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Date
+                    <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={fieldClass} required />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Group
-                    <input
-                      type="text"
-                      value={reportGroup}
-                      onChange={e => setReportGroup(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      placeholder="e.g. A"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Group
+                    <input type="text" value={reportGroup} onChange={e => setReportGroup(e.target.value)} className={fieldClass} placeholder="e.g. A" />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Game
-                    <input
-                      type="text"
-                      value={reportGame}
-                      onChange={e => setReportGame(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      placeholder="e.g. Blackjack"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Game
+                    <input type="text" value={reportGame} onChange={e => setReportGame(e.target.value)} className={fieldClass} placeholder="e.g. Blackjack" />
                   </label>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label className="block font-medium text-slate-700">
-                    Session
-                    <input
-                      type="text"
-                      value={reportSessionLabel}
-                      onChange={e => setReportSessionLabel(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      placeholder="e.g. Day 4 PM"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Session
+                    <input type="text" value={reportSessionLabel} onChange={e => setReportSessionLabel(e.target.value)} className={fieldClass} placeholder="e.g. Day 4 PM" />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Class start time
-                    <input
-                      type="time"
-                      value={reportStartTime}
-                      onChange={e => setReportStartTime(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Class start time
+                    <input type="time" value={reportStartTime} onChange={e => setReportStartTime(e.target.value)} className={fieldClass} />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Class end time
-                    <input
-                      type="time"
-                      value={reportEndTime}
-                      onChange={e => setReportEndTime(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Class end time
+                    <input type="time" value={reportEndTime} onChange={e => setReportEndTime(e.target.value)} className={fieldClass} />
                   </label>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <label className="block font-medium text-slate-700">
-                    M&amp;G confirmed
-                    <input
-                      type="number"
-                      min="0"
-                      value={mgConfirmed}
-                      onChange={e => setMgConfirmed(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">M&amp;G confirmed
+                    <input type="number" min="0" value={mgConfirmed} onChange={e => setMgConfirmed(e.target.value)} className={fieldClass} />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    M&amp;G attended
-                    <input
-                      type="number"
-                      min="0"
-                      value={mgAttended}
-                      onChange={e => setMgAttended(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">M&amp;G attended
+                    <input type="number" min="0" value={mgAttended} onChange={e => setMgAttended(e.target.value)} className={fieldClass} />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Current trainees
-                    <input
-                      type="number"
-                      min="0"
-                      value={currentTrainees}
-                      onChange={e => setCurrentTrainees(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Current trainees
+                    <input type="number" min="0" value={currentTrainees} onChange={e => setCurrentTrainees(e.target.value)} className={fieldClass} />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Licenses received
-                    <input
-                      type="number"
-                      min="0"
-                      value={licensesReceived}
-                      onChange={e => setLicensesReceived(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Licenses received
+                    <input type="number" min="0" value={licensesReceived} onChange={e => setLicensesReceived(e.target.value)} className={fieldClass} />
                   </label>
                 </div>
 
                 {/* Trainers for the day */}
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold text-slate-700">
-                    Trainers for the day
-                  </p>
+                  <p className="mb-1 text-[11px] font-semibold text-slate-400">Trainers for the day</p>
                   <div className="flex flex-wrap gap-2">
                     {trainers.length === 0 ? (
-                      <span className="text-[11px] text-slate-500">
-                        No trainers assigned yet. Use the Trainers tab first.
-                      </span>
+                      <span className="text-[11px] text-slate-500">No trainers assigned yet. Use the Trainers tab first.</span>
                     ) : (
                       trainers.map(t => {
                         const checked = selectedTrainerIds.includes(t.id)
                         return (
-                          <label
-                            key={t.id}
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] ${
-                              checked
-                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                : 'border-slate-300 bg-white text-slate-700'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={e => {
-                                setSelectedTrainerIds(prev =>
-                                  e.target.checked
-                                    ? [...prev, t.id]
-                                    : prev.filter(id => id !== t.id),
-                                )
-                              }}
-                            />
+                          <label key={t.id} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] cursor-pointer ${checked ? 'border-gw-blue/40 bg-gw-blue/15 text-gw-blue' : 'border-white/10 bg-white/[0.04] text-slate-400 hover:text-slate-300'}`}>
+                            <input type="checkbox" checked={checked} onChange={e => { setSelectedTrainerIds(prev => e.target.checked ? [...prev, t.id] : prev.filter(id => id !== t.id)) }} className="accent-gw-blue" />
                             {t.trainer_name}
                           </label>
                         )
@@ -615,89 +524,39 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </div>
 
                 {/* Hours totals */}
-                <div className="rounded-lg border border-slate-200 bg-white p-3">
-                  <p className="text-[11px] font-semibold text-slate-700">Hours totals</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    Calculated from logged hours up to this report date; override fields take
-                    precedence.
-                  </p>
+                <div className="bg-gw-surface rounded-[10px] border border-white/[0.06] p-3">
+                  <p className="text-[11px] font-semibold text-slate-400">Hours totals</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Calculated from logged hours up to this report date; override fields take precedence.</p>
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
                     {(() => {
                       const totals = computedTotalsForDate(reportDate)
-                      const hoursToDateDisplay =
-                        overrideHoursToDate.trim() !== ''
-                          ? Number(overrideHoursToDate)
-                          : totals.hoursToDate
-                      const paidDisplay =
-                        overridePaidHours.trim() !== '' ? Number(overridePaidHours) : totals.paid
-                      const liveDisplay =
-                        overrideLiveHours.trim() !== '' ? Number(overrideLiveHours) : totals.live
+                      const hoursToDateDisplay = overrideHoursToDate.trim() !== '' ? Number(overrideHoursToDate) : totals.hoursToDate
+                      const paidDisplay = overridePaidHours.trim() !== '' ? Number(overridePaidHours) : totals.paid
+                      const liveDisplay = overrideLiveHours.trim() !== '' ? Number(overrideLiveHours) : totals.live
                       return (
                         <>
-                          <div className="rounded-md border border-slate-200 p-2">
-                            <div className="text-[10px] text-slate-500">
-                              Training hours to date
-                            </div>
-                            <div className="text-sm font-semibold text-slate-900">
-                              {Number.isNaN(hoursToDateDisplay)
-                                ? '—'
-                                : hoursToDateDisplay.toFixed(2)}
-                            </div>
-                            <div className="mt-1 text-[10px] text-slate-500">
-                              Calculated: {totals.hoursToDate.toFixed(2)}
-                            </div>
-                            <label className="mt-2 block text-[10px] text-slate-600">
-                              Override
-                              <input
-                                type="number"
-                                step="0.25"
-                                min="0"
-                                value={overrideHoursToDate}
-                                onChange={e => setOverrideHoursToDate(e.target.value)}
-                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1"
-                              />
+                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
+                            <div className="text-[10px] text-slate-500">Training hours to date</div>
+                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(hoursToDateDisplay) ? '—' : hoursToDateDisplay.toFixed(2)}</div>
+                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.hoursToDate.toFixed(2)}</div>
+                            <label className="mt-2 block text-[10px] text-slate-400">Override
+                              <input type="number" step="0.25" min="0" value={overrideHoursToDate} onChange={e => setOverrideHoursToDate(e.target.value)} className={`${fieldClass} mt-1`} />
                             </label>
                           </div>
-                          <div className="rounded-md border border-slate-200 p-2">
+                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
                             <div className="text-[10px] text-slate-500">Total paid hours</div>
-                            <div className="text-sm font-semibold text-slate-900">
-                              {Number.isNaN(paidDisplay) ? '—' : paidDisplay.toFixed(2)}
-                            </div>
-                            <div className="mt-1 text-[10px] text-slate-500">
-                              Calculated: {totals.paid.toFixed(2)}
-                            </div>
-                            <label className="mt-2 block text-[10px] text-slate-600">
-                              Override
-                              <input
-                                type="number"
-                                step="0.25"
-                                min="0"
-                                value={overridePaidHours}
-                                onChange={e => setOverridePaidHours(e.target.value)}
-                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1"
-                              />
+                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(paidDisplay) ? '—' : paidDisplay.toFixed(2)}</div>
+                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.paid.toFixed(2)}</div>
+                            <label className="mt-2 block text-[10px] text-slate-400">Override
+                              <input type="number" step="0.25" min="0" value={overridePaidHours} onChange={e => setOverridePaidHours(e.target.value)} className={`${fieldClass} mt-1`} />
                             </label>
                           </div>
-                          <div className="rounded-md border border-slate-200 p-2">
-                            <div className="text-[10px] text-slate-500">
-                              Total live training hours
-                            </div>
-                            <div className="text-sm font-semibold text-slate-900">
-                              {Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}
-                            </div>
-                            <div className="mt-1 text-[10px] text-slate-500">
-                              Calculated: {totals.live.toFixed(2)}
-                            </div>
-                            <label className="mt-2 block text-[10px] text-slate-600">
-                              Override
-                              <input
-                                type="number"
-                                step="0.25"
-                                min="0"
-                                value={overrideLiveHours}
-                                onChange={e => setOverrideLiveHours(e.target.value)}
-                                className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1"
-                              />
+                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
+                            <div className="text-[10px] text-slate-500">Total live training hours</div>
+                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}</div>
+                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.live.toFixed(2)}</div>
+                            <label className="mt-2 block text-[10px] text-slate-400">Override
+                              <input type="number" step="0.25" min="0" value={overrideLiveHours} onChange={e => setOverrideLiveHours(e.target.value)} className={`${fieldClass} mt-1`} />
                             </label>
                           </div>
                         </>
@@ -709,167 +568,49 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 {/* Timeline items */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-700">
-                      Daily training timeline / trainee progress
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTimelineItems(prev => [
-                          ...prev,
-                          {
-                            id: crypto.randomUUID(),
-                            report_id: editingReport?.id ?? 'new',
-                            start_time: '',
-                            end_time: '',
-                            activity: '',
-                            homework_handouts_tests: '',
-                            category: '',
-                            position: prev.length,
-                            created_at: new Date().toISOString(),
-                          },
-                        ])
-                      }
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
-                    >
+                    <p className="text-[11px] font-semibold text-slate-400">Daily training timeline / trainee progress</p>
+                    <button type="button" onClick={() => setTimelineItems(prev => [...prev, { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', start_time: '', end_time: '', activity: '', homework_handouts_tests: '', category: '', position: prev.length, created_at: new Date().toISOString() }])} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                       + Add time block
                     </button>
                   </div>
 
                   {timelineItems.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">
-                      No timeline rows yet. Add blocks like in the spreadsheet.
-                    </p>
+                    <p className="text-[11px] text-slate-500">No timeline rows yet. Add blocks like in the spreadsheet.</p>
                   ) : (
-                    <div className="overflow-auto rounded-lg border border-slate-200">
+                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
                       <table className="min-w-full text-[11px]">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
+                        <thead>
+                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
                             <th className="px-2 py-1 w-6" />
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Start–end
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Activity
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Homework / handouts / tests
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Category
-                            </th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Start–end</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Activity</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Homework / handouts / tests</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Category</th>
                             <th className="px-2 py-1" />
                           </tr>
                         </thead>
                         <tbody>
                           {timelineItems.map((item, index) => (
-                            <tr
-                              key={item.id}
-                              draggable
-                              onDragStart={() => { dragIndexRef.current = index }}
-                              onDragOver={e => e.preventDefault()}
-                              onDrop={() => {
-                                const from = dragIndexRef.current
-                                if (from === null || from === index) return
-                                setTimelineItems(prev => {
-                                  const next = [...prev]
-                                  const [moved] = next.splice(from, 1)
-                                  next.splice(index, 0, moved)
-                                  return next
-                                })
-                                dragIndexRef.current = null
-                              }}
-                              className="border-b border-slate-100 hover:bg-slate-50"
-                            >
-                              <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-400 select-none">
-                                ⠿
-                              </td>
+                            <tr key={item.id} draggable onDragStart={() => { dragIndexRef.current = index }} onDragOver={e => e.preventDefault()} onDrop={() => { const from = dragIndexRef.current; if (from === null || from === index) return; setTimelineItems(prev => { const next = [...prev]; const [moved] = next.splice(from, 1); next.splice(index, 0, moved); return next }); dragIndexRef.current = null }} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
+                              <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-500 select-none">⠿</td>
                               <td className="px-2 py-1">
                                 <div className="flex gap-1">
-                                  <input
-                                    type="time"
-                                    value={item.start_time ?? ''}
-                                    onChange={e =>
-                                      setTimelineItems(prev =>
-                                        prev.map((row, i) =>
-                                          i === index
-                                            ? { ...row, start_time: e.target.value }
-                                            : row,
-                                        ),
-                                      )
-                                    }
-                                    className="w-20 rounded-md border border-slate-300 px-1 py-0.5"
-                                  />
+                                  <input type="time" value={item.start_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, start_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
                                   <span className="self-center text-slate-500">–</span>
-                                  <input
-                                    type="time"
-                                    value={item.end_time ?? ''}
-                                    onChange={e =>
-                                      setTimelineItems(prev =>
-                                        prev.map((row, i) =>
-                                          i === index ? { ...row, end_time: e.target.value } : row,
-                                        ),
-                                      )
-                                    }
-                                    className="w-20 rounded-md border border-slate-300 px-1 py-0.5"
-                                  />
+                                  <input type="time" value={item.end_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, end_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
                                 </div>
                               </td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={item.activity ?? ''}
-                                  onChange={e =>
-                                    setTimelineItems(prev =>
-                                      prev.map((row, i) =>
-                                        i === index ? { ...row, activity: e.target.value } : row,
-                                      ),
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-300 px-1 py-0.5"
-                                />
+                                <input type="text" value={item.activity ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, activity: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} />
                               </td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={item.homework_handouts_tests ?? ''}
-                                  onChange={e =>
-                                    setTimelineItems(prev =>
-                                      prev.map((row, i) =>
-                                        i === index
-                                          ? { ...row, homework_handouts_tests: e.target.value }
-                                          : row,
-                                      ),
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-300 px-1 py-0.5"
-                                />
+                                <input type="text" value={item.homework_handouts_tests ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, homework_handouts_tests: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} />
                               </td>
                               <td className="px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={item.category ?? ''}
-                                  onChange={e =>
-                                    setTimelineItems(prev =>
-                                      prev.map((row, i) =>
-                                        i === index ? { ...row, category: e.target.value } : row,
-                                      ),
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-300 px-1 py-0.5"
-                                  placeholder="Lecture / Dexterity / Game simulation…"
-                                />
+                                <input type="text" value={item.category ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, category: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} placeholder="Lecture / Dexterity / Game simulation…" />
                               </td>
                               <td className="px-2 py-1 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setTimelineItems(prev => prev.filter((_, i) => i !== index))
-                                  }
-                                  className="rounded-md border border-slate-300 px-2 py-0.5 text-[10px] text-slate-700 hover:bg-slate-100"
-                                >
-                                  Remove
-                                </button>
+                                <button type="button" onClick={() => setTimelineItems(prev => prev.filter((_, i) => i !== index))} className="rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 text-[10px] hover:bg-rose-500/15 transition-colors">Remove</button>
                               </td>
                             </tr>
                           ))}
@@ -882,168 +623,69 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 {/* Per-trainee progress */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-700">Per-trainee progress</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressRows(
-                          enrollments.map(enr => ({
-                            id: crypto.randomUUID(),
-                            report_id: editingReport?.id ?? 'new',
-                            enrollment_id: enr.id,
-                            progress_text:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ??
-                              '',
-                            gk_rating:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null,
-                            dex_rating:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ??
-                              null,
-                            hom_rating:
-                              progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ??
-                              null,
-                            coming_back_next_day:
-                              progressRows.find(p => p.enrollment_id === enr.id)
-                                ?.coming_back_next_day ?? true,
-                            homework_completed:
-                              progressRows.find(p => p.enrollment_id === enr.id)
-                                ?.homework_completed ?? false,
-                            attendance:
-                              progressRows.find(p => p.enrollment_id === enr.id)
-                                ?.attendance ?? true,
-                            created_at: new Date().toISOString(),
-                          })),
-                        )
-                      }}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
-                    >
+                    <p className="text-[11px] font-semibold text-slate-400">Per-trainee progress</p>
+                    <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                       Load current trainees
                     </button>
                   </div>
 
                   {progressRows.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">
-                      No progress rows yet. Click &quot;Load current trainees&quot; to start.
-                    </p>
+                    <p className="text-[11px] text-slate-500">No progress rows yet. Click &quot;Load current trainees&quot; to start.</p>
                   ) : (
-                    <div className="overflow-auto rounded-lg border border-slate-200">
+                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
                       <table className="min-w-full text-[11px]">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Trainee
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Progress notes
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Ratings (GK / Dex / HoM)
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Attended?
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              Coming back?
-                            </th>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900">
-                              HW done?
-                            </th>
+                        <thead>
+                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Trainee</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Progress notes</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Ratings (GK / Dex / HoM)</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Attended?</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Coming back?</th>
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">HW done?</th>
                           </tr>
                         </thead>
                         <tbody>
                           {progressRows.map((row, index) => {
                             const enrollment = enrollments.find(e => e.id === row.enrollment_id)
-                            const updateRow = (
-                              patch: Partial<ClassDailyReportTraineeProgress>,
-                            ) => {
-                              setProgressRows(prev =>
-                                prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
-                              )
-                            }
+                            const updateRow = (patch: Partial<ClassDailyReportTraineeProgress>) => { setProgressRows(prev => prev.map((r, i) => (i === index ? { ...r, ...patch } : r))) }
                             const ratingOptions: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
                             return (
-                              <tr key={row.id} className="border-b border-slate-100">
-                                <td className="px-2 py-1 align-top text-slate-900">
-                                  <div>{enrollment?.student_name ?? 'Unknown'}</div>
-                                  <div className="text-[10px] text-slate-500">
-                                    {enrollment?.student_email}
-                                  </div>
+                              <tr key={row.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
+                                <td className="px-2 py-1 align-top">
+                                  <div className="text-slate-200">{enrollment?.student_name ?? 'Unknown'}</div>
+                                  <div className="text-[10px] text-slate-500">{enrollment?.student_email}</div>
                                 </td>
                                 <td className="px-2 py-1 align-top">
-                                  <textarea
-                                    value={row.progress_text ?? ''}
-                                    onChange={e => updateRow({ progress_text: e.target.value })}
-                                    rows={3}
-                                    className="w-full rounded-md border border-slate-300 px-1 py-0.5"
-                                  />
+                                  <textarea value={row.progress_text ?? ''} onChange={e => updateRow({ progress_text: e.target.value })} rows={3} className={`w-full ${inlineFieldClass}`} />
                                 </td>
                                 <td className="px-2 py-1 align-top">
                                   <div className="flex flex-col gap-1">
-                                    {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(
-                                      field => (
-                                        <label key={field} className="flex items-center gap-1">
-                                          <span className="w-8 text-slate-600">
-                                            {field === 'gk_rating'
-                                              ? 'GK'
-                                              : field === 'dex_rating'
-                                                ? 'Dex'
-                                                : 'HoM'}
-                                          </span>
-                                          <select
-                                            value={row[field] ?? ''}
-                                            onChange={e =>
-                                              updateRow({
-                                                [field]: (e.target.value ||
-                                                  null) as DailyRating | null,
-                                              })
-                                            }
-                                            className="flex-1 rounded-md border border-slate-300 px-1 py-0.5"
-                                          >
-                                            <option value="">—</option>
-                                            {ratingOptions.map(r => (
-                                              <option key={r} value={r}>
-                                                {r}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </label>
-                                      ),
-                                    )}
+                                    {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(field => (
+                                      <label key={field} className="flex items-center gap-1">
+                                        <span className="w-8 text-slate-500">{field === 'gk_rating' ? 'GK' : field === 'dex_rating' ? 'Dex' : 'HoM'}</span>
+                                        <select value={row[field] ?? ''} onChange={e => updateRow({ [field]: (e.target.value || null) as DailyRating | null })} className={`flex-1 ${inlineFieldClass}`}>
+                                          <option value="">—</option>
+                                          {ratingOptions.map(r => <option key={r} value={r}>{r}</option>)}
+                                        </select>
+                                      </label>
+                                    ))}
                                   </div>
                                 </td>
                                 <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.attendance ?? true}
-                                      onChange={e =>
-                                        updateRow({ attendance: e.target.checked })
-                                      }
-                                    />
+                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                                    <input type="checkbox" checked={row.attendance ?? true} onChange={e => updateRow({ attendance: e.target.checked })} className="accent-gw-blue" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
                                 <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.coming_back_next_day ?? true}
-                                      onChange={e =>
-                                        updateRow({ coming_back_next_day: e.target.checked })
-                                      }
-                                    />
+                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                                    <input type="checkbox" checked={row.coming_back_next_day ?? true} onChange={e => updateRow({ coming_back_next_day: e.target.checked })} className="accent-gw-blue" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
                                 <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.homework_completed ?? false}
-                                      onChange={e =>
-                                        updateRow({ homework_completed: e.target.checked })
-                                      }
-                                    />
+                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                                    <input type="checkbox" checked={row.homework_completed ?? false} onChange={e => updateRow({ homework_completed: e.target.checked })} className="accent-gw-blue" />
                                     <span>Yes</span>
                                   </label>
                                 </td>
@@ -1059,81 +701,39 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 {/* Drill / test times */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-700">Drill & test times</p>
+                    <p className="text-[11px] font-semibold text-slate-400">Drill &amp; test times</p>
                     {drills.filter(d => d.active).length > 0 && enrollments.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const activeDrills = drills.filter(d => d.active)
-                          setDrillTimeRows(prev => {
-                            const rows: ClassDailyReportDrillTime[] = []
-                            for (const enr of enrollments) {
-                              for (const drill of activeDrills) {
-                                const existing = prev.find(
-                                  r => r.enrollment_id === enr.id && r.drill_id === drill.id,
-                                )
-                                rows.push(
-                                  existing ?? {
-                                    id: crypto.randomUUID(),
-                                    report_id: editingReport?.id ?? 'new',
-                                    enrollment_id: enr.id,
-                                    drill_id: drill.id,
-                                    time_seconds: null,
-                                    score: null,
-                                    created_at: new Date().toISOString(),
-                                  },
-                                )
-                              }
-                            }
-                            return rows
-                          })
-                        }}
-                        className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-100"
-                      >
+                      <button type="button" onClick={() => { const activeDrills = drills.filter(d => d.active); setDrillTimeRows(prev => { const rows: ClassDailyReportDrillTime[] = []; for (const enr of enrollments) { for (const drill of activeDrills) { const existing = prev.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id); rows.push(existing ?? { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, drill_id: drill.id, time_seconds: null, score: null, created_at: new Date().toISOString() }) } } return rows }) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                         Load drills for trainees
                       </button>
                     )}
                   </div>
 
                   {drills.filter(d => d.active).length === 0 ? (
-                    <p className="text-[11px] text-slate-500">
-                      No active drills or tests defined. Add them in the Drills &amp; tests tab.
-                    </p>
+                    <p className="text-[11px] text-slate-500">No active drills or tests defined. Add them in the Drills &amp; tests tab.</p>
                   ) : drillTimeRows.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">
-                      Click &quot;Load drills for trainees&quot; to populate the grid.
-                    </p>
+                    <p className="text-[11px] text-slate-500">Click &quot;Load drills for trainees&quot; to populate the grid.</p>
                   ) : (
-                    <div className="overflow-auto rounded-lg border border-slate-200">
+                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
                       <table className="min-w-full text-[11px]">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                          <tr>
-                            <th className="px-2 py-1 text-left font-medium text-slate-900 sticky left-0 bg-slate-50">
-                              Trainee
-                            </th>
+                        <thead>
+                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500 sticky left-0 bg-gw-surface">Trainee</th>
                             {drills.filter(d => d.active).map(drill => (
-                              <th key={drill.id} className="px-2 py-1 text-left font-medium text-slate-900">
+                              <th key={drill.id} className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">
                                 <div>{drill.name}</div>
-                                <div className="font-normal text-[10px] text-slate-500">
-                                  {drill.type === 'drill'
-                                    ? `Time (s)${drill.par_time_seconds ? ` · par ${drill.par_time_seconds}` : ''}`
-                                    : `Score${drill.target_score ? ` · target ${drill.target_score}` : ''}`}
-                                </div>
+                                <div className="font-normal text-[10px] text-slate-500">{drill.type === 'drill' ? `Time (s)${drill.par_time_seconds ? ` · par ${drill.par_time_seconds}` : ''}` : `Score${drill.target_score ? ` · target ${drill.target_score}` : ''}`}</div>
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {enrollments.map(enr => (
-                            <tr key={enr.id} className="border-b border-slate-100">
-                              <td className="px-2 py-1 text-slate-900 whitespace-nowrap sticky left-0 bg-white">
-                                {enr.student_name}
-                              </td>
+                            <tr key={enr.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
+                              <td className="px-2 py-1 text-slate-200 whitespace-nowrap sticky left-0 bg-gw-surface">{enr.student_name}</td>
                               {drills.filter(d => d.active).map(drill => {
-                                const row = drillTimeRows.find(
-                                  r => r.enrollment_id === enr.id && r.drill_id === drill.id,
-                                )
-                                if (!row) return <td key={drill.id} className="px-2 py-1 text-slate-400">—</td>
+                                const row = drillTimeRows.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id)
+                                if (!row) return <td key={drill.id} className="px-2 py-1 text-slate-500">—</td>
                                 const value = drill.type === 'drill' ? row.time_seconds : row.score
                                 return (
                                   <td key={drill.id} className="px-2 py-1">
@@ -1145,28 +745,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                                       onChange={e => {
                                         const v = e.target.value.trim()
                                         const num = v === '' ? null : Number(v)
-                                        setDrillTimeRows(prev =>
-                                          prev.map(r =>
-                                            r.enrollment_id === enr.id && r.drill_id === drill.id
-                                              ? {
-                                                  ...r,
-                                                  time_seconds: drill.type === 'drill' ? num : r.time_seconds,
-                                                  score: drill.type === 'test' ? num : r.score,
-                                                }
-                                              : r,
-                                          ),
-                                        )
+                                        setDrillTimeRows(prev => prev.map(r => r.enrollment_id === enr.id && r.drill_id === drill.id ? { ...r, time_seconds: drill.type === 'drill' ? num : r.time_seconds, score: drill.type === 'test' ? num : r.score } : r))
                                       }}
-                                      className={`w-20 rounded-md border px-1 py-0.5 ${
+                                      className={`w-20 rounded-md border px-1 py-0.5 text-[11px] outline-none ${
                                         drill.type === 'drill' && row.time_seconds != null && drill.par_time_seconds != null
                                           ? row.time_seconds <= drill.par_time_seconds
-                                            ? 'border-emerald-300 bg-emerald-50'
-                                            : 'border-amber-300 bg-amber-50'
+                                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                            : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
                                           : drill.type === 'test' && row.score != null && drill.target_score != null
                                             ? row.score >= drill.target_score
-                                              ? 'border-emerald-300 bg-emerald-50'
-                                              : 'border-amber-300 bg-amber-50'
-                                            : 'border-slate-300'
+                                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                              : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                            : 'border-white/10 bg-gw-elevated text-slate-200'
                                       }`}
                                       placeholder={drill.type === 'drill' ? 'sec' : 'score'}
                                     />
@@ -1182,18 +772,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </div>
 
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setReportFormOpen(false)}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={reportSaving}
-                    className="rounded-md bg-gw-blue px-3 py-1.5 text-white hover:bg-gw-blue-hover disabled:opacity-60"
-                  >
+                  <button type="button" onClick={() => setReportFormOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                  <button type="submit" disabled={reportSaving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                     {reportSaving ? 'Saving…' : editingReport ? 'Save changes' : 'Add report'}
                   </button>
                 </div>
@@ -1202,92 +782,53 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           )}
 
           {reports.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No daily reports yet for{' '}
-              <span className="font-medium text-slate-700">{className}</span>.
+            <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
+              No daily reports yet for <span className="font-medium text-slate-300">{className}</span>.
             </div>
           ) : (
             <>
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {reports.map(r => (
-                <div key={r.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                <div key={r.id} className="bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="text-xs">
-                      <p className="font-medium text-slate-900">{r.report_date}</p>
-                      <p className="text-slate-500 mt-0.5">
-                        {r.group_label ?? '—'} &middot; {r.session_label ?? '—'} &middot; {r.game ?? '—'}
-                      </p>
+                      <p className="font-medium text-slate-200">{r.report_date}</p>
+                      <p className="text-slate-500 mt-0.5">{r.group_label ?? '—'} &middot; {r.session_label ?? '—'} &middot; {r.game ?? '—'}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => openEditReport(r)}
-                      className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleViewPdf(r)}
-                      className="rounded-md border border-gw-blue px-2.5 py-1.5 text-xs text-gw-blue hover:bg-blue-50"
-                    >
-                      View PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveReport(r.id)}
-                      className="rounded-md border border-rose-200 px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50"
-                    >
-                      Remove
-                    </button>
+                    <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10 transition-colors">Edit</button>
+                    <button type="button" onClick={() => handleViewPdf(r)} className="rounded-md bg-gw-blue/15 border border-gw-blue/35 px-2.5 py-1.5 text-xs text-gw-blue hover:bg-gw-blue/20 transition-colors">View PDF</button>
+                    <button type="button" onClick={() => handleRemoveReport(r.id)} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                   </div>
                 </div>
               ))}
             </div>
             {/* Desktop: table layout */}
-            <div className="hidden sm:block rounded-lg border border-slate-200 overflow-hidden">
+            <div className="hidden sm:block bg-gw-elevated rounded-[10px] overflow-hidden">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Date</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Group</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Session</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Game</th>
-                    <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
+                <thead>
+                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Group</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Session</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Game</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reports.map(r => (
-                    <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2 text-slate-900">{r.report_date}</td>
-                      <td className="px-3 py-2 text-slate-600">{r.group_label ?? '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">{r.session_label ?? '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">{r.game ?? '—'}</td>
+                    <tr key={r.id} className="border-b border-white/[0.03] hover:bg-gw-surface transition-colors duration-100">
+                      <td className="px-3 py-2 text-slate-200">{r.report_date}</td>
+                      <td className="px-3 py-2 text-slate-400">{r.group_label ?? '—'}</td>
+                      <td className="px-3 py-2 text-slate-400">{r.session_label ?? '—'}</td>
+                      <td className="px-3 py-2 text-slate-400">{r.game ?? '—'}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditReport(r)}
-                            className="rounded-md border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleViewPdf(r)}
-                            className="rounded-md border border-gw-blue px-2 py-1 text-gw-blue hover:bg-blue-50"
-                          >
-                            View PDF
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveReport(r.id)}
-                            className="rounded-md border border-rose-200 px-2 py-1 text-rose-600 hover:bg-rose-50"
-                          >
-                            Remove
-                          </button>
+                          <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition-colors">Edit</button>
+                          <button type="button" onClick={() => handleViewPdf(r)} className="rounded-md bg-gw-blue/15 border border-gw-blue/35 px-2 py-1 text-gw-blue hover:bg-gw-blue/20 transition-colors">View PDF</button>
+                          <button type="button" onClick={() => handleRemoveReport(r.id)} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2 py-1 text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                         </div>
                       </td>
                     </tr>
@@ -1301,142 +842,67 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       )}
 
       {mode === 'hours' && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="bg-gw-surface rounded-[10px] p-4">
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Logged hours</h3>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Track hours for trainers and students for payroll. Total: {totalHours.toFixed(1)}{' '}
-                hrs
-              </p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Logged hours</h3>
+              <p className="mt-0.5 text-xs text-slate-500">Track hours for trainers and students for payroll. Total: {totalHours.toFixed(1)} hrs</p>
             </div>
-            <button
-              type="button"
-              onClick={openAddHours}
-              className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
-            >
+            <button type="button" onClick={openAddHours} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0">
               + Log hours
             </button>
           </header>
 
           {hoursFormOpen && (
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-4 bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3">
               <form onSubmit={handleSaveHours} className="space-y-3 text-xs">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className="block font-medium text-slate-700">
-                    Date
-                    <input
-                      type="date"
-                      value={hoursDate}
-                      onChange={e => setHoursDate(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      required
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Date
+                    <input type="date" value={hoursDate} onChange={e => setHoursDate(e.target.value)} className={fieldClass} required />
                   </label>
-                  <label className="block font-medium text-slate-700">
-                    Hours
-                    <input
-                      type="number"
-                      step="0.25"
-                      min="0.25"
-                      value={hoursValue}
-                      onChange={e => setHoursValue(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      placeholder="e.g. 4.5"
-                      required
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Hours
+                    <input type="number" step="0.25" min="0.25" value={hoursValue} onChange={e => setHoursValue(e.target.value)} className={fieldClass} placeholder="e.g. 4.5" required />
                   </label>
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-700">Person type</label>
-                  <div className="mt-1 flex gap-4">
-                    <label className="flex items-center gap-1.5">
-                      <input
-                        type="radio"
-                        name="personType"
-                        checked={hoursPersonType === 'trainer'}
-                        onChange={() => {
-                          setHoursPersonType('trainer')
-                          setHoursEnrollmentId('')
-                        }}
-                      />
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Person type</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                      <input type="radio" name="personType" checked={hoursPersonType === 'trainer'} onChange={() => { setHoursPersonType('trainer'); setHoursEnrollmentId('') }} className="accent-gw-blue" />
                       Trainer
                     </label>
-                    <label className="flex items-center gap-1.5">
-                      <input
-                        type="radio"
-                        name="personType"
-                        checked={hoursPersonType === 'student'}
-                        onChange={() => {
-                          setHoursPersonType('student')
-                          setHoursTrainerId('')
-                        }}
-                      />
+                    <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                      <input type="radio" name="personType" checked={hoursPersonType === 'student'} onChange={() => { setHoursPersonType('student'); setHoursTrainerId('') }} className="accent-gw-blue" />
                       Student
                     </label>
                   </div>
                 </div>
                 {hoursPersonType === 'trainer' && (
                   <div>
-                    <label className="block font-medium text-slate-700">Trainer</label>
-                    <select
-                      value={hoursTrainerId}
-                      onChange={e => setHoursTrainerId(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      required
-                    >
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Trainer</label>
+                    <select value={hoursTrainerId} onChange={e => setHoursTrainerId(e.target.value)} className={fieldClass} required>
                       <option value="">— Select —</option>
-                      {trainers.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.trainer_name}
-                        </option>
-                      ))}
+                      {trainers.map(t => <option key={t.id} value={t.id}>{t.trainer_name}</option>)}
                     </select>
                   </div>
                 )}
                 {hoursPersonType === 'student' && (
                   <div>
-                    <label className="block font-medium text-slate-700">Student</label>
-                    <select
-                      value={hoursEnrollmentId}
-                      onChange={e => setHoursEnrollmentId(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      required
-                    >
+                    <label className="block text-xs font-medium text-slate-400 mb-1">Student</label>
+                    <select value={hoursEnrollmentId} onChange={e => setHoursEnrollmentId(e.target.value)} className={fieldClass} required>
                       <option value="">— Select —</option>
-                      {enrollments.map(enr => (
-                        <option key={enr.id} value={enr.id}>
-                          {enr.student_name}
-                        </option>
-                      ))}
+                      {enrollments.map(enr => <option key={enr.id} value={enr.id}>{enr.student_name}</option>)}
                     </select>
                   </div>
                 )}
                 <div>
-                  <label className="block font-medium text-slate-700">
-                    Notes
-                    <input
-                      type="text"
-                      value={hoursNotes}
-                      onChange={e => setHoursNotes(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5"
-                      placeholder="Optional"
-                    />
+                  <label className="block text-xs font-medium text-slate-400">Notes
+                    <input type="text" value={hoursNotes} onChange={e => setHoursNotes(e.target.value)} className={fieldClass} placeholder="Optional" />
                   </label>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setHoursFormOpen(false)}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={hoursSaving}
-                    className="rounded-md bg-gw-blue px-3 py-1.5 text-white hover:bg-gw-blue-hover disabled:opacity-60"
-                  >
+                  <button type="button" onClick={() => setHoursFormOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                  <button type="submit" disabled={hoursSaving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                     {hoursSaving ? 'Saving…' : editingHours ? 'Save changes' : 'Log hours'}
                   </button>
                 </div>
@@ -1445,75 +911,46 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           )}
 
           {hours.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No logged hours yet for{' '}
-              <span className="font-medium text-slate-700">{className}</span>.
+            <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
+              No logged hours yet for <span className="font-medium text-slate-300">{className}</span>.
             </div>
           ) : (
             <>
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {hours.map(h => (
-                <div
-                  key={h.id}
-                  className="rounded-lg border border-slate-200 bg-white p-3 cursor-pointer active:bg-slate-50"
-                  onClick={() => openEditHours(h)}
-                >
+                <div key={h.id} className="bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3 cursor-pointer active:bg-gw-surface" onClick={() => openEditHours(h)}>
                   <div className="flex items-start justify-between gap-2 text-xs">
                     <div>
-                      <p className="font-medium text-slate-900">{h.log_date}</p>
-                      <p className="text-slate-500 mt-0.5">
-                        <span className="capitalize">{h.person_type}</span> &middot; {personName(h)} &middot; {h.hours} hrs
-                      </p>
+                      <p className="font-medium text-slate-200">{h.log_date}</p>
+                      <p className="text-slate-500 mt-0.5"><span className="capitalize">{h.person_type}</span> &middot; {personName(h)} &middot; {h.hours} hrs</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleRemoveHours(h.id)
-                      }}
-                      className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex-shrink-0"
-                    >
-                      Remove
-                    </button>
+                    <button type="button" onClick={e => { e.stopPropagation(); handleRemoveHours(h.id) }} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-500/15 transition-colors flex-shrink-0">Remove</button>
                   </div>
                 </div>
               ))}
             </div>
             {/* Desktop: table layout */}
-            <div className="hidden sm:block rounded-lg border border-slate-200 overflow-hidden">
+            <div className="hidden sm:block bg-gw-elevated rounded-[10px] overflow-hidden">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Date</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Type</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Person</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-900">Hours</th>
-                    <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
+                <thead>
+                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Person</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Hours</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hours.map(h => (
-                    <tr
-                      key={h.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                      onClick={() => openEditHours(h)}
-                    >
-                      <td className="px-3 py-2 text-slate-900">{h.log_date}</td>
-                      <td className="px-3 py-2 text-slate-600 capitalize">{h.person_type}</td>
-                      <td className="px-3 py-2 text-slate-600">{personName(h)}</td>
-                      <td className="px-3 py-2 text-slate-600">{h.hours}</td>
+                    <tr key={h.id} className="border-b border-white/[0.03] hover:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditHours(h)}>
+                      <td className="px-3 py-2 text-slate-200">{h.log_date}</td>
+                      <td className="px-3 py-2 text-slate-400 capitalize">{h.person_type}</td>
+                      <td className="px-3 py-2 text-slate-400">{personName(h)}</td>
+                      <td className="px-3 py-2 text-slate-400">{h.hours}</td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation()
-                            handleRemoveHours(h.id)
-                          }}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-50"
-                        >
-                          Remove
-                        </button>
+                        <button type="button" onClick={e => { e.stopPropagation(); handleRemoveHours(h.id) }} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2 py-1 text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                       </td>
                     </tr>
                   ))}

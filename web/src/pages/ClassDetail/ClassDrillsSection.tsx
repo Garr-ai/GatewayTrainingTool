@@ -138,14 +138,16 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
     }
   }
 
+  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+
   return (
-    <section className="rounded-xl bg-white p-4 shadow-sm">
+    <section className="bg-gw-surface rounded-[10px] p-4">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Drills & tests
             {!loading && drills.length > 0 && (
-              <span className="ml-1.5 text-slate-400 font-normal">({drills.length})</span>
+              <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-500">({drills.length})</span>
             )}
           </h3>
           <p className="mt-0.5 text-xs text-slate-500">
@@ -155,87 +157,48 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
         <button
           type="button"
           onClick={() => formOpen ? resetForm() : openAddForm()}
-          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
+          className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0"
         >
           {formOpen ? 'Cancel' : '+ Add drill / test'}
         </button>
       </header>
 
       {error && (
-        <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+        <p className="mb-3 rounded-md bg-rose-500/10 border border-rose-500/25 px-3 py-2 text-xs text-rose-400" role="alert">
           {error}
         </p>
       )}
 
       {formOpen && (
-        <form onSubmit={handleSave} className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-medium text-slate-700 mb-2">
+        <form onSubmit={handleSave} className="mb-4 rounded-[10px] border border-white/[0.06] bg-gw-elevated p-3">
+          <p className="text-xs font-medium text-slate-400 mb-2">
             {editingDrill ? `Editing: ${editingDrill.name}` : 'New drill / test'}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
             <div className="md:col-span-2">
-              <label className="block font-medium text-slate-700">
-                Name
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="e.g. 60s chip pull"
-                  required
-                />
+              <label className="block text-xs font-medium text-slate-400 mb-1">Name
+                <input type="text" value={formName} onChange={e => setFormName(e.target.value)} className={fieldClass} placeholder="e.g. 60s chip pull" required />
               </label>
             </div>
             <div>
-              <label className="block font-medium text-slate-700">
-                Type
-                <select
-                  value={formType}
-                  onChange={e => setFormType(e.target.value as DrillType)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
+              <label className="block text-xs font-medium text-slate-400 mb-1">Type
+                <select value={formType} onChange={e => setFormType(e.target.value as DrillType)} className={fieldClass}>
                   <option value="drill">Drill</option>
                   <option value="test">Test</option>
                 </select>
               </label>
             </div>
             <div className="flex gap-2">
-              <label className="flex-1 block font-medium text-slate-700">
-                Par time (sec)
-                <input
-                  type="number"
-                  min={0}
-                  value={formParTime}
-                  onChange={e => setFormParTime(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="e.g. 60"
-                />
+              <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Par time (sec)
+                <input type="number" min={0} value={formParTime} onChange={e => setFormParTime(e.target.value)} className={fieldClass} placeholder="e.g. 60" />
               </label>
-              <label className="flex-1 block font-medium text-slate-700">
-                Target score
-                <input
-                  type="number"
-                  min={0}
-                  value={formTargetScore}
-                  onChange={e => setFormTargetScore(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="e.g. 80"
-                />
+              <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Target score
+                <input type="number" min={0} value={formTargetScore} onChange={e => setFormTargetScore(e.target.value)} className={fieldClass} placeholder="e.g. 80" />
               </label>
             </div>
             <div className="md:col-span-4 flex justify-end items-end gap-2">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
-              >
+              <button type="button" onClick={resetForm} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors duration-150">Cancel</button>
+              <button type="submit" disabled={saving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all duration-150 disabled:opacity-50">
                 {saving ? 'Saving…' : editingDrill ? 'Update drill' : 'Save drill'}
               </button>
             </div>
@@ -246,38 +209,37 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       {loading ? (
         <SkeletonTable rows={3} cols={6} />
       ) : drills.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-          No drills or tests defined yet for{' '}
-          <span className="font-medium text-slate-700">{className}</span>.
+        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
+          No drills or tests defined yet for <span className="font-medium text-slate-300">{className}</span>.
         </div>
       ) : (
-        <div className="rounded-lg border border-slate-200 overflow-x-auto">
+        <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">
           <table className="min-w-full text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Name</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Type</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900 hidden sm:table-cell">Par time (sec)</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900 hidden sm:table-cell">Target score</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Active</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
+            <thead>
+              <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Par time (sec)</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Target score</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Active</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody>
               {drills.map(drill => (
-                <tr key={drill.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-3 py-2 text-slate-900">{drill.name}</td>
-                  <td className="px-3 py-2 text-slate-600 capitalize">{drill.type}</td>
-                  <td className="px-3 py-2 text-slate-600 hidden sm:table-cell">{drill.par_time_seconds ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-600 hidden sm:table-cell">{drill.target_score ?? '—'}</td>
+                <tr key={drill.id} className="border-b border-white/[0.03] hover:bg-gw-surface transition-colors duration-100">
+                  <td className="px-3 py-2 text-slate-200">{drill.name}</td>
+                  <td className="px-3 py-2 text-slate-400 capitalize">{drill.type}</td>
+                  <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{drill.par_time_seconds ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{drill.target_score ?? '—'}</td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
                       onClick={() => handleToggleActive(drill)}
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
                         drill.active
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                          : 'bg-white/[0.06] text-slate-500 hover:bg-white/10'
                       }`}
                     >
                       {drill.active ? 'Active' : 'Inactive'}
@@ -285,20 +247,8 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(drill)}
-                        className="rounded px-2 py-1 text-[11px] font-medium text-gw-blue hover:bg-blue-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(drill)}
-                        className="rounded px-2 py-1 text-[11px] font-medium text-rose-600 hover:bg-rose-50"
-                      >
-                        Delete
-                      </button>
+                      <button type="button" onClick={() => openEditForm(drill)} className="rounded px-2 py-1 text-[11px] font-medium text-gw-blue hover:bg-gw-blue/10 transition-colors">Edit</button>
+                      <button type="button" onClick={() => setDeleteTarget(drill)} className="rounded px-2 py-1 text-[11px] font-medium text-rose-400 hover:bg-rose-500/10 transition-colors">Delete</button>
                     </div>
                   </td>
                 </tr>

@@ -9,11 +9,10 @@ interface ReportsFilterBarProps {
   classes: Class[]
 }
 
-const selectClass = 'text-sm pl-3 pr-8 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark appearance-none cursor-pointer'
-const inputClass = 'text-sm px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark'
+const selectClass = 'bg-gw-elevated border border-white/10 rounded-md text-sm pl-3 pr-8 py-1.5 text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 appearance-none cursor-pointer'
+const inputClass  = 'bg-gw-elevated border border-white/10 rounded-md text-sm px-3 py-1.5 text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
 export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: ReportsFilterBarProps) {
-  // Derive unique sites from classes, filtered by selected province
   const sites = [...new Set(
     classes
       .filter(c => !filters.province || c.province === filters.province)
@@ -21,18 +20,15 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
       .filter(Boolean),
   )].sort()
 
-  // Derive unique game types from classes
   const gameTypes = [...new Set(
     classes
       .map(c => c.game_type)
       .filter((g): g is string => g !== null && g !== ''),
   )].sort()
 
-  // Filter classes for the class dropdown based on province, site, and archived toggle
   const filteredClasses = classes.filter(c => {
     if (filters.province && c.province !== filters.province) return false
     if (filters.site && c.site !== filters.site) return false
-    // When "Include archived" is unchecked, only show active classes
     if (!filters.archived && c.archived) return false
     return true
   })
@@ -48,16 +44,13 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
     filters.archived !== false
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-col gap-2">
-      {/* Row 1: Main filters */}
+    <div className="bg-gw-surface rounded-[10px] p-3 flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Province */}
         <select
           className={selectClass}
           value={filters.province}
           onChange={e => {
             setFilter('province', e.target.value as Province | '')
-            // Clear dependent filters
             if (e.target.value !== filters.province) {
               setFilter('site', '')
               setFilter('class_id', '')
@@ -65,12 +58,9 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
           }}
         >
           <option value="">All provinces</option>
-          {PROVINCES.map(p => (
-            <option key={p.value} value={p.value}>{p.label}</option>
-          ))}
+          {PROVINCES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
 
-        {/* Site */}
         <select
           className={selectClass}
           value={filters.site}
@@ -80,56 +70,43 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
           }}
         >
           <option value="">All sites</option>
-          {sites.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+          {sites.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        {/* Class */}
         <select
           className={selectClass}
           value={filters.class_id}
           onChange={e => setFilter('class_id', e.target.value)}
         >
           <option value="">All classes</option>
-          {filteredClasses.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
+          {filteredClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
 
-        {/* Game type */}
         <select
           className={selectClass}
           value={filters.game_type}
           onChange={e => setFilter('game_type', e.target.value)}
         >
           <option value="">All games</option>
-          {gameTypes.map(g => (
-            <option key={g} value={g}>{g}</option>
-          ))}
+          {gameTypes.map(g => <option key={g} value={g}>{g}</option>)}
         </select>
 
-        {/* Date from */}
         <input
           type="date"
           className={inputClass}
           value={filters.date_from}
           onChange={e => setFilter('date_from', e.target.value)}
-          placeholder="From"
         />
 
-        {/* Date to */}
         <input
           type="date"
           className={inputClass}
           value={filters.date_to}
           onChange={e => setFilter('date_to', e.target.value)}
-          placeholder="To"
         />
 
-        {/* Search */}
         <div className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -141,28 +118,26 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
           />
         </div>
 
-        {/* Reset */}
         {hasActiveFilters && (
           <button
             type="button"
             onClick={resetFilters}
-            className="text-xs text-slate-500 hover:text-gw-dark underline underline-offset-2 px-1"
+            className="text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors px-1"
           >
             Reset
           </button>
         )}
       </div>
 
-      {/* Row 2: Archived toggle */}
       <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer w-fit">
         <input
           type="checkbox"
           checked={filters.archived}
           onChange={e => {
             setFilter('archived', e.target.checked)
-            setFilter('class_id', '') // Clear class filter when toggling
+            setFilter('class_id', '')
           }}
-          className="rounded border-slate-300 text-gw-dark focus:ring-gw-dark/30"
+          className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30"
         />
         Include archived classes
       </label>

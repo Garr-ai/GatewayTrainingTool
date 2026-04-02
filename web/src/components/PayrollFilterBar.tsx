@@ -10,8 +10,8 @@ interface PayrollFilterBarProps {
   classes: Class[]
 }
 
-const selectClass = 'text-sm pl-3 pr-8 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark appearance-none cursor-pointer'
-const inputClass = 'text-sm px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-gw-dark/30 focus:border-gw-dark'
+const selectClass = 'bg-gw-elevated border border-white/10 rounded-md text-sm pl-3 pr-8 py-1.5 text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 appearance-none cursor-pointer'
+const inputClass  = 'bg-gw-elevated border border-white/10 rounded-md text-sm px-3 py-1.5 text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
 export function PayrollFilterBar({ filters, setFilter, resetFilters, onExportCsv, classes }: PayrollFilterBarProps) {
   const sites = [...new Set(
@@ -35,7 +35,7 @@ export function PayrollFilterBar({ filters, setFilter, resetFilters, onExportCsv
     filters.date_to !== ''
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap items-center gap-2">
+    <div className="bg-gw-surface rounded-[10px] p-3 flex flex-wrap items-center gap-2">
       <select
         className={selectClass}
         value={filters.province}
@@ -98,7 +98,7 @@ export function PayrollFilterBar({ filters, setFilter, resetFilters, onExportCsv
         <button
           type="button"
           onClick={resetFilters}
-          className="text-xs text-slate-500 hover:text-gw-dark underline underline-offset-2 px-1"
+          className="text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors px-1"
         >
           Reset
         </button>
@@ -108,7 +108,7 @@ export function PayrollFilterBar({ filters, setFilter, resetFilters, onExportCsv
         <button
           type="button"
           onClick={onExportCsv}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gw-dark px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-darkest"
+          className="inline-flex items-center gap-1.5 rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors duration-150"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

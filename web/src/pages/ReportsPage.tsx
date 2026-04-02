@@ -55,8 +55,6 @@ export function ReportsPage() {
     }
   }
 
-  // When "Include archived" is checked, show all classes in dropdowns;
-  // otherwise only active classes
   const allClasses = filters.archived ? [...active, ...archived] : active
 
   const hasActiveFilters =
@@ -71,15 +69,16 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="flex-shrink-0">
-        <h2 className="text-lg font-semibold text-slate-900">Reports</h2>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Daily reports across all {filters.archived ? '' : 'active '}classes
-        </p>
+      <header className="flex-shrink-0 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100">Reports</h2>
+          <p className="mt-0.5 text-sm text-slate-300">
+            Daily reports across all {filters.archived ? '' : 'active '}classes
+          </p>
+        </div>
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-4">
-        {/* Filter bar */}
         <ReportsFilterBar
           filters={filters}
           setFilter={setFilter}
@@ -87,25 +86,24 @@ export function ReportsPage() {
           classes={allClasses}
         />
 
-        {/* Content */}
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : reports.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
+          <div className="bg-gw-surface rounded-[10px] p-10 text-center">
             {hasActiveFilters ? (
               <>
-                <p className="text-sm text-slate-600">No reports match your filters.</p>
+                <p className="text-sm text-slate-300">No reports match your filters.</p>
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="mt-2 text-xs text-gw-dark hover:underline"
+                  className="mt-2 text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors"
                 >
                   Reset all filters
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm text-slate-600">No reports found.</p>
+                <p className="text-sm text-slate-300">No reports found.</p>
                 <p className="mt-1 text-xs text-slate-500">Reports appear here once created inside a class.</p>
               </>
             )}

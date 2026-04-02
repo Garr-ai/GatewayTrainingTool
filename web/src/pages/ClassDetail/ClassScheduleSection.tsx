@@ -133,141 +133,78 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     return trainers.find(t => t.id === id)?.trainer_name ?? '—'
   }
 
+  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+
   return (
-    <section className="rounded-xl bg-white p-4 shadow-sm">
+    <section className="bg-gw-surface rounded-[10px] p-4">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">Schedule</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Schedule</h3>
           <p className="mt-0.5 text-xs text-slate-500">
-            Schedule trainers and student groups for different times. Assign trainers from the
-            Trainers tab first.
+            Schedule trainers and student groups for different times. Assign trainers from the Trainers tab first.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openAddForm}
-          className="rounded-md bg-gw-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-gw-blue-hover self-start sm:self-auto flex-shrink-0"
-        >
+        <button type="button" onClick={openAddForm} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0">
           + Add schedule slot
         </button>
       </header>
 
       {error && (
-        <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert">
+        <p className="mb-3 rounded-md bg-rose-500/10 border border-rose-500/25 px-3 py-2 text-xs text-rose-400" role="alert">
           {error}
         </p>
       )}
 
       {formOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl p-4">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-semibold text-slate-900">
-                  {editingSlot ? 'Edit schedule slot' : 'Add schedule slot'}
-                </h4>
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  Set date, time range, trainer, and student group for this slot.
-                </p>
+                <h4 className="text-sm font-bold text-slate-100">{editingSlot ? 'Edit schedule slot' : 'Add schedule slot'}</h4>
+                <p className="mt-0.5 text-[11px] text-slate-500">Set date, time range, trainer, and student group for this slot.</p>
               </div>
-              <button
-                type="button"
-                onClick={closeForm}
-                className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
-              >
-                Close
+              <button type="button" onClick={closeForm} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
 
             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="block font-medium text-slate-700">
-                  Date
-                  <input
-                    type="date"
-                    value={slotDate}
-                    onChange={e => setSlotDate(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
-                  />
+                <label className="block text-xs font-medium text-slate-400 mb-1">Date
+                  <input type="date" value={slotDate} onChange={e => setSlotDate(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
               <div className="flex gap-2">
-                <label className="flex-1 block font-medium text-slate-700">
-                  Start time
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
-                  />
+                <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Start time
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={fieldClass} required />
                 </label>
-                <label className="flex-1 block font-medium text-slate-700">
-                  End time
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    required
-                  />
+                <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">End time
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
               <div>
-                <label className="block font-medium text-slate-700">
-                  Trainer
-                  <select
-                    value={trainerId}
-                    onChange={e => setTrainerId(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
+                <label className="block text-xs font-medium text-slate-400 mb-1">Trainer
+                  <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className={fieldClass}>
                     <option value="">— None —</option>
                     {trainers.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.trainer_name} ({t.role})
-                      </option>
+                      <option key={t.id} value={t.id}>{t.trainer_name} ({t.role})</option>
                     ))}
                   </select>
                 </label>
               </div>
               <div>
-                <label className="block font-medium text-slate-700">
-                  Student group (A/B/C)
-                  <input
-                    type="text"
-                    value={groupLabel}
-                    onChange={e => setGroupLabel(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    placeholder="e.g. A"
-                  />
+                <label className="block text-xs font-medium text-slate-400 mb-1">Student group (A/B/C)
+                  <input type="text" value={groupLabel} onChange={e => setGroupLabel(e.target.value)} className={fieldClass} placeholder="e.g. A" />
                 </label>
               </div>
               <div className="md:col-span-2">
-                <label className="block font-medium text-slate-700">
-                  Notes
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    rows={2}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    placeholder="Optional notes"
-                  />
+                <label className="block text-xs font-medium text-slate-400 mb-1">Notes
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className={fieldClass} placeholder="Optional notes" />
                 </label>
               </div>
               <div className="md:col-span-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closeForm}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-gw-blue px-3 py-1.5 text-[11px] font-medium text-white hover:bg-gw-blue-hover disabled:opacity-60"
-                >
+                <button type="button" onClick={closeForm} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                <button type="submit" disabled={saving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                   {saving ? 'Saving…' : editingSlot ? 'Save changes' : 'Add slot'}
                 </button>
               </div>
@@ -279,53 +216,35 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
       {loading ? (
         <SkeletonTable rows={3} cols={7} />
       ) : slots.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-          No schedule slots yet for <span className="font-medium text-slate-700">{className}</span>.
+        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
+          No schedule slots yet for <span className="font-medium text-slate-300">{className}</span>.
           Add slots to assign trainers and student groups to specific times.
         </div>
       ) : (
-        <div className="rounded-lg border border-slate-200 overflow-x-auto">
+        <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">
           <table className="min-w-full text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Date</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Start</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">End</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Trainer</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Group</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-900">Notes</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-900">Actions</th>
+            <thead>
+              <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Start</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">End</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Trainer</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Group</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody>
               {slots.map(slot => (
-                <tr
-                  key={slot.id}
-                  className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                  onClick={() => openEditForm(slot)}
-                >
-                  <td className="px-3 py-2 text-slate-900">{slot.slot_date}</td>
-                  <td className="px-3 py-2 text-slate-600">{slot.start_time}</td>
-                  <td className="px-3 py-2 text-slate-600">{slot.end_time}</td>
-                  <td className="px-3 py-2 text-slate-600">{trainerName(slot.trainer_id)}</td>
-                  <td className="px-3 py-2 text-slate-600">{slot.group_label ?? '—'}</td>
-                  <td
-                    className="px-3 py-2 text-slate-600 max-w-[120px] truncate"
-                    title={slot.notes ?? undefined}
-                  >
-                    {slot.notes ?? '—'}
-                  </td>
+                <tr key={slot.id} className="border-b border-white/[0.03] hover:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditForm(slot)}>
+                  <td className="px-3 py-2 text-slate-200">{slot.slot_date}</td>
+                  <td className="px-3 py-2 text-slate-400">{slot.start_time}</td>
+                  <td className="px-3 py-2 text-slate-400">{slot.end_time}</td>
+                  <td className="px-3 py-2 text-slate-400">{trainerName(slot.trainer_id)}</td>
+                  <td className="px-3 py-2 text-slate-400">{slot.group_label ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-400 max-w-[120px] truncate" title={slot.notes ?? undefined}>{slot.notes ?? '—'}</td>
                   <td className="px-3 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleRemove(slot.id)
-                      }}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50"
-                    >
-                      Remove
-                    </button>
+                    <button type="button" onClick={e => { e.stopPropagation(); handleRemove(slot.id) }} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2 py-1 text-[11px] font-medium hover:bg-rose-500/20 transition-colors">Remove</button>
                   </td>
                 </tr>
               ))}
