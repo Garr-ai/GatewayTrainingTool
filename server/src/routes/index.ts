@@ -38,6 +38,7 @@ import { payrollRouter } from './payroll'
 import { studentProgressRouter } from './studentProgress'
 import { selfServiceRouter } from './selfService'
 import { profilesRouter } from './profiles'
+import { dashboardRouter } from './dashboard'
 
 export const router = Router()
 
@@ -52,6 +53,7 @@ router.use(selfServiceRouter)
 
 // Everything below this line requires coordinator role
 router.use(requireCoordinator as Router)
+router.use(dashboardRouter)
 router.use(classesRouter)
 router.use(drillsRouter)
 router.use(trainersRouter)
