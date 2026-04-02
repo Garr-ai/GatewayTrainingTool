@@ -21,19 +21,24 @@
  * display name for the schedule table, falling back to em-dash if not found.
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { api } from '../../lib/apiClient'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
+import { useToast } from '../../contexts/ToastContext'
 import { SkeletonTable } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 import type { ClassScheduleSlot } from '../../types'
 
 interface ClassScheduleSectionProps {
-  classId: string   // UUID of the class
-  className: string // Display name — used in the empty-state message
+  classId: string
+  className: string
+  startDate?: string
+  endDate?: string
 }
 
-export function ClassScheduleSection({ classId, className }: ClassScheduleSectionProps) {
+export function ClassScheduleSection({ classId, className, startDate, endDate }: ClassScheduleSectionProps) {
   const { schedule: slots, trainers, loading, refreshSchedule } = useClassDetail()
+  const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
   // Controls the slot form modal (both add and edit use the same form)
   const [formOpen, setFormOpen] = useState(false)
@@ -47,6 +52,61 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
   const [trainerId, setTrainerId] = useState<string>('')
   const [groupLabel, setGroupLabel] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Recurring schedule modal state
+  const [recurringOpen, setRecurringOpen] = useState(false)
+  const [recDays, setRecDays] = useState<number[]>([])
+  const [recStartTime, setRecStartTime] = useState('')
+  const [recEndTime, setRecEndTime] = useState('')
+  const [recTrainerId, setRecTrainerId] = useState('')
+  const [recGroupLabel, setRecGroupLabel] = useState('')
+  const [recDateFrom, setRecDateFrom] = useState(startDate ?? '')
+  const [recDateTo, setRecDateTo] = useState(endDate ?? '')
+  const [recSaving, setRecSaving] = useState(false)
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  const recPreviewCount = useMemo(() => {
+    if (!recDays.length || !recDateFrom || !recDateTo) return 0
+    const daySet = new Set(recDays)
+    let count = 0
+    const cursor = new Date(recDateFrom + 'T12:00:00')
+    const end = new Date(recDateTo + 'T12:00:00')
+    while (cursor <= end) {
+      if (daySet.has(cursor.getDay())) count++
+      cursor.setDate(cursor.getDate() + 1)
+    }
+    return count
+  }, [recDays, recDateFrom, recDateTo])
+
+  function toggleRecDay(day: number) {
+    setRecDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day])
+  }
+
+  async function handleRecurringSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!recDays.length || !recStartTime || !recEndTime || !recDateFrom || !recDateTo) return
+    setRecSaving(true)
+    setError(null)
+    try {
+      const result = await api.schedule.createBatch(classId, {
+        days_of_week: recDays,
+        start_time: recStartTime,
+        end_time: recEndTime,
+        trainer_id: recTrainerId || undefined,
+        group_label: recGroupLabel.trim() || undefined,
+        date_from: recDateFrom,
+        date_to: recDateTo,
+      })
+      toast(`Created ${result.inserted} schedule slot${result.inserted !== 1 ? 's' : ''}`, 'success')
+      setRecurringOpen(false)
+      refreshSchedule()
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setRecSaving(false)
+    }
+  }
 
   /** Resets form fields and opens the modal in "add new slot" mode. */
   function openAddForm() {
@@ -100,27 +160,27 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
     try {
       if (editingSlot) {
         await api.schedule.update(classId, editingSlot.id, payload)
+        toast('Schedule slot updated', 'success')
       } else {
         await api.schedule.create(classId, payload)
+        toast('Schedule slot added', 'success')
       }
       closeForm()
       refreshSchedule()
     } catch (err) {
-      console.error('saveSlot error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  /** Deletes a schedule slot without confirmation (low-risk action). */
   async function handleRemove(id: string) {
     try {
       await api.schedule.delete(classId, id)
       refreshSchedule()
+      toast('Schedule slot removed', 'success')
     } catch (err) {
-      console.error('removeSlot error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
@@ -144,9 +204,14 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
             Schedule trainers and student groups for different times. Assign trainers from the Trainers tab first.
           </p>
         </div>
-        <button type="button" onClick={openAddForm} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0">
-          + Add schedule slot
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+          <button type="button" onClick={() => { setRecDateFrom(startDate ?? ''); setRecDateTo(endDate ?? ''); setRecurringOpen(true) }} className="rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
+            Recurring
+          </button>
+          <button type="button" onClick={openAddForm} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150">
+            + Add slot
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -213,12 +278,85 @@ export function ClassScheduleSection({ classId, className }: ClassScheduleSectio
         </div>
       )}
 
+      {recurringOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+            <header className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-100">Create recurring schedule</h4>
+                <p className="mt-0.5 text-[11px] text-slate-500">Generate slots for selected days of the week within a date range.</p>
+              </div>
+              <button type="button" onClick={() => setRecurringOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </header>
+
+            <form onSubmit={handleRecurringSave} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Days of the week</label>
+                <div className="flex gap-1.5">
+                  {DAY_NAMES.map((name, i) => (
+                    <button key={i} type="button" onClick={() => toggleRecDay(i)} className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-colors ${recDays.includes(i) ? 'bg-gw-blue/20 border border-gw-blue/35 text-gw-blue' : 'bg-gw-elevated border border-white/10 text-slate-400 hover:text-slate-200'}`}>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-medium text-slate-400">Start time
+                  <input type="time" value={recStartTime} onChange={e => setRecStartTime(e.target.value)} className={fieldClass} required />
+                </label>
+                <label className="block text-xs font-medium text-slate-400">End time
+                  <input type="time" value={recEndTime} onChange={e => setRecEndTime(e.target.value)} className={fieldClass} required />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-medium text-slate-400">From date
+                  <input type="date" value={recDateFrom} onChange={e => setRecDateFrom(e.target.value)} className={fieldClass} required />
+                </label>
+                <label className="block text-xs font-medium text-slate-400">To date
+                  <input type="date" value={recDateTo} onChange={e => setRecDateTo(e.target.value)} className={fieldClass} required />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-medium text-slate-400">Trainer
+                  <select value={recTrainerId} onChange={e => setRecTrainerId(e.target.value)} className={fieldClass}>
+                    <option value="">— None —</option>
+                    {trainers.map(t => <option key={t.id} value={t.id}>{t.trainer_name}</option>)}
+                  </select>
+                </label>
+                <label className="block text-xs font-medium text-slate-400">Group
+                  <input type="text" value={recGroupLabel} onChange={e => setRecGroupLabel(e.target.value)} className={fieldClass} placeholder="e.g. A" />
+                </label>
+              </div>
+
+              {recPreviewCount > 0 && (
+                <p className="text-[11px] text-slate-400">This will create <span className="font-semibold text-slate-200">{recPreviewCount}</span> slot{recPreviewCount !== 1 ? 's' : ''} (duplicates will be skipped).</p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setRecurringOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                <button type="submit" disabled={recSaving || recDays.length === 0} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
+                  {recSaving ? 'Creating…' : `Create ${recPreviewCount} slot${recPreviewCount !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <SkeletonTable rows={3} cols={7} />
       ) : slots.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-          No schedule slots yet for <span className="font-medium text-slate-300">{className}</span>.
-          Add slots to assign trainers and student groups to specific times.
+        <div className="bg-gw-elevated rounded-[10px]">
+          <EmptyState
+            title="No schedule slots yet"
+            description={`Add slots for ${className} to assign trainers and groups to specific times.`}
+            variant="neutral"
+          />
         </div>
       ) : (
         <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">

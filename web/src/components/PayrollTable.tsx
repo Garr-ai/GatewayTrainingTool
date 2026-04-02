@@ -3,20 +3,26 @@ import type { PayrollRow } from '../types'
 interface PayrollTableProps {
   rows: PayrollRow[]
   personLabel: string
+  hideClassCount?: boolean
 }
 
-export function PayrollTable({ rows, personLabel }: PayrollTableProps) {
+export function PayrollTable({ rows, personLabel, hideClassCount }: PayrollTableProps) {
+  const cols = hideClassCount ? 5 : 6
+  const namePct = hideClassCount ? 'w-[25%]' : 'w-[22%]'
+  const emailPct = hideClassCount ? 'w-[25%]' : 'w-[22%]'
+  const numPct = hideClassCount ? 'w-[16.6%]' : 'w-[14%]'
+
   return (
     <div className="bg-gw-surface rounded-[10px] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm table-fixed">
           <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[22%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
+            <col className={namePct} />
+            <col className={emailPct} />
+            <col className={numPct} />
+            <col className={numPct} />
+            <col className={numPct} />
+            {!hideClassCount && <col className={numPct} />}
           </colgroup>
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/[0.06]">
@@ -25,7 +31,7 @@ export function PayrollTable({ rows, personLabel }: PayrollTableProps) {
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Total Hours</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right">Paid Hours</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right hidden md:table-cell">Live Hours</th>
-              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right hidden md:table-cell">Classes</th>
+              {!hideClassCount && <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-right hidden md:table-cell">Classes</th>}
             </tr>
           </thead>
           <tbody>
@@ -36,7 +42,7 @@ export function PayrollTable({ rows, personLabel }: PayrollTableProps) {
                 <td className="px-4 py-3 text-slate-200 text-right font-medium">{r.total_hours}</td>
                 <td className="px-4 py-3 text-slate-400 text-right">{r.paid_hours}</td>
                 <td className="px-4 py-3 text-slate-400 text-right hidden md:table-cell">{r.live_hours}</td>
-                <td className="px-4 py-3 text-slate-400 text-right hidden md:table-cell">{r.class_count}</td>
+                {!hideClassCount && <td className="px-4 py-3 text-slate-400 text-right hidden md:table-cell">{r.class_count}</td>}
               </tr>
             ))}
           </tbody>
@@ -48,7 +54,7 @@ export function PayrollTable({ rows, personLabel }: PayrollTableProps) {
                 <td className="px-4 py-3 text-right">{rows.reduce((s, r) => s + r.total_hours, 0).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">{rows.reduce((s, r) => s + r.paid_hours, 0).toFixed(2)}</td>
                 <td className="px-4 py-3 text-right hidden md:table-cell">{rows.reduce((s, r) => s + r.live_hours, 0).toFixed(2)}</td>
-                <td className="hidden md:table-cell" />
+                {!hideClassCount && <td className="hidden md:table-cell" />}
               </tr>
             </tfoot>
           )}

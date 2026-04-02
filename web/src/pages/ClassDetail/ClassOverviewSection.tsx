@@ -27,8 +27,27 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
 
   const totalHours = hours.reduce((sum, h) => sum + h.hours, 0)
 
+  const startD = new Date(classData.start_date + 'T00:00:00')
+  const endD = new Date(classData.end_date + 'T00:00:00')
+  const nowD = new Date()
+  const totalDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / 86400000))
+  const elapsedDays = Math.max(0, Math.ceil((nowD.getTime() - startD.getTime()) / 86400000))
+  const completionPct = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)))
+
   return (
-    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <section className="space-y-4">
+      {/* Completion progress */}
+      <div className="bg-gw-surface rounded-[10px] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold text-slate-400">Class progress</span>
+          <span className="text-xs text-slate-500">Day {Math.min(elapsedDays, totalDays)} of {totalDays} ({completionPct}%)</span>
+        </div>
+        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-gw-blue to-gw-teal rounded-full transition-all duration-300" style={{ width: `${completionPct}%` }} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Class details card */}
       <div className="bg-gw-surface rounded-[10px] p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Class details</h3>
@@ -114,6 +133,7 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
             ))}
           </dl>
         )}
+      </div>
       </div>
     </section>
   )

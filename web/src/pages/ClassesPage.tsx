@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
@@ -10,6 +10,7 @@ import { useClasses } from '../contexts/ClassesContext'
 import { useToast } from '../contexts/ToastContext'
 import { classSlug, provinceLabel } from '../lib/utils'
 import { SkeletonTable } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 
 const provinceBadge: Record<string, string> = {
   BC: 'bg-blue-500/15 text-blue-300',
@@ -21,7 +22,7 @@ const inputClass = 'bg-gw-elevated border border-white/10 rounded-md px-3 py-1.5
 const labelClass = 'text-xs font-medium text-slate-400 mb-1 block'
 
 export function ClassesPage() {
-  const { email, signOut } = useAuth()
+  useAuth()
   const { toast } = useToast()
   const { active, archived, loading, refresh: fetchClasses } = useClasses()
   const [createOpen, setCreateOpen] = useState(false)
@@ -33,10 +34,38 @@ export function ClassesPage() {
     onConfirm: () => void
   } | null>(null)
 
+  const [attendanceRates, setAttendanceRates] = useState<Record<string, number>>({})
+  useEffect(() => {
+    api.dashboard.classAttendanceRates()
+      .then(res => setAttendanceRates(res.rates))
+      .catch(() => {})
+  }, [])
+
   const [province, setProvince] = useState('')
   const [site, setSite] = useState('')
   const [gameType, setGameType] = useState('')
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [sortCol, setSortCol] = useState<string>('start_date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  function toggleSort(col: string) {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
+
+  function sortClasses(classes: Class[]): Class[] {
+    return [...classes].sort((a, b) => {
+      const aVal = (a as Record<string, unknown>)[sortCol] as string | null ?? ''
+      const bVal = (b as Record<string, unknown>)[sortCol] as string | null ?? ''
+      const cmp = String(aVal).localeCompare(String(bVal))
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }
 
   const navigate = useNavigate()
 
@@ -69,8 +98,8 @@ export function ClassesPage() {
     return result
   }
 
-  const filteredActive = useMemo(() => applyFilters(active), [active, province, site, gameType, search])
-  const filteredArchived = useMemo(() => applyFilters(archived), [archived, province, site, gameType, search])
+  const filteredActive = useMemo(() => sortClasses(applyFilters(active)), [active, province, site, gameType, search, sortCol, sortDir])
+  const filteredArchived = useMemo(() => sortClasses(applyFilters(archived)), [archived, province, site, gameType, search, sortCol, sortDir])
 
   function handleArchive(c: Class, e: React.MouseEvent) {
     e.stopPropagation()
@@ -121,6 +150,63 @@ export function ClassesPage() {
     })
   }
 
+  function toggleSelect(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filteredActive.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(filteredActive.map(c => c.id)))
+    }
+  }
+
+  function handleBulkArchive() {
+    setConfirmState({
+      title: 'Bulk archive',
+      message: `Archive ${selected.size} class${selected.size !== 1 ? 'es' : ''}?`,
+      confirmLabel: 'Archive',
+      confirmVariant: 'primary',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.classes.batch([...selected], 'archive')
+          setSelected(new Set())
+          fetchClasses()
+          toast(`${selected.size} class${selected.size !== 1 ? 'es' : ''} archived`, 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
+        }
+      }
+    })
+  }
+
+  function handleBulkDelete() {
+    setConfirmState({
+      title: 'Bulk delete',
+      message: `Permanently delete ${selected.size} class${selected.size !== 1 ? 'es' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          await api.classes.batch([...selected], 'delete')
+          setSelected(new Set())
+          fetchClasses()
+          toast(`${selected.size} class${selected.size !== 1 ? 'es' : ''} deleted`, 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
+        }
+      }
+    })
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Page header */}
@@ -129,23 +215,13 @@ export function ClassesPage() {
           <h2 className="text-xl font-bold text-slate-100">Classes</h2>
           <p className="mt-0.5 text-sm text-slate-300">Create and manage training classes</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline text-xs text-slate-500">{email}</span>
-          <button
-            type="button"
-            onClick={signOut}
-            className="text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors duration-150 text-xs"
-          >
-            Sign out
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-4 py-2 text-sm hover:brightness-110 transition-all duration-150"
-          >
-            + Create class
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-4 py-2 text-sm hover:brightness-110 transition-all duration-150"
+        >
+          + Create class
+        </button>
       </header>
 
       {/* Filter bar */}
@@ -204,15 +280,13 @@ export function ClassesPage() {
         {loading ? (
           <SkeletonTable rows={5} cols={6} />
         ) : filteredActive.length === 0 && filteredArchived.length === 0 && hasFilters ? (
-          <div className="bg-gw-surface rounded-[10px] p-8 text-center">
-            <p className="text-sm text-slate-300">No classes match your filters</p>
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="mt-3 text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors"
-            >
-              Reset filters
-            </button>
+          <div className="bg-gw-surface rounded-[10px]">
+            <EmptyState
+              title="No classes match your filters"
+              description="Try adjusting your filters or reset them."
+              action={{ label: 'Reset filters', onClick: resetFilters }}
+              variant="neutral"
+            />
           </div>
         ) : (
           <>
@@ -237,22 +311,43 @@ export function ClassesPage() {
                     <table className="w-full text-left text-sm">
                       <thead>
                         <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Site</th>
-                          <th className="hidden sm:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Province</th>
-                          <th className="hidden sm:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Game type</th>
-                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Start</th>
-                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">End</th>
+                          <th className="w-10 px-3 py-3">
+                            <input type="checkbox" checked={selected.size === filteredActive.length && filteredActive.length > 0} onChange={toggleSelectAll} className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
+                          </th>
+                          {([
+                            { key: 'name', label: 'Name', hide: '' },
+                            { key: 'site', label: 'Site', hide: '' },
+                            { key: 'province', label: 'Province', hide: 'hidden sm:table-cell' },
+                            { key: 'game_type', label: 'Game type', hide: 'hidden sm:table-cell' },
+                            { key: 'start_date', label: 'Start', hide: 'hidden md:table-cell' },
+                            { key: 'end_date', label: 'End', hide: 'hidden md:table-cell' },
+                          ] as const).map(col => (
+                            <th key={col.key} className={`${col.hide} px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none group hover:text-slate-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                              {col.label}
+                              {sortCol === col.key ? (
+                                <svg className="w-3 h-3 ml-1 inline text-gw-blue" viewBox="0 0 12 12" fill="currentColor">{sortDir === 'asc' ? <path d="M6 2l3 4H3z" /> : <path d="M6 10l-3-4h6z" />}</svg>
+                              ) : (
+                                <svg className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-30 inline" viewBox="0 0 12 12" fill="currentColor"><path d="M6 2l3 4H3z" /><path d="M6 10l-3-4h6z" /></svg>
+                              )}
+                            </th>
+                          ))}
+                          <th className="hidden lg:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Attendance</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredActive.map(c => (
+                        {filteredActive.map(c => {
+                          const rate = attendanceRates[c.id]
+                          const rateColor = rate == null ? 'text-slate-500' : rate >= 80 ? 'text-emerald-400' : rate >= 50 ? 'text-amber-400' : 'text-rose-400'
+                          return (
                           <tr
                             key={c.id}
-                            className="border-b border-white/[0.03] hover:bg-gw-elevated cursor-pointer transition-colors duration-100"
+                            className={`border-b border-white/[0.03] hover:bg-gw-elevated cursor-pointer transition-colors duration-100 ${selected.has(c.id) ? 'bg-gw-blue/[0.06]' : ''}`}
                             onClick={() => navigate(`/classes/${classSlug(c.name)}`)}
                           >
+                            <td className="w-10 px-3 py-3" onClick={e => e.stopPropagation()}>
+                              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id, { stopPropagation: () => {} } as React.MouseEvent)} className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
+                            </td>
                             <td className="px-4 py-3 font-medium text-slate-200">{c.name}</td>
                             <td className="px-4 py-3 text-slate-400">{c.site}</td>
                             <td className="hidden sm:table-cell px-4 py-3">
@@ -263,6 +358,9 @@ export function ClassesPage() {
                             <td className="hidden sm:table-cell px-4 py-3 text-slate-400">{c.game_type ?? '—'}</td>
                             <td className="hidden md:table-cell px-4 py-3 text-slate-400">{c.start_date}</td>
                             <td className="hidden md:table-cell px-4 py-3 text-slate-400">{c.end_date}</td>
+                            <td className="hidden lg:table-cell px-4 py-3">
+                              <span className={`text-xs font-medium ${rateColor}`}>{rate != null ? `${rate}%` : '—'}</span>
+                            </td>
                             <td className="px-4 py-3 text-right">
                               <button
                                 type="button"
@@ -273,10 +371,22 @@ export function ClassesPage() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
+
+                  {selected.size > 0 && (
+                    <div className="sticky bottom-0 flex items-center justify-between gap-3 bg-gw-dark border-t border-white/[0.08] px-4 py-2.5">
+                      <span className="text-xs font-medium text-slate-300">{selected.size} selected</span>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">Clear</button>
+                        <button type="button" onClick={handleBulkArchive} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Archive</button>
+                        <button type="button" onClick={handleBulkDelete} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/20 transition-colors">Delete</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

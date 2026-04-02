@@ -148,6 +148,7 @@ export interface ClassDailyReport {
   override_hours_to_date: number | null     // Manual override for cumulative training hours
   override_paid_hours_total: number | null  // Manual override for paid hours total
   override_live_hours_total: number | null  // Manual override for live floor hours total
+  status: 'draft' | 'finalized'
   created_at: string
 }
 

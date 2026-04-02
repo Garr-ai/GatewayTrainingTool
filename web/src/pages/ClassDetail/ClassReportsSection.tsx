@@ -38,6 +38,8 @@ import { useToast } from '../../contexts/ToastContext'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { SkeletonTable } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
+import { CollapsibleSection } from '../../components/CollapsibleSection'
 import type {
   ClassDailyReport,
   ClassDailyReportTimelineItem,
@@ -105,8 +107,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   // Per-student drill/test time recordings
   const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
   const [reportSaving, setReportSaving] = useState(false)
-  // Non-null when the coordinator clicks "View PDF" — triggers ReportPreviewModal
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  const [previewReportId, setPreviewReportId] = useState<string | null>(null)
+  const [previewStatus, setPreviewStatus] = useState<string | undefined>(undefined)
   // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
   const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
   // Tracks the source row index during a timeline drag operation
@@ -299,12 +302,25 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
    */
   async function handleViewPdf(r: ClassDailyReport) {
     try {
-      // Use cached report detail if available (e.g. from a recent edit), otherwise fetch
       const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
       reportCacheRef.current[r.id] = full
+      setPreviewReportId(r.id)
+      setPreviewStatus(r.status)
       setPreviewArgs({ report: full, className, trainers, enrollments, drills })
     } catch (err) {
       setError((err as Error).message)
+    }
+  }
+
+  async function handleFinalize() {
+    if (!previewReportId) return
+    try {
+      await api.reports.finalize(previewReportId)
+      setPreviewStatus('finalized')
+      refreshReports()
+      toast('Report finalized', 'success')
+    } catch (err) {
+      toast((err as Error).message, 'error')
     }
   }
 
@@ -387,13 +403,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     }
   }
 
-  /** Deletes a logged hours entry after navigation (no confirmation — low risk). */
   async function handleRemoveHours(id: string) {
     try {
       await api.hours.delete(classId, id)
       refreshHours()
+      toast('Hours entry removed', 'success')
     } catch (err) {
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
@@ -504,8 +520,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                 </div>
 
                 {/* Trainers for the day */}
+                <CollapsibleSection label="Trainers for the day" defaultOpen>
                 <div>
-                  <p className="mb-1 text-[11px] font-semibold text-slate-400">Trainers for the day</p>
+                  <p className="mb-1 text-[11px] font-semibold text-slate-400 hidden md:block">Trainers for the day</p>
                   <div className="flex flex-wrap gap-2">
                     {trainers.length === 0 ? (
                       <span className="text-[11px] text-slate-500">No trainers assigned yet. Use the Trainers tab first.</span>
@@ -523,7 +540,10 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   </div>
                 </div>
 
+                </CollapsibleSection>
+
                 {/* Hours totals */}
+                <CollapsibleSection label="Hours totals">
                 <div className="bg-gw-surface rounded-[10px] border border-white/[0.06] p-3">
                   <p className="text-[11px] font-semibold text-slate-400">Hours totals</p>
                   <p className="mt-0.5 text-[11px] text-slate-500">Calculated from logged hours up to this report date; override fields take precedence.</p>
@@ -565,10 +585,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   </div>
                 </div>
 
+                </CollapsibleSection>
+
                 {/* Timeline items */}
+                <CollapsibleSection label="Timeline & Progress" defaultOpen>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400">Daily training timeline / trainee progress</p>
+                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Daily training timeline / trainee progress</p>
                     <button type="button" onClick={() => setTimelineItems(prev => [...prev, { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', start_time: '', end_time: '', activity: '', homework_handouts_tests: '', category: '', position: prev.length, created_at: new Date().toISOString() }])} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                       + Add time block
                     </button>
@@ -620,10 +643,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   )}
                 </div>
 
+                </CollapsibleSection>
+
                 {/* Per-trainee progress */}
+                <CollapsibleSection label="Per-trainee progress" defaultOpen>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400">Per-trainee progress</p>
+                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Per-trainee progress</p>
                     <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                       Load current trainees
                     </button>
@@ -698,10 +724,13 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   )}
                 </div>
 
+                </CollapsibleSection>
+
                 {/* Drill / test times */}
+                <CollapsibleSection label="Drill & test times">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400">Drill &amp; test times</p>
+                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Drill &amp; test times</p>
                     {drills.filter(d => d.active).length > 0 && enrollments.length > 0 && (
                       <button type="button" onClick={() => { const activeDrills = drills.filter(d => d.active); setDrillTimeRows(prev => { const rows: ClassDailyReportDrillTime[] = []; for (const enr of enrollments) { for (const drill of activeDrills) { const existing = prev.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id); rows.push(existing ?? { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, drill_id: drill.id, time_seconds: null, score: null, created_at: new Date().toISOString() }) } } return rows }) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
                         Load drills for trainees
@@ -771,6 +800,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
                   )}
                 </div>
 
+                </CollapsibleSection>
+
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setReportFormOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
                   <button type="submit" disabled={reportSaving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
@@ -782,8 +813,12 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           )}
 
           {reports.length === 0 ? (
-            <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-              No daily reports yet for <span className="font-medium text-slate-300">{className}</span>.
+            <div className="bg-gw-elevated rounded-[10px]">
+              <EmptyState
+                title="No daily reports yet"
+                description={`Create a report for ${className} to start tracking training sessions.`}
+                variant="neutral"
+              />
             </div>
           ) : (
             <>
@@ -911,8 +946,12 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           )}
 
           {hours.length === 0 ? (
-            <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-              No logged hours yet for <span className="font-medium text-slate-300">{className}</span>.
+            <div className="bg-gw-elevated rounded-[10px]">
+              <EmptyState
+                title="No logged hours yet"
+                description={`Log hours for ${className} to track trainer and student time.`}
+                variant="neutral"
+              />
             </div>
           ) : (
             <>
@@ -964,7 +1003,12 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     </section>
 
     {previewArgs && (
-      <ReportPreviewModal args={previewArgs} onClose={() => setPreviewArgs(null)} />
+      <ReportPreviewModal
+        args={previewArgs}
+        onClose={() => { setPreviewArgs(null); setPreviewReportId(null); setPreviewStatus(undefined) }}
+        onFinalize={handleFinalize}
+        status={previewStatus}
+      />
     )}
 
     <ConfirmDialog

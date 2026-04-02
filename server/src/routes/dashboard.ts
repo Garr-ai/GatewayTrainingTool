@@ -93,6 +93,57 @@ dashboardRouter.get('/dashboard/attendance-rate', async (req: Request, res: Resp
   }
 })
 
+// GET /api/dashboard/class-attendance-rates — per-class attendance rates for active classes
+dashboardRouter.get('/dashboard/class-attendance-rates', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data: classes } = await supabase.from('classes').select('id').eq('archived', false)
+    const classIds = (classes ?? []).map(c => c.id)
+    if (classIds.length === 0) {
+      res.json({ rates: {} })
+      return
+    }
+
+    const { data: reports } = await supabase
+      .from('class_daily_reports')
+      .select('id, class_id')
+      .in('class_id', classIds)
+
+    const reportIds = (reports ?? []).map(r => r.id)
+    if (reportIds.length === 0) {
+      res.json({ rates: {} })
+      return
+    }
+
+    const reportToClass = new Map<string, string>()
+    for (const r of reports ?? []) {
+      reportToClass.set(r.id, r.class_id)
+    }
+
+    const { data: progress } = await supabase
+      .from('class_daily_report_trainee_progress')
+      .select('report_id, attendance')
+      .in('report_id', reportIds)
+
+    const classTotals = new Map<string, { total: number; attended: number }>()
+    for (const p of progress ?? []) {
+      const cid = reportToClass.get(p.report_id)
+      if (!cid) continue
+      const entry = classTotals.get(cid) ?? { total: 0, attended: 0 }
+      entry.total++
+      if (p.attendance) entry.attended++
+      classTotals.set(cid, entry)
+    }
+
+    const rates: Record<string, number> = {}
+    for (const [cid, { total, attended }] of classTotals) {
+      rates[cid] = total > 0 ? Math.round((attended / total) * 100) : 0
+    }
+    res.json({ rates })
+  } catch (err) {
+    next(err)
+  }
+})
+
 // GET /api/dashboard/unreported-sessions
 dashboardRouter.get('/dashboard/unreported-sessions', async (req: Request, res: Response, next: NextFunction) => {
   try {

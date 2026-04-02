@@ -53,6 +53,71 @@ enrollmentsRouter.get('/classes/:classId/enrollments', async (req: Request, res:
 })
 
 /**
+ * POST /classes/:classId/enrollments/batch
+ * Auth: coordinator
+ * Bulk-enroll students by email. Resolves emails to profile names, skips duplicates.
+ */
+enrollmentsRouter.post('/classes/:classId/enrollments/batch', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { students } = req.body as { students: { email: string; group_label?: string }[] }
+    if (!students?.length) {
+      res.status(400).json({ error: 'students array is required' })
+      return
+    }
+
+    const classId = req.params.classId as string
+    const emails = students.map(s => s.email.trim().toLowerCase())
+
+    // Resolve emails to profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('email', emails)
+
+    const profileMap = new Map<string, { full_name: string; email: string }>()
+    for (const p of profiles ?? []) {
+      profileMap.set(p.email.toLowerCase(), p)
+    }
+
+    // Check existing enrollments
+    const { data: existing } = await supabase
+      .from('class_enrollments')
+      .select('student_email')
+      .eq('class_id', classId)
+      .in('student_email', emails)
+
+    const existingEmails = new Set((existing ?? []).map((e: { student_email: string }) => e.student_email.toLowerCase()))
+
+    const toInsert: { class_id: string; student_name: string; student_email: string; status: string; group_label: string | null }[] = []
+    const skipped: string[] = []
+    const notFound: string[] = []
+
+    for (const s of students) {
+      const email = s.email.trim().toLowerCase()
+      if (existingEmails.has(email)) { skipped.push(email); continue }
+      const profile = profileMap.get(email)
+      if (!profile) { notFound.push(email); continue }
+      toInsert.push({
+        class_id: classId,
+        student_name: profile.full_name || email,
+        student_email: email,
+        status: 'enrolled',
+        group_label: s.group_label?.trim() || null,
+      })
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from('class_enrollments').insert(toInsert)
+      if (error) throw error
+    }
+
+    res.status(201).json({ inserted: toInsert.length, skipped: skipped.length, not_found: notFound })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
  * POST /classes/:classId/enrollments
  * Auth: coordinator
  * Enrolls a student in a class. `group_label` is optional and used to assign

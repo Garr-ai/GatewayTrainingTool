@@ -11,6 +11,7 @@ import { ClassScheduleSection } from './ClassDetail/ClassScheduleSection'
 import { ClassTrainersSection } from './ClassDetail/ClassTrainersSection'
 import { ClassStudentsSection } from './ClassDetail/ClassStudentsSection'
 import { ClassReportsSection } from './ClassDetail/ClassReportsSection'
+import { ClassPayrollSection } from './ClassDetail/ClassPayrollSection'
 
 interface ClassDetailPageProps {
   className: string
@@ -23,7 +24,7 @@ type ClassDetailTab =
   | 'trainers'
   | 'students'
   | 'dailyReports'
-  | 'hours'
+  | 'payroll'
 
 export function ClassDetailPage({ className }: ClassDetailPageProps) {
   const [classData, setClassData] = useState<Class | null>(null)
@@ -69,7 +70,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
     { id: 'trainers',      label: 'Trainers' },
     { id: 'students',      label: 'Students' },
     { id: 'dailyReports',  label: 'Daily reports' },
-    { id: 'hours',         label: 'Logged hours' },
+    { id: 'payroll',       label: 'Payroll' },
   ]
 
   return (
@@ -131,11 +132,11 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
         <div className="flex-1 min-h-0 overflow-auto">
           <div className={activeTab === 'overview'      ? '' : 'hidden'}><ClassOverviewSection classData={classData} /></div>
           <div className={activeTab === 'drills'        ? '' : 'hidden'}><ClassDrillsSection classId={classData.id} className={classData.name} /></div>
-          <div className={activeTab === 'schedule'      ? '' : 'hidden'}><ClassScheduleSection classId={classData.id} className={classData.name} /></div>
+          <div className={activeTab === 'schedule'      ? '' : 'hidden'}><ClassScheduleSection classId={classData.id} className={classData.name} startDate={classData.start_date} endDate={classData.end_date} /></div>
           <div className={activeTab === 'trainers'      ? '' : 'hidden'}><ClassTrainersSection classId={classData.id} className={classData.name} /></div>
           <div className={activeTab === 'students'      ? '' : 'hidden'}><ClassStudentsSection classId={classData.id} className={classData.name} /></div>
           <div className={activeTab === 'dailyReports'  ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="reports" /></div>
-          <div className={activeTab === 'hours'         ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="hours" /></div>
+          <div className={activeTab === 'payroll'       ? '' : 'hidden'}><ClassPayrollSection classId={classData.id} className={classData.name} /></div>
         </div>
       </ClassDetailProvider>
 

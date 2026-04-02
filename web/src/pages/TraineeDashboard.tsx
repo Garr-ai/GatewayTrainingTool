@@ -14,17 +14,18 @@
 import { useState, useEffect } from 'react'
 import { api } from '../lib/apiClient'
 import { SkeletonCard, SkeletonTable } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 import type { TraineeDashboardResponse, DailyRating } from '../types'
 
 const RATING_COLOR: Record<DailyRating, string> = {
-  EE: 'bg-emerald-100 text-emerald-700',
-  ME: 'bg-blue-100 text-blue-700',
-  AD: 'bg-amber-100 text-amber-700',
-  NI: 'bg-rose-100 text-rose-700',
+  EE: 'bg-emerald-500/15 text-emerald-400',
+  ME: 'bg-blue-500/15 text-blue-400',
+  AD: 'bg-amber-500/15 text-amber-400',
+  NI: 'bg-rose-500/15 text-rose-400',
 }
 
 function RatingBadge({ rating }: { rating: DailyRating | null }) {
-  if (!rating) return <span className="text-slate-400">—</span>
+  if (!rating) return <span className="text-slate-500">—</span>
   return (
     <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${RATING_COLOR[rating]}`}>
       {rating}
@@ -56,8 +57,8 @@ export function TraineeDashboard({ email }: { email: string }) {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-        <p className="text-sm text-slate-600">{error}</p>
+      <div className="bg-gw-surface rounded-[10px]">
+        <EmptyState title="Something went wrong" description={error} variant="neutral" />
       </div>
     )
   }
@@ -76,39 +77,39 @@ export function TraineeDashboard({ email }: { email: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Welcome header */}
       <header>
-        <h2 className="text-lg font-semibold text-slate-900">Welcome back, {name}</h2>
-        <p className="mt-0.5 text-xs text-slate-500">{email}</p>
+        <h2 className="text-xl font-bold text-slate-100">Welcome back, {name}</h2>
+        <p className="mt-0.5 text-sm text-slate-400">{email}</p>
       </header>
 
-      {/* Enrolled Classes */}
       <section>
-        <h3 className="text-sm font-semibold text-slate-800 mb-2">Your Classes</h3>
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">Your Classes</h3>
         {classes.length === 0 ? (
-          <p className="text-xs text-slate-500">You are not enrolled in any classes.</p>
+          <div className="bg-gw-surface rounded-[10px]">
+            <EmptyState title="No classes" description="You are not enrolled in any classes." variant="neutral" />
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {classes.map(c => (
-              <div key={c.enrollment_id} className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col gap-3">
+              <div key={c.enrollment_id} className="rounded-[10px] border border-white/[0.08] bg-gw-surface p-4 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-gw-dark">{c.class_name}</p>
+                    <p className="font-semibold text-slate-200">{c.class_name}</p>
                     <p className="text-xs text-slate-500">{c.site} · {c.province}</p>
                   </div>
                   <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap ${
-                    c.status === 'enrolled' ? 'bg-emerald-100 text-emerald-700' :
-                    c.status === 'waitlist' ? 'bg-amber-100 text-amber-700' :
-                    'bg-slate-100 text-slate-600'
+                    c.status === 'enrolled' ? 'bg-emerald-500/15 text-emerald-400' :
+                    c.status === 'waitlist' ? 'bg-amber-500/15 text-amber-400' :
+                    'bg-white/[0.06] text-slate-400'
                   }`}>
                     {c.status}
                   </span>
                 </div>
 
                 {c.game_type && (
-                  <p className="text-xs text-slate-600">
-                    <span className="font-medium">Game:</span> {c.game_type}
-                    {c.group_label && <span className="ml-2 font-medium">Group:</span>}
+                  <p className="text-xs text-slate-400">
+                    <span className="font-medium text-slate-300">Game:</span> {c.game_type}
+                    {c.group_label && <span className="ml-2 font-medium text-slate-300">Group:</span>}
                     {c.group_label && <span> {c.group_label}</span>}
                   </p>
                 )}
@@ -119,14 +120,14 @@ export function TraineeDashboard({ email }: { email: string }) {
 
                 {c.upcoming_slots.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-medium text-slate-700 mb-1">Upcoming</p>
+                    <p className="text-[11px] font-medium text-slate-400 mb-1">Upcoming</p>
                     <div className="flex flex-col gap-1">
                       {c.upcoming_slots.map(slot => (
-                        <div key={slot.id} className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 rounded px-2 py-1">
-                          <span className="font-medium whitespace-nowrap">{slot.slot_date}</span>
+                        <div key={slot.id} className="flex items-center gap-2 text-[11px] text-slate-400 bg-gw-elevated rounded px-2 py-1">
+                          <span className="font-medium whitespace-nowrap text-slate-300">{slot.slot_date}</span>
                           <span>{slot.start_time}–{slot.end_time}</span>
                           {slot.group_label && (
-                            <span className="ml-auto text-[10px] bg-white border border-slate-200 rounded px-1">
+                            <span className="ml-auto text-[10px] bg-white/[0.06] border border-white/[0.08] rounded px-1 text-slate-500">
                               Grp {slot.group_label}
                             </span>
                           )}
@@ -141,57 +142,56 @@ export function TraineeDashboard({ email }: { email: string }) {
         )}
       </section>
 
-      {/* Progress Ratings */}
       <section>
-        <h3 className="text-sm font-semibold text-slate-800 mb-2">
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">
           Progress Ratings
           {progress.length > 0 && (
-            <span className="ml-1.5 text-xs font-normal text-slate-400">({progress.length} sessions)</span>
+            <span className="ml-1.5 text-xs font-normal text-slate-500">({progress.length} sessions)</span>
           )}
         </h3>
         {progress.length === 0 ? (
           <p className="text-xs text-slate-500">No progress data recorded yet.</p>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="bg-gw-surface rounded-[10px] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-gw-dark">
-                    <th className="px-4 py-3 font-medium text-white">Date</th>
-                    <th className="px-4 py-3 font-medium text-white hidden sm:table-cell">Class</th>
-                    <th className="px-4 py-3 font-medium text-white hidden md:table-cell">Session</th>
-                    <th className="px-4 py-3 font-medium text-white text-center">GK</th>
-                    <th className="px-4 py-3 font-medium text-white text-center">DEX</th>
-                    <th className="px-4 py-3 font-medium text-white text-center">HOM</th>
-                    <th className="px-4 py-3 font-medium text-white text-center hidden md:table-cell">Attended</th>
-                    <th className="px-4 py-3 font-medium text-white text-center hidden md:table-cell">HW</th>
+                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Class</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hidden md:table-cell">Session</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">GK</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">DEX</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">HOM</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center hidden md:table-cell">Attended</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center hidden md:table-cell">HW</th>
                   </tr>
                 </thead>
                 <tbody>
                   {progress.map((p, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{p.report_date}</td>
-                      <td className="px-4 py-3 text-slate-600 truncate hidden sm:table-cell">{p.class_name}</td>
-                      <td className="px-4 py-3 text-slate-600 truncate hidden md:table-cell">{p.session_label ?? '—'}</td>
+                    <tr key={i} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors duration-100">
+                      <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{p.report_date}</td>
+                      <td className="px-4 py-3 text-slate-400 truncate hidden sm:table-cell">{p.class_name}</td>
+                      <td className="px-4 py-3 text-slate-400 truncate hidden md:table-cell">{p.session_label ?? '—'}</td>
                       <td className="px-4 py-3 text-center"><RatingBadge rating={p.gk_rating as DailyRating | null} /></td>
                       <td className="px-4 py-3 text-center"><RatingBadge rating={p.dex_rating as DailyRating | null} /></td>
                       <td className="px-4 py-3 text-center"><RatingBadge rating={p.hom_rating as DailyRating | null} /></td>
                       <td className="px-4 py-3 text-center hidden md:table-cell">
                         {p.attendance ? (
-                          <svg className="w-4 h-4 text-emerald-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-4 h-4 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">Absent</span>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400">Absent</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center hidden md:table-cell">
                         {p.homework_completed ? (
-                          <svg className="w-4 h-4 text-emerald-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-4 h-4 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <span className="text-slate-500">—</span>
                         )}
                       </td>
                     </tr>
@@ -203,19 +203,18 @@ export function TraineeDashboard({ email }: { email: string }) {
         )}
       </section>
 
-      {/* Drill & Test Results */}
       {drillGroups.size > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-slate-800 mb-2">Drill & Test Results</h3>
+          <h3 className="text-sm font-semibold text-slate-200 mb-2">Drill & Test Results</h3>
           <div className="flex flex-col gap-3">
             {[...drillGroups.entries()].map(([drillName, times]) => {
               const first = times[0]
               const isDrill = first.drill_type === 'drill'
               return (
-                <div key={drillName} className="rounded-xl border border-slate-200 bg-white p-4">
+                <div key={drillName} className="rounded-[10px] border border-white/[0.08] bg-gw-surface p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-medium text-sm text-gw-dark">{drillName}</span>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isDrill ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                    <span className="font-medium text-sm text-slate-200">{drillName}</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isDrill ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>
                       {first.drill_type}
                     </span>
                     {isDrill && first.par_time_seconds && (
@@ -243,17 +242,17 @@ export function TraineeDashboard({ email }: { email: string }) {
                             ? (isDrill ? value <= target : value >= target)
                             : null
                           return (
-                            <tr key={i} className="border-t border-slate-100">
-                              <td className="pr-4 py-1.5 text-slate-600 whitespace-nowrap">{t.report_date}</td>
-                              <td className="pr-4 py-1.5 text-slate-600">{t.class_name}</td>
-                              <td className="pr-4 py-1.5 text-right text-slate-700 font-medium">{value ?? '—'}</td>
+                            <tr key={i} className="border-t border-white/[0.04]">
+                              <td className="pr-4 py-1.5 text-slate-400 whitespace-nowrap">{t.report_date}</td>
+                              <td className="pr-4 py-1.5 text-slate-400">{t.class_name}</td>
+                              <td className="pr-4 py-1.5 text-right text-slate-300 font-medium">{value ?? '—'}</td>
                               <td className="pr-4 py-1.5 text-center">
                                 {met === null ? (
-                                  <span className="text-slate-400">—</span>
+                                  <span className="text-slate-500">—</span>
                                 ) : met ? (
-                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Pass</span>
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">Pass</span>
                                 ) : (
-                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Miss</span>
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">Miss</span>
                                 )}
                               </td>
                             </tr>

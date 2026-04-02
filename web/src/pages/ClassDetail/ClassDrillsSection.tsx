@@ -24,6 +24,7 @@ import { useState } from 'react'
 import { api } from '../../lib/apiClient'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
 import { SkeletonTable } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useToast } from '../../contexts/ToastContext'
 import type { DrillType, ClassDrill } from '../../types'
@@ -107,8 +108,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       resetForm()
       refreshDrills()
     } catch (err) {
-      console.error('saveDrill error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
     }
@@ -122,8 +122,7 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       setDeleteTarget(null)
       refreshDrills()
     } catch (err) {
-      console.error('deleteDrill error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
       setDeleteTarget(null)
     }
   }
@@ -132,9 +131,9 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
     try {
       await api.drills.update(classId, drill.id, { active: !drill.active })
       refreshDrills()
+      toast(drill.active ? 'Drill deactivated' : 'Drill activated', 'success')
     } catch (err) {
-      console.error('toggleActive error:', (err as Error).message)
-      setError((err as Error).message)
+      toast((err as Error).message, 'error')
     }
   }
 
@@ -209,8 +208,12 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
       {loading ? (
         <SkeletonTable rows={3} cols={6} />
       ) : drills.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-          No drills or tests defined yet for <span className="font-medium text-slate-300">{className}</span>.
+        <div className="bg-gw-elevated rounded-[10px]">
+          <EmptyState
+            title="No drills or tests yet"
+            description={`Add drills and tests for ${className} to track student performance.`}
+            variant="neutral"
+          />
         </div>
       ) : (
         <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">

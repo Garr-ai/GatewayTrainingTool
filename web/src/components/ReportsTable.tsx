@@ -30,7 +30,13 @@ const COLUMNS: Column[] = [
   { key: 'game',             label: 'Game',     sortable: true,  hideBelow: 'sm' },
   { key: 'session',          label: 'Session',  sortable: false, hideBelow: 'md' },
   { key: 'current_trainees', label: 'Trainees', sortable: true,  hideBelow: 'md' },
+  { key: 'status',           label: 'Status',   sortable: false, hideBelow: 'sm' },
 ]
+
+const STATUS_BADGE: Record<string, string> = {
+  draft: 'bg-amber-500/15 text-amber-400',
+  finalized: 'bg-emerald-500/15 text-emerald-400',
+}
 
 function SortArrow({ column, sort }: { column: string; sort: ReportsSort }) {
   if (sort.column !== column) {
@@ -59,13 +65,14 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm table-fixed">
           <colgroup>
-            <col className="w-[18%]" />
-            <col className="w-[14%]" />
-            <col className="w-[13%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
+            <col className="w-[11%]" />
+            <col className="hidden sm:table-column w-[8%]" />
+            <col className="hidden sm:table-column w-[13%]" />
+            <col className="hidden md:table-column w-[14%]" />
+            <col className="hidden md:table-column w-[8%]" />
             <col className="hidden sm:table-column w-[10%]" />
-            <col className="hidden sm:table-column w-[15%]" />
-            <col className="hidden md:table-column w-[16%]" />
-            <col className="hidden md:table-column w-[10%]" />
           </colgroup>
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/[0.06]">
@@ -104,6 +111,13 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
                   <td className="hidden sm:table-cell px-4 py-3 text-slate-400 truncate">{r.game ?? '—'}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-slate-400 truncate">{r.session_label ?? '—'}</td>
                   <td className="hidden md:table-cell px-4 py-3 text-slate-400">{r.current_trainees ?? '—'}</td>
+                  <td className="hidden sm:table-cell px-4 py-3">
+                    {(r as ReportRow & { status?: string }).status && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${STATUS_BADGE[(r as ReportRow & { status?: string }).status!] ?? 'bg-white/10 text-slate-400'}`}>
+                        {(r as ReportRow & { status?: string }).status}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               )
             })}

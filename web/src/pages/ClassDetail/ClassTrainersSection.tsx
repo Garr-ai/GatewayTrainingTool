@@ -26,6 +26,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { SkeletonTable } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 import type { ClassTrainer, TrainerRole, Profile } from '../../types'
 
 interface ClassTrainersSectionProps {
@@ -264,8 +265,12 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       {loading ? (
         <SkeletonTable rows={3} cols={4} />
       ) : trainers.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-          No trainers assigned yet for <span className="font-medium text-slate-300">{className}</span>.
+        <div className="bg-gw-elevated rounded-[10px]">
+          <EmptyState
+            title="No trainers assigned yet"
+            description={`Assign trainers to ${className} to include them in schedules and reports.`}
+            variant="neutral"
+          />
         </div>
       ) : (
         <div className="bg-gw-elevated rounded-[10px] overflow-hidden">

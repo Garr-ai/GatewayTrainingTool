@@ -36,8 +36,6 @@ import { RosterPage } from './pages/RosterPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { SettingsContent } from './pages/SettingsContent'
-import { TrainerPayrollPage } from './pages/TrainerPayrollPage'
-import { StudentPayrollPage } from './pages/StudentPayrollPage'
 import { StudentProgressPage } from './pages/StudentProgressPage'
 
 function App() {
@@ -66,8 +64,6 @@ function App() {
             <Route path="trainers" element={<CoordinatorRoute><RosterPage role="trainer" title="Trainers" subtitle="All registered trainers" /></CoordinatorRoute>} />
             <Route path="reports" element={<CoordinatorRoute><ReportsPage /></CoordinatorRoute>} />
             <Route path="schedule" element={<CoordinatorRoute><SchedulePage /></CoordinatorRoute>} />
-            <Route path="payroll/trainers" element={<CoordinatorRoute><TrainerPayrollPage /></CoordinatorRoute>} />
-            <Route path="payroll/students" element={<CoordinatorRoute><StudentPayrollPage /></CoordinatorRoute>} />
             <Route path="settings" element={<CoordinatorRoute><SettingsContent /></CoordinatorRoute>} />
           </Route>
 

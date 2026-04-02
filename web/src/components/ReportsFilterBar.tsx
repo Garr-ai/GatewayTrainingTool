@@ -41,6 +41,7 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
     filters.date_from !== '' ||
     filters.date_to !== '' ||
     filters.search !== '' ||
+    filters.status !== '' ||
     filters.archived !== false
 
   return (
@@ -104,6 +105,16 @@ export function ReportsFilterBar({ filters, setFilter, resetFilters, classes }: 
           value={filters.date_to}
           onChange={e => setFilter('date_to', e.target.value)}
         />
+
+        <select
+          className={selectClass}
+          value={filters.status}
+          onChange={e => setFilter('status', e.target.value as 'draft' | 'finalized' | '')}
+        >
+          <option value="">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="finalized">Finalized</option>
+        </select>
 
         <div className="relative">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

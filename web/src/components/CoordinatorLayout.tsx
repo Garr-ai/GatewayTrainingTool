@@ -16,8 +16,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/trainers',  label: 'Trainers',  icon: icon('M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6') },
   { to: '/reports',   label: 'Reports',   icon: icon('M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8') },
   { to: '/schedule',  label: 'Schedule',  icon: icon('M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18') },
-  { to: '/payroll/trainers', label: 'Trainer Payroll', icon: icon('M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6') },
-  { to: '/payroll/students', label: 'Student Payroll', icon: icon('M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6') },
 ]
 
 const settingsPath = 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z'
@@ -33,7 +31,7 @@ function NavTooltip({ label }: { label: string }) {
 }
 
 export function CoordinatorLayout() {
-  const { email } = useAuth()
+  const { email, signOut } = useAuth()
   const initials = email ? email.slice(0, 2).toUpperCase() : 'CO'
 
   return (
@@ -65,7 +63,7 @@ export function CoordinatorLayout() {
         ))}
       </nav>
 
-      {/* Avatar + Settings pinned to bottom */}
+      {/* Avatar + Settings + Sign out pinned to bottom */}
       <div className="flex flex-col items-center gap-2 px-3">
         <div className="w-8 h-8 rounded-full bg-gw-blue/20 border border-gw-blue/30 flex items-center justify-center select-none">
           <span className="text-xs font-semibold text-gw-blue">{initials}</span>
@@ -86,6 +84,18 @@ export function CoordinatorLayout() {
             {icon(settingsPath)}
           </NavLink>
           <NavTooltip label="Settings" />
+        </div>
+
+        <div className="relative group/tip w-full flex justify-center">
+          <button
+            type="button"
+            onClick={signOut}
+            className="w-10 h-10 rounded-[10px] flex items-center justify-center text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-colors duration-100"
+            aria-label="Sign out"
+          >
+            {icon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
+          </button>
+          <NavTooltip label="Sign out" />
         </div>
       </div>
     </aside>

@@ -9,10 +9,12 @@ import { useState } from 'react'
 import { useScheduleQuery } from '../hooks/useScheduleQuery'
 import { useClasses } from '../contexts/ClassesContext'
 import { ScheduleFilterBar } from '../components/ScheduleFilterBar'
+import { CollapsibleSection } from '../components/CollapsibleSection'
 import { ScheduleTable } from '../components/ScheduleTable'
 import { ScheduleCalendar } from '../components/ScheduleCalendar'
 import { Pagination } from '../components/Pagination'
 import { SkeletonTable } from '../components/Skeleton'
+import { EmptyState } from '../components/EmptyState'
 
 type ScheduleView = 'table' | 'calendar'
 
@@ -83,33 +85,32 @@ export function SchedulePage() {
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-4">
-        <ScheduleFilterBar
-          filters={filters}
-          setFilter={setFilter}
-          resetFilters={resetFilters}
-          classes={allClasses}
-        />
+        <CollapsibleSection label="Filters">
+          <ScheduleFilterBar
+            filters={filters}
+            setFilter={setFilter}
+            resetFilters={resetFilters}
+            classes={allClasses}
+          />
+        </CollapsibleSection>
 
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : slots.length === 0 ? (
-          <div className="bg-gw-surface rounded-[10px] p-10 text-center">
+          <div className="bg-gw-surface rounded-[10px]">
             {hasActiveFilters ? (
-              <>
-                <p className="text-sm text-slate-300">No sessions match your filters.</p>
-                <button
-                  type="button"
-                  onClick={resetFilters}
-                  className="mt-2 text-xs text-gw-blue underline underline-offset-2 hover:text-blue-300 transition-colors"
-                >
-                  Reset all filters
-                </button>
-              </>
+              <EmptyState
+                title="No sessions match your filters"
+                description="Try adjusting your filters or reset them."
+                action={{ label: 'Reset filters', onClick: resetFilters }}
+                variant="neutral"
+              />
             ) : (
-              <>
-                <p className="text-sm text-slate-300">No upcoming sessions.</p>
-                <p className="mt-1 text-xs text-slate-500">Schedule slots appear here once added inside a class.</p>
-              </>
+              <EmptyState
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>}
+                title="No upcoming sessions"
+                description="Schedule slots appear here once added inside a class."
+              />
             )}
           </div>
         ) : view === 'table' ? (

@@ -28,6 +28,7 @@ import { useToast } from '../../contexts/ToastContext'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { SkeletonTable } from '../../components/Skeleton'
+import { EmptyState } from '../../components/EmptyState'
 import type { ClassEnrollment, EnrollmentStatus, Profile } from '../../types'
 
 interface ClassStudentsSectionProps {
@@ -57,6 +58,55 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   // Edit form field state
   const [editStatus, setEditStatus] = useState<EnrollmentStatus>('enrolled')
   const [editGroupLabel, setEditGroupLabel] = useState('')
+
+  // CSV import state
+  const [csvOpen, setCsvOpen] = useState(false)
+  const [csvRows, setCsvRows] = useState<{ email: string; group_label?: string; valid: boolean }[]>([])
+  const [csvSaving, setCsvSaving] = useState(false)
+  const [csvResult, setCsvResult] = useState<{ inserted: number; skipped: number; not_found: string[] } | null>(null)
+
+  function handleCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvResult(null)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const lines = text.split(/\r?\n/).filter(l => l.trim())
+      const rows = lines.map(line => {
+        const parts = line.split(',').map(s => s.trim())
+        const email = parts[0] ?? ''
+        const group_label = parts[1] || undefined
+        const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        return { email, group_label, valid }
+      })
+      // Skip header row if first row looks like a header
+      if (rows.length > 0 && (rows[0].email.toLowerCase() === 'email' || !rows[0].valid)) {
+        rows.shift()
+      }
+      setCsvRows(rows)
+    }
+    reader.readAsText(file)
+  }
+
+  async function handleCsvImport() {
+    const validRows = csvRows.filter(r => r.valid)
+    if (!validRows.length) return
+    setCsvSaving(true)
+    setError(null)
+    try {
+      const result = await api.enrollments.createBatch(classId, {
+        students: validRows.map(r => ({ email: r.email, group_label: r.group_label })),
+      })
+      setCsvResult(result)
+      refreshEnrollments()
+      toast(`Imported ${result.inserted} student${result.inserted !== 1 ? 's' : ''}`, 'success')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setCsvSaving(false)
+    }
+  }
 
   /**
    * Searches for trainee profiles matching the search term.
@@ -165,19 +215,81 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             View and manage students enrolled in this class, including competency groups.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => { setEnrollOpen(true); searchProfiles('') }}
-          className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0"
-        >
-          + Enroll student
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+          <button type="button" onClick={() => { setCsvOpen(true); setCsvRows([]); setCsvResult(null) }} className="rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
+            Import CSV
+          </button>
+          <button type="button" onClick={() => { setEnrollOpen(true); searchProfiles('') }} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150">
+            + Enroll student
+          </button>
+        </div>
       </header>
 
       {error && (
         <p className="mb-3 rounded-md bg-rose-500/10 border border-rose-500/25 px-3 py-2 text-xs text-rose-400" role="alert">
           {error}
         </p>
+      )}
+
+      {csvOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+            <header className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-100">Import students from CSV</h4>
+                <p className="mt-0.5 text-[11px] text-slate-500">Upload a CSV with columns: email, group (optional). One student per line.</p>
+              </div>
+              <button type="button" onClick={() => setCsvOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </header>
+
+            <input type="file" accept=".csv,text/csv" onChange={handleCsvFile} className="mb-3 block w-full text-xs text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-gw-elevated file:px-3 file:py-1.5 file:text-xs file:text-slate-200 file:cursor-pointer" />
+
+            {csvRows.length > 0 && (
+              <div className="max-h-48 overflow-auto rounded-md bg-gw-elevated border border-white/[0.06] mb-3">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                      <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Email</th>
+                      <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Group</th>
+                      <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvRows.map((r, i) => (
+                      <tr key={i} className="border-b border-white/[0.03]">
+                        <td className="px-3 py-1.5 text-slate-200">{r.email}</td>
+                        <td className="px-3 py-1.5 text-slate-400">{r.group_label || '—'}</td>
+                        <td className="px-3 py-1.5">
+                          {r.valid
+                            ? <span className="text-emerald-400 text-[10px]">Valid</span>
+                            : <span className="text-rose-400 text-[10px]">Invalid email</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {csvResult && (
+              <div className="mb-3 text-xs space-y-1">
+                <p className="text-emerald-400">Imported {csvResult.inserted} student{csvResult.inserted !== 1 ? 's' : ''}. {csvResult.skipped > 0 && `${csvResult.skipped} already enrolled.`}</p>
+                {csvResult.not_found.length > 0 && (
+                  <p className="text-amber-400">Not found: {csvResult.not_found.join(', ')}</p>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setCsvOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Close</button>
+              <button type="button" onClick={handleCsvImport} disabled={csvSaving || csvRows.filter(r => r.valid).length === 0} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
+                {csvSaving ? 'Importing…' : `Import ${csvRows.filter(r => r.valid).length} student${csvRows.filter(r => r.valid).length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {enrollOpen && (
@@ -273,8 +385,12 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       {loading ? (
         <SkeletonTable rows={3} cols={5} />
       ) : students.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px] px-4 py-6 text-center text-xs text-slate-500">
-          No students enrolled yet for <span className="font-medium text-slate-300">{className}</span>.
+        <div className="bg-gw-elevated rounded-[10px]">
+          <EmptyState
+            title="No students enrolled yet"
+            description={`Enroll students in ${className} to start tracking their progress.`}
+            variant="neutral"
+          />
         </div>
       ) : (
         <div className="bg-gw-elevated rounded-[10px] overflow-hidden">
