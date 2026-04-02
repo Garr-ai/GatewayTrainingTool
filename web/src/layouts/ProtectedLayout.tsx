@@ -24,7 +24,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { CoordinatorLayout } from '../components/CoordinatorLayout'
 
 export function ProtectedLayout() {
-  const { session, role, loading } = useAuth()
+  const { session, role, loading, signOut } = useAuth()
   // Controls the mobile slide-in navigation drawer on small screens
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -85,8 +85,15 @@ export function ProtectedLayout() {
   // Non-coordinator layout (trainer / trainee): simple header + centered content
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
-      <header className="px-6 py-4 border-b border-slate-200 bg-white">
+      <header className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-900">Gateway Training Tool</h1>
+        <button
+          type="button"
+          onClick={signOut}
+          className="rounded-md border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
+        >
+          Sign out
+        </button>
       </header>
       <main className="flex-1 flex items-start justify-center px-4 py-10">
         <Outlet />
