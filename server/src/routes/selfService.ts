@@ -6,7 +6,8 @@
  * requireAuth from the JWT), not by a coordinator-supplied ID.
  *
  * Routes:
- *   GET /me/trainer-dashboard  — Classes this trainer is assigned to, with student counts
+ *   GET /me/my-classes         — Classes this trainer is assigned to, with richer metadata
+ *   GET /me/trainer-dashboard  — Backwards-compat alias for /me/my-classes
  *   GET /me/trainee-progress   — Progress and drill times for this trainee across all classes
  */
 
@@ -16,16 +17,33 @@ import { supabase } from '../lib/supabase'
 export const selfServiceRouter = Router()
 
 /**
- * GET /me/trainer-dashboard
- * Auth: any authenticated user (trainers use this; coordinators can also call it)
- *
- * Returns the classes the calling trainer is assigned to, along with:
- *   - Class metadata (name, site, province, game_type, start_date, end_date)
- *   - trainer_role (primary | assistant) in that class
- *   - enrolled_count: number of students with status='enrolled'
- *   - upcoming_slots: next 3 schedule slots for this class on/after today
+ * Validates that the given email belongs to a trainer assigned to the given class.
+ * Returns the class_trainers row on success.
+ * Throws a 403-style error if the trainer is not assigned.
  */
-selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Response, next: NextFunction) => {
+async function validateTrainerAccess(email: string, classId: string) {
+  const { data, error } = await supabase
+    .from('class_trainers')
+    .select('id, class_id, trainer_name, trainer_email, role')
+    .eq('trainer_email', email)
+    .eq('class_id', classId)
+    .single()
+  if (error || !data) {
+    const err = new Error('You are not assigned to this class') as Error & { status: number }
+    err.status = 403
+    throw err
+  }
+  return data as { id: string; class_id: string; trainer_name: string; trainer_email: string; role: string }
+}
+
+/**
+ * GET /me/my-classes
+ * Auth: any authenticated user (trainers use this)
+ *
+ * Returns all classes the trainer is assigned to with metadata, enrollment counts,
+ * upcoming schedule slots, draft report count, and recent hours.
+ */
+const myClassesHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const email = req.userEmail
     if (!email) {
@@ -33,7 +51,6 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
       return
     }
 
-    // 1. Find all class_trainer rows for this email
     const { data: trainerRows, error: trainerError } = await supabase
       .from('class_trainers')
       .select('id, class_id, trainer_name, role')
@@ -45,10 +62,10 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
     }
 
     const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const trainerIds = trainerRows.map((t: { id: string }) => t.id)
     const today = new Date().toISOString().slice(0, 10)
 
-    // 2. Fetch class details, enrollment counts, and upcoming schedule in parallel
-    const [classesResult, enrollCountResult, scheduleResult] = await Promise.all([
+    const [classesResult, enrollCountResult, scheduleResult, draftCountResult, hoursResult] = await Promise.all([
       supabase
         .from('classes')
         .select('id, name, site, province, game_type, start_date, end_date, archived')
@@ -66,38 +83,58 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
         .order('slot_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(50),
+      supabase
+        .from('class_daily_reports')
+        .select('class_id')
+        .in('class_id', classIds)
+        .eq('status', 'draft'),
+      supabase
+        .from('class_logged_hours')
+        .select('class_id, hours')
+        .in('class_id', classIds)
+        .eq('person_type', 'trainer')
+        .in('trainer_id', trainerIds),
     ])
 
     if (classesResult.error) throw classesResult.error
     if (enrollCountResult.error) throw enrollCountResult.error
     if (scheduleResult.error) throw scheduleResult.error
+    if (draftCountResult.error) throw draftCountResult.error
+    if (hoursResult.error) throw hoursResult.error
 
-    // Build enrollment count map: classId -> count
     const enrollCountMap = new Map<string, number>()
     for (const row of enrollCountResult.data ?? []) {
       const r = row as { class_id: string }
       enrollCountMap.set(r.class_id, (enrollCountMap.get(r.class_id) ?? 0) + 1)
     }
 
-    // Build upcoming slots map: classId -> first 3 slots
     const slotsMap = new Map<string, typeof scheduleResult.data>()
     for (const slot of scheduleResult.data ?? []) {
       const s = slot as { class_id: string }
       const existing = slotsMap.get(s.class_id) ?? []
-      if (existing.length < 3) {
-        slotsMap.set(s.class_id, [...existing, slot])
-      }
+      if (existing.length < 3) slotsMap.set(s.class_id, [...existing, slot])
+    }
+
+    const draftCountMap = new Map<string, number>()
+    for (const row of draftCountResult.data ?? []) {
+      const r = row as { class_id: string }
+      draftCountMap.set(r.class_id, (draftCountMap.get(r.class_id) ?? 0) + 1)
+    }
+
+    const hoursMap = new Map<string, number>()
+    for (const row of hoursResult.data ?? []) {
+      const r = row as { class_id: string; hours: number }
+      hoursMap.set(r.class_id, (hoursMap.get(r.class_id) ?? 0) + r.hours)
     }
 
     const classMap = new Map<string, (typeof classesResult.data)[0]>()
-    for (const c of classesResult.data ?? []) {
-      classMap.set(c.id, c)
-    }
+    for (const c of classesResult.data ?? []) classMap.set(c.id, c)
 
     const classes = trainerRows.map((t: { id: string; class_id: string; trainer_name: string; role: string }) => {
       const cls = classMap.get(t.class_id)
       return {
         class_id: t.class_id,
+        trainer_id: t.id,
         class_name: cls?.name ?? 'Unknown',
         site: cls?.site ?? '',
         province: cls?.province ?? '',
@@ -107,6 +144,8 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
         archived: cls?.archived ?? false,
         trainer_role: t.role,
         enrolled_count: enrollCountMap.get(t.class_id) ?? 0,
+        draft_report_count: draftCountMap.get(t.class_id) ?? 0,
+        total_hours: hoursMap.get(t.class_id) ?? 0,
         upcoming_slots: slotsMap.get(t.class_id) ?? [],
       }
     })
@@ -119,7 +158,12 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
   } catch (err) {
     next(err)
   }
-})
+}
+
+selfServiceRouter.get('/me/my-classes', myClassesHandler)
+
+// Backwards compatibility alias
+selfServiceRouter.get('/me/trainer-dashboard', myClassesHandler)
 
 /**
  * GET /me/trainee-progress
