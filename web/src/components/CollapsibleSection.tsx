@@ -4,7 +4,7 @@ interface CollapsibleSectionProps {
   title?: string
   summary?: string
   defaultOpen?: boolean
-  mobileDefaultOpen?: boolean
+  collapseOnMobileMount?: boolean
   children: React.ReactNode
 }
 
@@ -12,21 +12,27 @@ export function CollapsibleSection({
   title,
   summary,
   defaultOpen = true,
-  mobileDefaultOpen = false,
+  collapseOnMobileMount = true,
   children,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen)
 
-  // On mobile, override default to collapsed
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)')
-    if (mq.matches && !mobileDefaultOpen) setOpen(false)
-  }, [mobileDefaultOpen])
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches && collapseOnMobileMount) setOpen(false)
+      else if (!e.matches) setOpen(defaultOpen)
+    }
+    handleChange(mq)
+    mq.addEventListener('change', handleChange)
+    return () => mq.removeEventListener('change', handleChange)
+  }, [collapseOnMobileMount, defaultOpen])
 
   return (
     <div>
       <button
         type="button"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between gap-2 py-2 text-left"
       >
@@ -48,12 +54,10 @@ export function CollapsibleSection({
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div
-        className={`overflow-hidden transition-all duration-200 ${
-          open ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        {children}
+      <div className={`grid transition-all duration-200 ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          {children}
+        </div>
       </div>
     </div>
   )
