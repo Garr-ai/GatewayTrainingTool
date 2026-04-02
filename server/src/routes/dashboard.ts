@@ -30,10 +30,11 @@ dashboardRouter.get('/dashboard/hours-summary', async (req: Request, res: Respon
 // GET /api/dashboard/enrollment-summary
 dashboardRouter.get('/dashboard/enrollment-summary', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { data: classes } = await supabase
+    const { data: classes, error: classesError } = await supabase
       .from('classes')
       .select('id')
       .eq('archived', false)
+    if (classesError) throw classesError
     const classIds = (classes ?? []).map(c => c.id)
     if (classIds.length === 0) {
       res.json({ enrolled: 0, waitlist: 0 })
@@ -62,10 +63,11 @@ dashboardRouter.get('/dashboard/attendance-rate', async (req: Request, res: Resp
     const now = new Date()
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
 
-    const { data: reports } = await supabase
+    const { data: reports, error: reportsError } = await supabase
       .from('class_daily_reports')
       .select('id')
       .gte('report_date', monthStart)
+    if (reportsError) throw reportsError
     const reportIds = (reports ?? []).map(r => r.id)
     if (reportIds.length === 0) {
       res.json({ rate: null })
@@ -139,10 +141,10 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
     const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50)
 
     const [
-      { data: recentReports },
-      { data: recentEnrollments },
-      { data: recentSlots },
-      { data: recentClasses },
+      { data: recentReports, error: reportsErr },
+      { data: recentEnrollments, error: enrollmentsErr },
+      { data: recentSlots, error: slotsErr },
+      { data: recentClasses, error: classesErr },
     ] = await Promise.all([
       supabase
         .from('class_daily_reports')
@@ -166,6 +168,11 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
         .limit(limit),
     ])
 
+    if (reportsErr) throw reportsErr
+    if (enrollmentsErr) throw enrollmentsErr
+    if (slotsErr) throw slotsErr
+    if (classesErr) throw classesErr
+
     type ActivityItem = { type: string; description: string; timestamp: string; link_to: string }
     const items: ActivityItem[] = []
 
@@ -175,7 +182,7 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
         type: 'report',
         description: `Report filed for ${cls.name} (${r.report_date})`,
         timestamp: r.created_at,
-        link_to: `/classes/${cls.name.trim().replace(/\s+/g, '-')}`,
+        link_to: `/classes/${encodeURIComponent(cls.name.trim().replace(/\s+/g, '-'))}`,
       })
     }
     for (const e of recentEnrollments ?? []) {
@@ -184,7 +191,7 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
         type: 'enrollment',
         description: `${e.student_name} ${e.status} in ${cls.name}`,
         timestamp: e.created_at,
-        link_to: `/classes/${cls.name.trim().replace(/\s+/g, '-')}`,
+        link_to: `/classes/${encodeURIComponent(cls.name.trim().replace(/\s+/g, '-'))}`,
       })
     }
     for (const s of recentSlots ?? []) {
@@ -193,7 +200,7 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
         type: 'schedule',
         description: `Schedule slot added for ${cls.name} on ${s.slot_date}`,
         timestamp: s.created_at,
-        link_to: `/classes/${cls.name.trim().replace(/\s+/g, '-')}`,
+        link_to: `/classes/${encodeURIComponent(cls.name.trim().replace(/\s+/g, '-'))}`,
       })
     }
     for (const c of recentClasses ?? []) {
@@ -201,7 +208,7 @@ dashboardRouter.get('/dashboard/activity', async (req: Request, res: Response, n
         type: 'class',
         description: c.archived ? `${c.name} archived` : `${c.name} created`,
         timestamp: c.updated_at ?? c.created_at,
-        link_to: `/classes/${c.name.trim().replace(/\s+/g, '-')}`,
+        link_to: `/classes/${encodeURIComponent(c.name.trim().replace(/\s+/g, '-'))}`,
       })
     }
 
