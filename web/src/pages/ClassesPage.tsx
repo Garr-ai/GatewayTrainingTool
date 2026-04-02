@@ -60,8 +60,8 @@ export function ClassesPage() {
 
   function sortClasses(classes: Class[]): Class[] {
     return [...classes].sort((a, b) => {
-      const aVal = (a as Record<string, unknown>)[sortCol] as string | null ?? ''
-      const bVal = (b as Record<string, unknown>)[sortCol] as string | null ?? ''
+      const aVal = (a as unknown as Record<string, unknown>)[sortCol] as string | null ?? ''
+      const bVal = (b as unknown as Record<string, unknown>)[sortCol] as string | null ?? ''
       const cmp = String(aVal).localeCompare(String(bVal))
       return sortDir === 'asc' ? cmp : -cmp
     })

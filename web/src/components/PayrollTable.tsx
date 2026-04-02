@@ -7,7 +7,6 @@ interface PayrollTableProps {
 }
 
 export function PayrollTable({ rows, personLabel, hideClassCount }: PayrollTableProps) {
-  const cols = hideClassCount ? 5 : 6
   const namePct = hideClassCount ? 'w-[25%]' : 'w-[22%]'
   const emailPct = hideClassCount ? 'w-[25%]' : 'w-[22%]'
   const numPct = hideClassCount ? 'w-[16.6%]' : 'w-[14%]'
