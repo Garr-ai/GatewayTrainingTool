@@ -182,7 +182,6 @@ export interface ReportListParams {
   date_from?: string
   date_to?: string
   search?: string
-  status?: 'draft' | 'finalized' | ''
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
   page?: number
@@ -429,7 +428,6 @@ export const api = {
     update: (classId: string, id: string, body: ReportBody) =>
       req<ClassDailyReport>(`/classes/${classId}/reports/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/reports/${id}`, { method: 'DELETE' }),
-    finalize: (id: string) => req<ClassDailyReport>(`/reports/${id}/finalize`, { method: 'PATCH' }),
   },
 
   hours: {

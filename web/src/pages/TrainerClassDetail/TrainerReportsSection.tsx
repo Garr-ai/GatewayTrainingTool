@@ -226,7 +226,6 @@ export function TrainerReportsSection() {
           override_hours_to_date: null,
           override_paid_hours_total: null,
           override_live_hours_total: null,
-          status: 'draft',
           created_at: new Date().toISOString(),
         }
         setReports(prev => [tempReport, ...prev])

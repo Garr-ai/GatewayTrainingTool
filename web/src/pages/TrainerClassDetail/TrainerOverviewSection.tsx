@@ -69,7 +69,6 @@ export function TrainerOverviewSection() {
                 { label: 'Enrolled students', value: String(enrolledCount) },
                 { label: 'Next session', value: nextSession ? `${nextSession.slot_date} ${nextSession.start_time}–${nextSession.end_time}` : 'None scheduled' },
                 { label: 'Total reports', value: String(reports.length) },
-                { label: 'Draft reports', value: String(reports.filter(r => r.status === 'draft').length) },
                 { label: 'Your logged hours', value: `${totalTrainerHours}h` },
                 { label: 'Student hours logged', value: `${totalStudentHours}h` },
               ].map(({ label, value }) => (

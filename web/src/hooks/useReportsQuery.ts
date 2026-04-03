@@ -11,7 +11,6 @@ export interface ReportsFilters {
   date_from: string
   date_to: string
   search: string
-  status: 'draft' | 'finalized' | ''
 }
 
 export interface ReportsSort {
@@ -28,7 +27,6 @@ const DEFAULT_FILTERS: ReportsFilters = {
   date_from: '',
   date_to: '',
   search: '',
-  status: '',
 }
 
 const DEFAULT_SORT: ReportsSort = { column: 'report_date', direction: 'desc' }
@@ -80,7 +78,6 @@ export function useReportsQuery() {
       if (f.date_from) params.date_from = f.date_from
       if (f.date_to) params.date_to = f.date_to
       if (search) params.search = search
-      if (f.status) params.status = f.status
 
       const result = await api.reports.listAll(params)
       setReports(result.data)
@@ -105,7 +102,6 @@ export function useReportsQuery() {
     filters.game_type,
     filters.date_from,
     filters.date_to,
-    filters.status,
     debouncedSearch,
     sort.column,
     sort.direction,

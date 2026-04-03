@@ -148,7 +148,6 @@ export interface ClassDailyReport {
   override_hours_to_date: number | null     // Manual override for cumulative training hours
   override_paid_hours_total: number | null  // Manual override for paid hours total
   override_live_hours_total: number | null  // Manual override for live floor hours total
-  status: 'draft' | 'finalized'
   created_at: string
 }
 
@@ -368,7 +367,6 @@ export interface TrainerMyClassesResponse {
     archived: boolean
     trainer_role: string
     enrolled_count: number
-    draft_report_count: number
     total_hours: number
     upcoming_slots: UpcomingSlot[]
   }>

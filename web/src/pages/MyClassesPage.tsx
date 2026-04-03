@@ -58,9 +58,6 @@ export function MyClassesPage() {
             <span><span className="font-medium text-slate-300">Game:</span> {cls.game_type}</span>
           )}
           <span><span className="font-medium text-slate-300">Students:</span> {cls.enrolled_count}</span>
-          {cls.draft_report_count > 0 && (
-            <span className="text-amber-400"><span className="font-medium">Drafts:</span> {cls.draft_report_count}</span>
-          )}
           <span><span className="font-medium text-slate-300">Hours:</span> {cls.total_hours}</span>
         </div>
 

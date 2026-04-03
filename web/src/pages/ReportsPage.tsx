@@ -8,14 +8,11 @@ import { Pagination } from '../components/Pagination'
 import { ReportPreviewModal } from '../components/ReportPreviewModal'
 import { SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
-import { useToast } from '../contexts/ToastContext'
-import { api } from '../lib/apiClient'
-import type { ReportRow } from '../lib/apiClient'
+import { api, type ReportRow } from '../lib/apiClient'
 import type { ReportPdfArgs } from '../lib/reportPdf'
 
 export function ReportsPage() {
   const { active, archived } = useClasses()
-  const { toast } = useToast()
   const {
     reports,
     total,
@@ -28,12 +25,9 @@ export function ReportsPage() {
     setSort,
     setPage,
     resetFilters,
-    refetch,
   } = useReportsQuery()
 
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
-  const [previewReportId, setPreviewReportId] = useState<string | null>(null)
-  const [previewStatus, setPreviewStatus] = useState<string | undefined>(undefined)
   const [loadingReport, setLoadingReport] = useState<string | null>(null)
 
   async function handleReportClick(row: ReportRow) {
@@ -46,8 +40,6 @@ export function ReportsPage() {
         api.enrollments.list(row.class_id),
         api.drills.list(row.class_id),
       ])
-      setPreviewReportId(row.id)
-      setPreviewStatus(row.status)
       setPreviewArgs({
         report: fullReport,
         className: row.classes.name,
@@ -56,21 +48,9 @@ export function ReportsPage() {
         drills,
       })
     } catch {
-      toast('Failed to load report', 'error')
+      // silently ignore — loading indicator will clear
     } finally {
       setLoadingReport(null)
-    }
-  }
-
-  async function handleFinalize() {
-    if (!previewReportId) return
-    try {
-      await api.reports.finalize(previewReportId)
-      setPreviewStatus('finalized')
-      refetch()
-      toast('Report finalized', 'success')
-    } catch (err) {
-      toast((err as Error).message, 'error')
     }
   }
 
@@ -145,9 +125,7 @@ export function ReportsPage() {
       {previewArgs && (
         <ReportPreviewModal
           args={previewArgs}
-          onClose={() => { setPreviewArgs(null); setPreviewReportId(null); setPreviewStatus(undefined) }}
-          onFinalize={handleFinalize}
-          status={previewStatus}
+          onClose={() => setPreviewArgs(null)}
         />
       )}
     </div>
