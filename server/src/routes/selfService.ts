@@ -83,6 +83,7 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
         .order('slot_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(50),
+      // draft_report_count is class-wide (all trainers' drafts) — shows how many reports need attention
       supabase
         .from('class_daily_reports')
         .select('class_id')
@@ -124,7 +125,7 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
     const hoursMap = new Map<string, number>()
     for (const row of hoursResult.data ?? []) {
       const r = row as { class_id: string; hours: number }
-      hoursMap.set(r.class_id, (hoursMap.get(r.class_id) ?? 0) + r.hours)
+      hoursMap.set(r.class_id, (hoursMap.get(r.class_id) ?? 0) + (r.hours ?? 0))
     }
 
     const classMap = new Map<string, (typeof classesResult.data)[0]>()
