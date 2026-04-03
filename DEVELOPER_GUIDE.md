@@ -610,6 +610,7 @@ cd ../web && npm install
 # 3. Set up environment variables
 # Create server/.env with SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, etc.
 # Create web/.env with VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_URL=http://localhost:3001
+# Optional for local OAuth/reset callbacks: VITE_AUTH_REDIRECT_URL=http://localhost:5173
 ```
 
 ### Daily development

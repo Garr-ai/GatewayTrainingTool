@@ -373,6 +373,7 @@ FIELD_ENCRYPTION_KEY=<64-char hex>        # For AES-256-GCM (optional until sens
 VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJxxx...         # Public anon key (safe to expose)
 VITE_API_URL=http://localhost:3001        # Local dev only; leave empty for production
+VITE_AUTH_REDIRECT_URL=http://localhost:5173  # Optional: force OAuth/reset callbacks in local dev
 ```
 
 ---

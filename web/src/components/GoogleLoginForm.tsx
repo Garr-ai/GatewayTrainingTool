@@ -15,6 +15,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { buildAuthRedirectUrl } from '../lib/authRedirect'
 
 export function GoogleButton() {
   // True while the OAuth redirect is being initiated
@@ -35,7 +36,7 @@ export function GoogleButton() {
       provider: 'google',
       options: {
         // Supabase will redirect the browser here after the OAuth callback
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: buildAuthRedirectUrl('/'),
       },
     })
 

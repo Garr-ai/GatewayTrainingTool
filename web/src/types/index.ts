@@ -285,6 +285,7 @@ export interface TrainerDashboardResponse {
   trainer_email: string
   classes: Array<{
     class_id: string
+    trainer_id: string
     class_name: string
     site: string
     province: string
@@ -294,6 +295,7 @@ export interface TrainerDashboardResponse {
     archived: boolean
     trainer_role: string
     enrolled_count: number
+    total_hours: number
     upcoming_slots: UpcomingSlot[]
   }>
 }
