@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 type NavItem = { to: string; label: string; icon: React.ReactNode }
 
@@ -27,6 +28,8 @@ function NavTooltip({ label }: { label: string }) {
 }
 
 export function TrainerLayout() {
+  const { signOut } = useAuth()
+
   return (
     <aside className="hidden md:flex fixed top-0 left-0 h-full w-16 flex-col items-center py-4 gap-2 bg-white/[0.03] border-r border-white/[0.06] z-50">
       {/* Logo mark */}
@@ -55,6 +58,19 @@ export function TrainerLayout() {
           </div>
         ))}
       </nav>
+
+      {/* Sign out */}
+      <div className="relative group/tip w-full flex justify-center px-3">
+        <button
+          type="button"
+          onClick={signOut}
+          className="w-10 h-10 rounded-[10px] flex items-center justify-center text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-colors duration-100"
+          aria-label="Sign out"
+        >
+          {icon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
+        </button>
+        <NavTooltip label="Sign out" />
+      </div>
     </aside>
   )
 }

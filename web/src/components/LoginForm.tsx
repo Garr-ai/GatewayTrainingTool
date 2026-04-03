@@ -21,6 +21,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { GoogleButton } from './GoogleLoginForm'
+import { buildAuthRedirectUrl } from '../lib/authRedirect'
 
 /** The three authentication states this form can be in. */
 type AuthMode = 'signin' | 'signup' | 'reset'
@@ -65,7 +66,7 @@ export function LoginForm() {
     } else if (mode === 'reset') {
       // redirectTo is the URL Supabase includes in the reset email link
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: buildAuthRedirectUrl('/reset-password'),
       })
       if (error) {
         setStatus('error')

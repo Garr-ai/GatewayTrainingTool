@@ -148,7 +148,6 @@ export interface ClassDailyReport {
   override_hours_to_date: number | null     // Manual override for cumulative training hours
   override_paid_hours_total: number | null  // Manual override for paid hours total
   override_live_hours_total: number | null  // Manual override for live floor hours total
-  status: 'draft' | 'finalized'
   created_at: string
 }
 
@@ -286,6 +285,7 @@ export interface TrainerDashboardResponse {
   trainer_email: string
   classes: Array<{
     class_id: string
+    trainer_id: string
     class_name: string
     site: string
     province: string
@@ -295,6 +295,7 @@ export interface TrainerDashboardResponse {
     archived: boolean
     trainer_role: string
     enrolled_count: number
+    total_hours: number
     upcoming_slots: UpcomingSlot[]
   }>
 }
@@ -368,7 +369,6 @@ export interface TrainerMyClassesResponse {
     archived: boolean
     trainer_role: string
     enrolled_count: number
-    draft_report_count: number
     total_hours: number
     upcoming_slots: UpcomingSlot[]
   }>

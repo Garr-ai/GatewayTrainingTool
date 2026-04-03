@@ -66,7 +66,7 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
     const trainerIds = trainerRows.map((t: { id: string }) => t.id)
     const today = new Date().toISOString().slice(0, 10)
 
-    const [classesResult, enrollCountResult, scheduleResult, draftCountResult, hoursResult] = await Promise.all([
+    const [classesResult, enrollCountResult, scheduleResult, hoursResult] = await Promise.all([
       supabase
         .from('classes')
         .select('id, name, site, province, game_type, start_date, end_date, archived')
@@ -84,12 +84,6 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
         .order('slot_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(50),
-      // draft_report_count is class-wide (all trainers' drafts) — shows how many reports need attention
-      supabase
-        .from('class_daily_reports')
-        .select('class_id')
-        .in('class_id', classIds)
-        .eq('status', 'draft'),
       supabase
         .from('class_logged_hours')
         .select('class_id, hours')
@@ -101,7 +95,6 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
     if (classesResult.error) throw classesResult.error
     if (enrollCountResult.error) throw enrollCountResult.error
     if (scheduleResult.error) throw scheduleResult.error
-    if (draftCountResult.error) throw draftCountResult.error
     if (hoursResult.error) throw hoursResult.error
 
     const enrollCountMap = new Map<string, number>()
@@ -115,12 +108,6 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
       const s = slot as { class_id: string }
       const existing = slotsMap.get(s.class_id) ?? []
       if (existing.length < 3) slotsMap.set(s.class_id, [...existing, slot])
-    }
-
-    const draftCountMap = new Map<string, number>()
-    for (const row of draftCountResult.data ?? []) {
-      const r = row as { class_id: string }
-      draftCountMap.set(r.class_id, (draftCountMap.get(r.class_id) ?? 0) + 1)
     }
 
     const hoursMap = new Map<string, number>()
@@ -146,7 +133,6 @@ const myClassesHandler = async (req: Request, res: Response, next: NextFunction)
         archived: cls?.archived ?? false,
         trainer_role: t.role,
         enrolled_count: enrollCountMap.get(t.class_id) ?? 0,
-        draft_report_count: draftCountMap.get(t.class_id) ?? 0,
         total_hours: hoursMap.get(t.class_id) ?? 0,
         upcoming_slots: slotsMap.get(t.class_id) ?? [],
       }
@@ -793,44 +779,6 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', async (req: R
   }
 })
 
-selfServiceRouter.post('/me/my-classes/:classId/reports/:reportId/finalize', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
-    const classId = req.params.classId as string
-    const reportId = req.params.reportId as string
-    await validateTrainerAccess(req.userEmail, classId)
-
-    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
-    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
-
-    const { data, error } = await supabase
-      .from('class_daily_reports')
-      .update({ status: 'finalized' })
-      .eq('id', reportId)
-      .eq('class_id', classId)
-      .select()
-      .single()
-    if (error) {
-      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Report not found' }); return }
-      throw error
-    }
-
-    await logAudit({
-      userId: req.userId!,
-      action: 'UPDATE',
-      tableName: 'class_daily_reports',
-      recordId: reportId,
-      metadata: { action: 'finalize', finalized_by: 'trainer' },
-      ipAddress: req.ip,
-    })
-
-    res.json(data)
-  } catch (err) {
-    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
-    next(err)
-  }
-})
-
 // ─── Hours Write Endpoints ────────────────────────────────────────────────────
 
 selfServiceRouter.post('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
@@ -1063,7 +1011,7 @@ selfServiceRouter.get('/me/reports', async (req: Request, res: Response, next: N
     }
 
     const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
-    const { class_id, date_from, date_to, status, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+    const { class_id, date_from, date_to, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
 
     const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
     const page = Math.max(Number(pageStr) || 0, 0)
@@ -1079,7 +1027,6 @@ selfServiceRouter.get('/me/reports', async (req: Request, res: Response, next: N
     if (class_id) query = query.eq('class_id', class_id)
     if (date_from) query = query.gte('report_date', date_from)
     if (date_to) query = query.lte('report_date', date_to)
-    if (status && (status === 'draft' || status === 'finalized')) query = query.eq('status', status)
 
     query = query.range(offset, offset + limit - 1)
 

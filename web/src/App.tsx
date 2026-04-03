@@ -33,7 +33,7 @@ import { ToastProvider } from './contexts/ToastContext'
 import { ClassesProvider } from './contexts/ClassesContext'
 import { CoordinatorRoute } from './layouts/CoordinatorRoute'
 import { TrainerRoute } from './layouts/TrainerRoute'
-import { TrainerProvider } from './contexts/TrainerContext'
+import { ConditionalTrainerProvider } from './contexts/TrainerContext'
 import { ProtectedLayout } from './layouts/ProtectedLayout'
 import { LoginView } from './pages/LoginView'
 import { DashboardView } from './pages/DashboardView'
@@ -68,7 +68,7 @@ function App() {
           <Route path="/login" element={<LoginView />} />
 
           {/* Protected shell */}
-          <Route path="/" element={<ClassesProvider><ProtectedLayout /></ClassesProvider>}>
+          <Route path="/" element={<ClassesProvider><ConditionalTrainerProvider><ProtectedLayout /></ConditionalTrainerProvider></ClassesProvider>}>
             <Route index element={<Navigate to="/dashboard" replace />} />
 
             {/* Role-aware dashboard */}
@@ -86,20 +86,20 @@ function App() {
             <Route path="reports" element={
               <RoleAwareRoute
                 coordinator={<CoordinatorRoute><ReportsPage /></CoordinatorRoute>}
-                trainer={<TrainerRoute><TrainerProvider><TrainerReportsPage /></TrainerProvider></TrainerRoute>}
+                trainer={<TrainerRoute><TrainerReportsPage /></TrainerRoute>}
               />
             } />
             <Route path="schedule" element={
               <RoleAwareRoute
                 coordinator={<CoordinatorRoute><SchedulePage /></CoordinatorRoute>}
-                trainer={<TrainerRoute><TrainerProvider><TrainerSchedulePage /></TrainerProvider></TrainerRoute>}
+                trainer={<TrainerRoute><TrainerSchedulePage /></TrainerRoute>}
               />
             } />
 
             {/* Trainer-only routes */}
-            <Route path="my-classes" element={<TrainerRoute><TrainerProvider><MyClassesPage /></TrainerProvider></TrainerRoute>} />
-            <Route path="my-classes/:classId" element={<TrainerRoute><TrainerProvider><TrainerClassDetailPage /></TrainerProvider></TrainerRoute>} />
-            <Route path="hours" element={<TrainerRoute><TrainerProvider><TrainerHoursPage /></TrainerProvider></TrainerRoute>} />
+            <Route path="my-classes" element={<TrainerRoute><MyClassesPage /></TrainerRoute>} />
+            <Route path="my-classes/:classId" element={<TrainerRoute><TrainerClassDetailPage /></TrainerRoute>} />
+            <Route path="hours" element={<TrainerRoute><TrainerHoursPage /></TrainerRoute>} />
           </Route>
 
           {/* Catch-all */}

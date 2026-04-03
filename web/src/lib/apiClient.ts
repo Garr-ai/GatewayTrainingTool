@@ -69,14 +69,32 @@ async function authHeaders(): Promise<HeadersInit> {
   return { Authorization: `Bearer ${session.access_token}` }
 }
 
+// Deduplicates concurrent GET requests to the same path — if a fetch is already
+// in-flight, subsequent callers share the same Promise instead of firing again.
+const inFlight = new Map<string, Promise<unknown>>()
+
 /**
  * Generic fetch wrapper used by all API methods.
  * - Prepends API_BASE + "/api" to the path.
  * - Attaches Content-Type and Authorization headers automatically.
  * - Returns `undefined` (typed as T) for 204 No Content responses (e.g. DELETE).
  * - Throws an Error with the server's `error` field message if the response is not ok.
+ * - Deduplicates concurrent GET requests to the same path.
  */
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    const cached = inFlight.get(path)
+    if (cached) return cached as Promise<T>
+    const promise = doReq<T>(path, init)
+    inFlight.set(path, promise)
+    promise.finally(() => inFlight.delete(path))
+    return promise
+  }
+  return doReq<T>(path, init)
+}
+
+async function doReq<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = await authHeaders()
   const res = await fetch(`${API_BASE}/api${path}`, {
     ...init,
@@ -182,7 +200,6 @@ export interface ReportListParams {
   date_from?: string
   date_to?: string
   search?: string
-  status?: 'draft' | 'finalized' | ''
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
   page?: number
@@ -429,7 +446,6 @@ export const api = {
     update: (classId: string, id: string, body: ReportBody) =>
       req<ClassDailyReport>(`/classes/${classId}/reports/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/reports/${id}`, { method: 'DELETE' }),
-    finalize: (id: string) => req<ClassDailyReport>(`/reports/${id}/finalize`, { method: 'PATCH' }),
   },
 
   hours: {

@@ -108,8 +108,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
   const [reportSaving, setReportSaving] = useState(false)
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
-  const [previewReportId, setPreviewReportId] = useState<string | null>(null)
-  const [previewStatus, setPreviewStatus] = useState<string | undefined>(undefined)
   // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
   const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
   // Tracks the source row index during a timeline drag operation
@@ -279,7 +277,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           override_hours_to_date: body.override_hours_to_date,
           override_paid_hours_total: body.override_paid_hours_total,
           override_live_hours_total: body.override_live_hours_total,
-          status: 'draft',
           created_at: new Date().toISOString(),
         }
         setReports(prev => [tempReport, ...prev])
@@ -330,23 +327,9 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     try {
       const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
       reportCacheRef.current[r.id] = full
-      setPreviewReportId(r.id)
-      setPreviewStatus(r.status)
       setPreviewArgs({ report: full, className, trainers, enrollments, drills })
     } catch (err) {
       setError((err as Error).message)
-    }
-  }
-
-  async function handleFinalize() {
-    if (!previewReportId) return
-    try {
-      await api.reports.finalize(previewReportId)
-      setPreviewStatus('finalized')
-      refreshReports()
-      toast('Report finalized', 'success')
-    } catch (err) {
-      toast((err as Error).message, 'error')
     }
   }
 
@@ -1050,9 +1033,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     {previewArgs && (
       <ReportPreviewModal
         args={previewArgs}
-        onClose={() => { setPreviewArgs(null); setPreviewReportId(null); setPreviewStatus(undefined) }}
-        onFinalize={handleFinalize}
-        status={previewStatus}
+        onClose={() => { setPreviewArgs(null) }}
       />
     )}
 

@@ -56,7 +56,9 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
 
   const refreshDrills = useCallback(async () => {
     const detail = await api.selfService.classDetail(classId)
+    setClassInfo(detail)
     setDrills(detail.drills)
+    setEnrollments(detail.enrollments)
   }, [classId])
 
   const refreshSchedule = useCallback(async () => {
@@ -66,7 +68,9 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
 
   const refreshEnrollments = useCallback(async () => {
     const detail = await api.selfService.classDetail(classId)
+    setClassInfo(detail)
     setEnrollments(detail.enrollments)
+    setDrills(detail.drills)
   }, [classId])
 
   useEffect(() => {

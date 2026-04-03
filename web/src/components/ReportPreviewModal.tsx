@@ -23,7 +23,7 @@ import html2pdf from 'html2pdf.js'
 import { generateReportHtml } from '../lib/reportPdf'
 import type { ReportPdfArgs } from '../lib/reportPdf'
 
-export function ReportPreviewModal({ args, onClose, onFinalize, status }: { args: ReportPdfArgs; onClose: () => void; onFinalize?: () => void; status?: string }) {
+export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onClose: () => void }) {
   // Ref to the iframe so we can call contentWindow.print() on it
   const iframeRef = useRef<HTMLIFrameElement>(null)
   // Blob URL for the generated HTML — null until the effect runs
@@ -88,20 +88,6 @@ export function ReportPreviewModal({ args, onClose, onFinalize, status }: { args
           {args.report.group_label ? ` · Group ${args.report.group_label}` : ''}
         </span>
         <div className="flex items-center gap-2 ml-4">
-          {onFinalize && status === 'draft' && (
-            <button
-              type="button"
-              onClick={onFinalize}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600/80 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600"
-            >
-              Finalize
-            </button>
-          )}
-          {status && (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${status === 'finalized' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
-              {status}
-            </span>
-          )}
           <button
             type="button"
             onClick={handleDownload}
