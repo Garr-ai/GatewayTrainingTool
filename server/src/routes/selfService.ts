@@ -311,12 +311,16 @@ selfServiceRouter.get('/me/trainee-progress', async (req: Request, res: Response
  */
 selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    const trainerRow = await validateTrainerAccess(req.userEmail!, classId)
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
 
     const [classResult, enrollResult, drillsResult] = await Promise.all([
       supabase.from('classes').select('*').eq('id', classId).single(),
-      supabase.from('class_enrollments').select('*').eq('class_id', classId).order('student_name', { ascending: true }),
+      supabase.from('class_enrollments').select('id, class_id, student_name, student_email, status, group_label, created_at').eq('class_id', classId).order('student_name', { ascending: true }),
       supabase.from('class_drills').select('*').eq('class_id', classId).order('created_at', { ascending: false }),
     ])
 
@@ -347,8 +351,12 @@ selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Respo
  */
 selfServiceRouter.get('/me/my-classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    await validateTrainerAccess(req.userEmail!, classId)
+    await validateTrainerAccess(req.userEmail, classId)
 
     const { data, error } = await supabase
       .from('class_daily_reports')
@@ -373,15 +381,19 @@ selfServiceRouter.get('/me/my-classes/:classId/reports', async (req: Request, re
  */
 selfServiceRouter.get('/me/my-classes/:classId/reports/:reportId', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    await validateTrainerAccess(req.userEmail!, classId)
+    await validateTrainerAccess(req.userEmail, classId)
 
     const reportId = req.params.reportId as string
     const [
       { data: report, error: reportError },
-      { data: trainerLinks },
-      { data: timeline },
-      { data: progress },
+      { data: trainerLinks, error: trainerLinksError },
+      { data: timeline, error: timelineError },
+      { data: progress, error: progressError },
       { data: drillTimes, error: drillTimesError },
     ] = await Promise.all([
       supabase.from('class_daily_reports').select('*').eq('id', reportId).eq('class_id', classId).single(),
@@ -403,6 +415,9 @@ selfServiceRouter.get('/me/my-classes/:classId/reports/:reportId', async (req: R
       }
       throw reportError
     }
+    if (trainerLinksError) throw trainerLinksError
+    if (timelineError) throw timelineError
+    if (progressError) throw progressError
     if (drillTimesError) throw drillTimesError
 
     res.json({
@@ -423,8 +438,12 @@ selfServiceRouter.get('/me/my-classes/:classId/reports/:reportId', async (req: R
 
 selfServiceRouter.get('/me/my-classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    await validateTrainerAccess(req.userEmail!, classId)
+    await validateTrainerAccess(req.userEmail, classId)
 
     const { data, error } = await supabase
       .from('class_schedule_slots')
@@ -450,8 +469,12 @@ selfServiceRouter.get('/me/my-classes/:classId/schedule', async (req: Request, r
  */
 selfServiceRouter.get('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    const trainerRow = await validateTrainerAccess(req.userEmail!, classId)
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
 
     // Fetch trainer's own hours and all student hours in parallel
     const [trainerHoursResult, studentHoursResult] = await Promise.all([
@@ -488,8 +511,12 @@ selfServiceRouter.get('/me/my-classes/:classId/hours', async (req: Request, res:
 
 selfServiceRouter.get('/me/my-classes/:classId/students/:enrollmentId/progress', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
     const classId = req.params.classId as string
-    await validateTrainerAccess(req.userEmail!, classId)
+    await validateTrainerAccess(req.userEmail, classId)
 
     const enrollmentId = req.params.enrollmentId as string
 
