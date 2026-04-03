@@ -800,6 +800,9 @@ selfServiceRouter.post('/me/my-classes/:classId/reports/:reportId/finalize', asy
     const reportId = req.params.reportId as string
     await validateTrainerAccess(req.userEmail, classId)
 
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
     const { data, error } = await supabase
       .from('class_daily_reports')
       .update({ status: 'finalized' })
@@ -950,6 +953,10 @@ selfServiceRouter.put('/me/my-classes/:classId/hours/:hourId', async (req: Reque
     const classId = req.params.classId as string
     const hourId = req.params.hourId as string
     const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
     const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = req.body
 
     if (hours !== undefined && (typeof hours !== 'number' || hours < 0 || hours > 24)) {
@@ -1003,6 +1010,9 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
     const hourId = req.params.hourId as string
     await validateTrainerAccess(req.userEmail, classId)
 
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
     const { data: existing, error: fetchError } = await supabase
       .from('class_logged_hours')
       .select('id')
@@ -1054,6 +1064,14 @@ selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, re
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_drills',
+      recordId: (data as { id: string }).id,
+      metadata: { class_id: classId, name, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
@@ -1068,6 +1086,9 @@ selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Req
     const drillId = req.params.drillId as string
     await validateTrainerAccess(req.userEmail, classId)
 
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
     const { name, type, par_time_seconds, target_score, active } = req.body
     const { data, error } = await supabase
       .from('class_drills')
@@ -1080,6 +1101,14 @@ selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Req
       if (error.code === 'PGRST116') { res.status(404).json({ error: 'Drill not found' }); return }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_drills',
+      recordId: drillId,
+      metadata: { class_id: classId, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
@@ -1094,6 +1123,9 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
     const drillId = req.params.drillId as string
     await validateTrainerAccess(req.userEmail, classId)
 
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
     const { data: existing, error: fetchError } = await supabase
       .from('class_drills')
       .select('id')
@@ -1101,9 +1133,37 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
       .eq('class_id', classId)
       .single()
     if (fetchError || !existing) { res.status(404).json({ error: 'Drill not found' }); return }
-    const { error } = await supabase.from('class_drills').delete().eq('id', drillId)
-    if (error) throw error
-    res.status(204).send()
+
+    // Check if drill has recorded times — if so, deactivate instead of deleting
+    const { count } = await supabase
+      .from('class_daily_report_drill_times')
+      .select('id', { count: 'exact', head: true })
+      .eq('drill_id', drillId)
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_drills',
+      recordId: drillId,
+      metadata: { class_id: classId, deleted_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    if (count && count > 0) {
+      // Deactivate instead of hard delete to preserve historical data
+      const { data: deactivated, error: deactivateError } = await supabase
+        .from('class_drills')
+        .update({ active: false })
+        .eq('id', drillId)
+        .select()
+        .single()
+      if (deactivateError) throw deactivateError
+      res.json({ deactivated: true, drill: deactivated })
+    } else {
+      const { error } = await supabase.from('class_drills').delete().eq('id', drillId)
+      if (error) throw error
+      res.status(204).send()
+    }
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
     next(err)
