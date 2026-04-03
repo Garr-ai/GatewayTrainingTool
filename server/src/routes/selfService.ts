@@ -302,3 +302,235 @@ selfServiceRouter.get('/me/trainee-progress', async (req: Request, res: Response
     next(err)
   }
 })
+
+/**
+ * GET /me/my-classes/:classId
+ * Auth: trainer assigned to class
+ *
+ * Returns class metadata, trainer's role, enrolled students, and drills.
+ */
+selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail!, classId)
+
+    const [classResult, enrollResult, drillsResult] = await Promise.all([
+      supabase.from('classes').select('*').eq('id', classId).single(),
+      supabase.from('class_enrollments').select('*').eq('class_id', classId).order('student_name', { ascending: true }),
+      supabase.from('class_drills').select('*').eq('class_id', classId).order('created_at', { ascending: false }),
+    ])
+
+    if (classResult.error) throw classResult.error
+    if (enrollResult.error) throw enrollResult.error
+    if (drillsResult.error) throw drillsResult.error
+
+    res.json({
+      ...classResult.data,
+      trainer_role: trainerRow.role,
+      trainer_id: trainerRow.id,
+      enrollments: enrollResult.data ?? [],
+      drills: drillsResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/reports
+ * Auth: trainer assigned to class
+ * Returns all daily reports for this class, sorted by date desc.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail!, classId)
+
+    const { data, error } = await supabase
+      .from('class_daily_reports')
+      .select('*')
+      .eq('class_id', classId)
+      .order('report_date', { ascending: false })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/reports/:reportId
+ * Auth: trainer assigned to class
+ * Returns full report with nested trainer_ids, timeline, progress, drill_times.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/reports/:reportId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail!, classId)
+
+    const reportId = req.params.reportId as string
+    const [
+      { data: report, error: reportError },
+      { data: trainerLinks },
+      { data: timeline },
+      { data: progress },
+      { data: drillTimes, error: drillTimesError },
+    ] = await Promise.all([
+      supabase.from('class_daily_reports').select('*').eq('id', reportId).eq('class_id', classId).single(),
+      supabase.from('class_daily_report_trainers').select('trainer_id').eq('report_id', reportId),
+      supabase
+        .from('class_daily_report_timeline_items')
+        .select('*')
+        .eq('report_id', reportId)
+        .order('position', { ascending: true })
+        .order('start_time', { ascending: true }),
+      supabase.from('class_daily_report_trainee_progress').select('*').eq('report_id', reportId),
+      supabase.from('class_daily_report_drill_times').select('*').eq('report_id', reportId),
+    ])
+
+    if (reportError) {
+      if (reportError.code === 'PGRST116') {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      throw reportError
+    }
+    if (drillTimesError) throw drillTimesError
+
+    res.json({
+      ...report,
+      trainer_ids: (trainerLinks ?? []).map((t: { trainer_id: string }) => t.trainer_id),
+      timeline: timeline ?? [],
+      progress: progress ?? [],
+      drill_times: drillTimes ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+selfServiceRouter.get('/me/my-classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail!, classId)
+
+    const { data, error } = await supabase
+      .from('class_schedule_slots')
+      .select('*')
+      .eq('class_id', classId)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/hours
+ * Auth: trainer assigned to class
+ * Returns: trainer's own hours + all student hours. Does NOT include other trainers' hours.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail!, classId)
+
+    // Fetch trainer's own hours and all student hours in parallel
+    const [trainerHoursResult, studentHoursResult] = await Promise.all([
+      supabase
+        .from('class_logged_hours')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('person_type', 'trainer')
+        .eq('trainer_id', trainerRow.id)
+        .order('log_date', { ascending: false }),
+      supabase
+        .from('class_logged_hours')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('person_type', 'student')
+        .order('log_date', { ascending: false }),
+    ])
+
+    if (trainerHoursResult.error) throw trainerHoursResult.error
+    if (studentHoursResult.error) throw studentHoursResult.error
+
+    res.json({
+      trainer_hours: trainerHoursResult.data ?? [],
+      student_hours: studentHoursResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+selfServiceRouter.get('/me/my-classes/:classId/students/:enrollmentId/progress', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail!, classId)
+
+    const enrollmentId = req.params.enrollmentId as string
+
+    // Verify enrollment belongs to this class
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('class_enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .eq('class_id', classId)
+      .single()
+    if (enrollError || !enrollment) {
+      res.status(404).json({ error: 'Student not found in this class' })
+      return
+    }
+
+    const [progressResult, drillTimesResult] = await Promise.all([
+      supabase
+        .from('class_daily_report_trainee_progress')
+        .select('*, class_daily_reports!inner(report_date, session_label, group_label)')
+        .eq('enrollment_id', enrollmentId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('class_daily_report_drill_times')
+        .select('*, class_daily_reports!inner(report_date), class_drills!inner(name, type, par_time_seconds, target_score)')
+        .eq('enrollment_id', enrollmentId)
+        .order('created_at', { ascending: true }),
+    ])
+
+    if (progressResult.error) throw progressResult.error
+    if (drillTimesResult.error) throw drillTimesResult.error
+
+    res.json({
+      enrollment,
+      progress: progressResult.data ?? [],
+      drill_times: drillTimesResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
