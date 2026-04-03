@@ -38,7 +38,7 @@ interface ClassStudentsSectionProps {
 
 export function ClassStudentsSection({ classId, className }: ClassStudentsSectionProps) {
   const { toast } = useToast()
-  const { enrollments: students, loading, refreshEnrollments } = useClassDetail()
+  const { enrollments: students, loading, refreshEnrollments, setEnrollments } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; confirmVariant: 'danger' | 'primary'; onConfirm: () => void } | null>(null)
   // Controls the enroll-student search modal
@@ -136,6 +136,22 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   async function handleEnrollStudent(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setSaving(true)
     setError(null)
+    // Optimistic: remove from search, add to list
+    setSearchResults(prev => prev.filter(p => p.id !== profile.id))
+    const tempId = `temp-${Date.now()}`
+    const optimistic: ClassEnrollment = {
+      id: tempId,
+      class_id: classId,
+      student_name: profile.full_name ?? profile.email,
+      student_email: profile.email,
+      status,
+      group_label: groupLabel.trim() || null,
+      created_at: new Date().toISOString(),
+    }
+    setEnrollments(prev => [...prev, optimistic])
+    toast('Student enrolled', 'success')
+    setStatus('enrolled')
+    setGroupLabel('')
     try {
       await api.enrollments.create(classId, {
         student_name: profile.full_name ?? profile.email,
@@ -143,15 +159,12 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
         status,
         group_label: groupLabel.trim() || null,
       })
-      // Reset to defaults for the next enrollment in the same modal session
-      setStatus('enrolled')
-      setGroupLabel('')
-      await refreshEnrollments()
-      await searchProfiles(searchTerm)
-      toast('Student enrolled', 'success')
+      refreshEnrollments()
     } catch (err) {
       console.error('createEnrollment error:', (err as Error).message)
       toast((err as Error).message, 'error')
+      setEnrollments(prev => prev.filter(e => e.id !== tempId))
+      setSearchResults(prev => [...prev, profile])
     } finally {
       setSaving(false)
     }
@@ -192,13 +205,15 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       confirmVariant: 'danger',
       onConfirm: async () => {
         setConfirmState(null)
+        const prev = students
+        setEnrollments(s => s.filter(e => e.id !== id))
+        toast('Student removed', 'success')
         try {
           await api.enrollments.delete(classId, id)
-          await refreshEnrollments()
-          toast('Student removed', 'success')
         } catch (err) {
           console.error('removeEnrollment error:', (err as Error).message)
           toast((err as Error).message, 'error')
+          setEnrollments(prev)
         }
       },
     })

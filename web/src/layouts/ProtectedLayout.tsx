@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { CoordinatorLayout } from '../components/CoordinatorLayout'
+import { TrainerLayout, TRAINER_NAV_ITEMS } from '../components/TrainerLayout'
 
 const navIcon = (d: string) => (
   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -67,7 +68,7 @@ export function ProtectedLayout() {
 
         {/* Mobile bottom nav */}
         <nav
-          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-white/[0.02] border-t border-white/[0.06] md:hidden"
+          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
           aria-label="Mobile navigation"
         >
           {BOTTOM_NAV.map(({ to, label, icon }) => (
@@ -133,7 +134,111 @@ export function ProtectedLayout() {
     )
   }
 
-  // Non-coordinator layout (trainer / trainee): minimal header
+  // Trainer layout: icon sidebar (desktop) + bottom nav (mobile)
+  if (role === 'trainer') {
+    const TRAINER_BOTTOM_NAV = TRAINER_NAV_ITEMS.slice(0, 4)
+    const TRAINER_MORE_ITEMS = [
+      TRAINER_NAV_ITEMS[4], // Hours
+    ]
+
+    return (
+      <div className="min-h-screen w-screen bg-gw-darkest">
+        <TrainerLayout />
+
+        {/* Mobile top bar */}
+        <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-gw-darkest border-b border-white/[0.06] px-4 md:hidden">
+          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm leading-none select-none">G</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gw-blue/20 border border-gw-blue/30 flex items-center justify-center select-none">
+              <span className="text-xs font-semibold text-gw-blue">{initials}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <section className="md:ml-16 pt-14 md:pt-4 pb-20 md:pb-6 min-h-screen px-4 md:px-6 flex flex-col gap-4 overflow-auto">
+          <Outlet />
+        </section>
+
+        {/* Mobile bottom nav */}
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
+          aria-label="Mobile navigation"
+        >
+          {TRAINER_BOTTOM_NAV.map(({ to, label, icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 px-3 py-1 transition-colors duration-100 ${
+                  isActive ? 'text-gw-blue' : 'text-slate-500'
+                }`
+              }
+            >
+              {icon}
+              <span className="text-[10px] font-medium">{label}</span>
+            </NavLink>
+          ))}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-500"
+          >
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h.01M12 12h.01M19 12h.01" />
+            </svg>
+            <span className="text-[10px] font-medium">More</span>
+          </button>
+        </nav>
+
+        {/* More bottom sheet */}
+        {moreOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end md:hidden bg-black/60 animate-backdrop-in"
+            onClick={() => setMoreOpen(false)}
+          >
+            <div
+              className="w-full bg-gw-surface border-t border-white/[0.08] rounded-t-[14px] p-4 pb-8 animate-modal-in"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
+              <div className="grid grid-cols-2 gap-2">
+                {TRAINER_MORE_ITEMS.map(({ to, label, icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    onClick={() => setMoreOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-[10px] px-3 py-3 transition-colors duration-100 ${
+                        isActive
+                          ? 'bg-gw-blue/20 border border-gw-blue/35 text-slate-100'
+                          : 'bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200'
+                      }`
+                    }
+                  >
+                    {icon}
+                    <span className="text-sm font-medium">{label}</span>
+                  </NavLink>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { signOut(); setMoreOpen(false) }}
+                  className="flex items-center gap-3 rounded-[10px] px-3 py-3 bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200 transition-colors duration-100"
+                >
+                  {navIcon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
+                  <span className="text-sm font-medium">Sign out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Non-coordinator / non-trainer layout (trainee): minimal header
   return (
     <div className="min-h-screen bg-gw-darkest flex flex-col">
       <header className="px-6 py-4 border-b border-white/[0.08] bg-gw-surface flex items-center justify-between">

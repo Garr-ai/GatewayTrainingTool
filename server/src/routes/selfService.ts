@@ -6,26 +6,45 @@
  * requireAuth from the JWT), not by a coordinator-supplied ID.
  *
  * Routes:
- *   GET /me/trainer-dashboard  — Classes this trainer is assigned to, with student counts
+ *   GET /me/my-classes         — Classes this trainer is assigned to, with richer metadata
+ *   GET /me/trainer-dashboard  — Backwards-compat alias for /me/my-classes
  *   GET /me/trainee-progress   — Progress and drill times for this trainee across all classes
  */
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
 
 export const selfServiceRouter = Router()
 
 /**
- * GET /me/trainer-dashboard
- * Auth: any authenticated user (trainers use this; coordinators can also call it)
- *
- * Returns the classes the calling trainer is assigned to, along with:
- *   - Class metadata (name, site, province, game_type, start_date, end_date)
- *   - trainer_role (primary | assistant) in that class
- *   - enrolled_count: number of students with status='enrolled'
- *   - upcoming_slots: next 3 schedule slots for this class on/after today
+ * Validates that the given email belongs to a trainer assigned to the given class.
+ * Returns the class_trainers row on success.
+ * Throws a 403-style error if the trainer is not assigned.
  */
-selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Response, next: NextFunction) => {
+async function validateTrainerAccess(email: string, classId: string) {
+  const { data, error } = await supabase
+    .from('class_trainers')
+    .select('id, class_id, trainer_name, trainer_email, role')
+    .eq('trainer_email', email)
+    .eq('class_id', classId)
+    .single()
+  if (error || !data) {
+    const err = new Error('You are not assigned to this class') as Error & { status: number }
+    err.status = 403
+    throw err
+  }
+  return data as { id: string; class_id: string; trainer_name: string; trainer_email: string; role: string }
+}
+
+/**
+ * GET /me/my-classes
+ * Auth: any authenticated user (trainers use this)
+ *
+ * Returns all classes the trainer is assigned to with metadata, enrollment counts,
+ * upcoming schedule slots, draft report count, and recent hours.
+ */
+const myClassesHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const email = req.userEmail
     if (!email) {
@@ -33,7 +52,6 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
       return
     }
 
-    // 1. Find all class_trainer rows for this email
     const { data: trainerRows, error: trainerError } = await supabase
       .from('class_trainers')
       .select('id, class_id, trainer_name, role')
@@ -45,10 +63,10 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
     }
 
     const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const trainerIds = trainerRows.map((t: { id: string }) => t.id)
     const today = new Date().toISOString().slice(0, 10)
 
-    // 2. Fetch class details, enrollment counts, and upcoming schedule in parallel
-    const [classesResult, enrollCountResult, scheduleResult] = await Promise.all([
+    const [classesResult, enrollCountResult, scheduleResult, draftCountResult, hoursResult] = await Promise.all([
       supabase
         .from('classes')
         .select('id, name, site, province, game_type, start_date, end_date, archived')
@@ -66,38 +84,59 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
         .order('slot_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(50),
+      // draft_report_count is class-wide (all trainers' drafts) — shows how many reports need attention
+      supabase
+        .from('class_daily_reports')
+        .select('class_id')
+        .in('class_id', classIds)
+        .eq('status', 'draft'),
+      supabase
+        .from('class_logged_hours')
+        .select('class_id, hours')
+        .in('class_id', classIds)
+        .eq('person_type', 'trainer')
+        .in('trainer_id', trainerIds),
     ])
 
     if (classesResult.error) throw classesResult.error
     if (enrollCountResult.error) throw enrollCountResult.error
     if (scheduleResult.error) throw scheduleResult.error
+    if (draftCountResult.error) throw draftCountResult.error
+    if (hoursResult.error) throw hoursResult.error
 
-    // Build enrollment count map: classId -> count
     const enrollCountMap = new Map<string, number>()
     for (const row of enrollCountResult.data ?? []) {
       const r = row as { class_id: string }
       enrollCountMap.set(r.class_id, (enrollCountMap.get(r.class_id) ?? 0) + 1)
     }
 
-    // Build upcoming slots map: classId -> first 3 slots
     const slotsMap = new Map<string, typeof scheduleResult.data>()
     for (const slot of scheduleResult.data ?? []) {
       const s = slot as { class_id: string }
       const existing = slotsMap.get(s.class_id) ?? []
-      if (existing.length < 3) {
-        slotsMap.set(s.class_id, [...existing, slot])
-      }
+      if (existing.length < 3) slotsMap.set(s.class_id, [...existing, slot])
+    }
+
+    const draftCountMap = new Map<string, number>()
+    for (const row of draftCountResult.data ?? []) {
+      const r = row as { class_id: string }
+      draftCountMap.set(r.class_id, (draftCountMap.get(r.class_id) ?? 0) + 1)
+    }
+
+    const hoursMap = new Map<string, number>()
+    for (const row of hoursResult.data ?? []) {
+      const r = row as { class_id: string; hours: number }
+      hoursMap.set(r.class_id, (hoursMap.get(r.class_id) ?? 0) + (r.hours ?? 0))
     }
 
     const classMap = new Map<string, (typeof classesResult.data)[0]>()
-    for (const c of classesResult.data ?? []) {
-      classMap.set(c.id, c)
-    }
+    for (const c of classesResult.data ?? []) classMap.set(c.id, c)
 
     const classes = trainerRows.map((t: { id: string; class_id: string; trainer_name: string; role: string }) => {
       const cls = classMap.get(t.class_id)
       return {
         class_id: t.class_id,
+        trainer_id: t.id,
         class_name: cls?.name ?? 'Unknown',
         site: cls?.site ?? '',
         province: cls?.province ?? '',
@@ -107,6 +146,8 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
         archived: cls?.archived ?? false,
         trainer_role: t.role,
         enrolled_count: enrollCountMap.get(t.class_id) ?? 0,
+        draft_report_count: draftCountMap.get(t.class_id) ?? 0,
+        total_hours: hoursMap.get(t.class_id) ?? 0,
         upcoming_slots: slotsMap.get(t.class_id) ?? [],
       }
     })
@@ -119,7 +160,12 @@ selfServiceRouter.get('/me/trainer-dashboard', async (req: Request, res: Respons
   } catch (err) {
     next(err)
   }
-})
+}
+
+selfServiceRouter.get('/me/my-classes', myClassesHandler)
+
+// Backwards compatibility alias
+selfServiceRouter.get('/me/trainer-dashboard', myClassesHandler)
 
 /**
  * GET /me/trainee-progress
@@ -254,6 +300,1038 @@ selfServiceRouter.get('/me/trainee-progress', async (req: Request, res: Response
       drill_times: drillTimes,
     })
   } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId
+ * Auth: trainer assigned to class
+ *
+ * Returns class metadata, trainer's role, enrolled students, and drills.
+ */
+selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    const [classResult, enrollResult, drillsResult] = await Promise.all([
+      supabase.from('classes').select('*').eq('id', classId).single(),
+      supabase.from('class_enrollments').select('id, class_id, student_name, student_email, status, group_label, created_at').eq('class_id', classId).order('student_name', { ascending: true }),
+      supabase.from('class_drills').select('*').eq('class_id', classId).order('created_at', { ascending: false }),
+    ])
+
+    if (classResult.error) throw classResult.error
+    if (enrollResult.error) throw enrollResult.error
+    if (drillsResult.error) throw drillsResult.error
+
+    res.json({
+      ...classResult.data,
+      trainer_role: trainerRow.role,
+      trainer_id: trainerRow.id,
+      enrollments: enrollResult.data ?? [],
+      drills: drillsResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/reports
+ * Auth: trainer assigned to class
+ * Returns all daily reports for this class, sorted by date desc.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data, error } = await supabase
+      .from('class_daily_reports')
+      .select('*')
+      .eq('class_id', classId)
+      .order('report_date', { ascending: false })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/reports/:reportId
+ * Auth: trainer assigned to class
+ * Returns full report with nested trainer_ids, timeline, progress, drill_times.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/reports/:reportId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const reportId = req.params.reportId as string
+    const [
+      { data: report, error: reportError },
+      { data: trainerLinks, error: trainerLinksError },
+      { data: timeline, error: timelineError },
+      { data: progress, error: progressError },
+      { data: drillTimes, error: drillTimesError },
+    ] = await Promise.all([
+      supabase.from('class_daily_reports').select('*').eq('id', reportId).eq('class_id', classId).single(),
+      supabase.from('class_daily_report_trainers').select('trainer_id').eq('report_id', reportId),
+      supabase
+        .from('class_daily_report_timeline_items')
+        .select('*')
+        .eq('report_id', reportId)
+        .order('position', { ascending: true })
+        .order('start_time', { ascending: true }),
+      supabase.from('class_daily_report_trainee_progress').select('*').eq('report_id', reportId),
+      supabase.from('class_daily_report_drill_times').select('*').eq('report_id', reportId),
+    ])
+
+    if (reportError) {
+      if (reportError.code === 'PGRST116') {
+        res.status(404).json({ error: 'Report not found' })
+        return
+      }
+      throw reportError
+    }
+    if (trainerLinksError) throw trainerLinksError
+    if (timelineError) throw timelineError
+    if (progressError) throw progressError
+    if (drillTimesError) throw drillTimesError
+
+    res.json({
+      ...report,
+      trainer_ids: (trainerLinks ?? []).map((t: { trainer_id: string }) => t.trainer_id),
+      timeline: timeline ?? [],
+      progress: progress ?? [],
+      drill_times: drillTimes ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+selfServiceRouter.get('/me/my-classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data, error } = await supabase
+      .from('class_schedule_slots')
+      .select('*')
+      .eq('class_id', classId)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-classes/:classId/hours
+ * Auth: trainer assigned to class
+ * Returns: trainer's own hours + all student hours. Does NOT include other trainers' hours.
+ */
+selfServiceRouter.get('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    // Fetch trainer's own hours and all student hours in parallel
+    const [trainerHoursResult, studentHoursResult] = await Promise.all([
+      supabase
+        .from('class_logged_hours')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('person_type', 'trainer')
+        .eq('trainer_id', trainerRow.id)
+        .order('log_date', { ascending: false }),
+      supabase
+        .from('class_logged_hours')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('person_type', 'student')
+        .order('log_date', { ascending: false }),
+    ])
+
+    if (trainerHoursResult.error) throw trainerHoursResult.error
+    if (studentHoursResult.error) throw studentHoursResult.error
+
+    res.json({
+      trainer_hours: trainerHoursResult.data ?? [],
+      student_hours: studentHoursResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+selfServiceRouter.get('/me/my-classes/:classId/students/:enrollmentId/progress', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) {
+      res.status(401).json({ error: 'No email associated with this account' })
+      return
+    }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const enrollmentId = req.params.enrollmentId as string
+
+    // Verify enrollment belongs to this class
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('class_enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .eq('class_id', classId)
+      .single()
+    if (enrollError || !enrollment) {
+      res.status(404).json({ error: 'Student not found in this class' })
+      return
+    }
+
+    const [progressResult, drillTimesResult] = await Promise.all([
+      supabase
+        .from('class_daily_report_trainee_progress')
+        .select('*, class_daily_reports!inner(report_date, session_label, group_label)')
+        .eq('enrollment_id', enrollmentId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('class_daily_report_drill_times')
+        .select('*, class_daily_reports!inner(report_date), class_drills!inner(name, type, par_time_seconds, target_score)')
+        .eq('enrollment_id', enrollmentId)
+        .order('created_at', { ascending: true }),
+    ])
+
+    if (progressResult.error) throw progressResult.error
+    if (drillTimesResult.error) throw drillTimesResult.error
+
+    res.json({
+      enrollment,
+      progress: progressResult.data ?? [],
+      drill_times: drillTimesResult.data ?? [],
+    })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) {
+      res.status(403).json({ error: (err as Error).message })
+      return
+    }
+    next(err)
+  }
+})
+
+// ─── Report Write Endpoints ───────────────────────────────────────────────────
+
+selfServiceRouter.post('/me/my-classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot create reports for archived classes' }); return }
+
+    const {
+      report_date, group_label, game, session_label,
+      class_start_time, class_end_time,
+      mg_confirmed, mg_attended, current_trainees, licenses_received,
+      override_hours_to_date, override_paid_hours_total, override_live_hours_total,
+      trainer_ids = [], timeline = [], progress = [], drill_times = [],
+    } = req.body
+
+    // Auto-include this trainer if not already in trainer_ids
+    const allTrainerIds: string[] = trainer_ids.includes(trainerRow.id)
+      ? trainer_ids
+      : [trainerRow.id, ...trainer_ids]
+
+    const { data: report, error: reportError } = await supabase
+      .from('class_daily_reports')
+      .insert({
+        class_id: classId,
+        report_date,
+        group_label: group_label ?? null,
+        game: game ?? null,
+        session_label: session_label ?? null,
+        class_start_time: class_start_time ?? null,
+        class_end_time: class_end_time ?? null,
+        mg_confirmed: mg_confirmed ?? null,
+        mg_attended: mg_attended ?? null,
+        current_trainees: current_trainees ?? null,
+        licenses_received: licenses_received ?? null,
+        override_hours_to_date: override_hours_to_date ?? null,
+        override_paid_hours_total: override_paid_hours_total ?? null,
+        override_live_hours_total: override_live_hours_total ?? null,
+      })
+      .select()
+      .single()
+    if (reportError) throw reportError
+
+    const reportId = (report as { id: string }).id
+
+    if (allTrainerIds.length > 0) {
+      await supabase
+        .from('class_daily_report_trainers')
+        .insert(allTrainerIds.map((tid: string) => ({ report_id: reportId, trainer_id: tid })))
+    }
+    if (timeline.length > 0) {
+      await supabase.from('class_daily_report_timeline_items').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        timeline.map((item: any, index: number) => ({
+          report_id: reportId,
+          start_time: item.start_time ?? null,
+          end_time: item.end_time ?? null,
+          activity: item.activity ?? null,
+          homework_handouts_tests: item.homework_handouts_tests ?? null,
+          category: item.category ?? null,
+          position: index,
+        })),
+      )
+    }
+    if (progress.length > 0) {
+      await supabase.from('class_daily_report_trainee_progress').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        progress.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          progress_text: row.progress_text ?? null,
+          gk_rating: row.gk_rating ?? null,
+          dex_rating: row.dex_rating ?? null,
+          hom_rating: row.hom_rating ?? null,
+          coming_back_next_day: row.coming_back_next_day ?? false,
+          homework_completed: row.homework_completed ?? false,
+          attendance: row.attendance ?? true,
+        })),
+      )
+    }
+    if (drill_times.length > 0) {
+      const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        drill_times.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          drill_id: row.drill_id,
+          time_seconds: row.time_seconds ?? null,
+          score: row.score ?? null,
+        })),
+      )
+      if (dtError) throw dtError
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_daily_reports',
+      recordId: reportId,
+      metadata: { class_id: classId, report_date, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.status(201).json(report)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const reportId = req.params.reportId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot update reports for archived classes' }); return }
+
+    const {
+      report_date, group_label, game, session_label,
+      class_start_time, class_end_time,
+      mg_confirmed, mg_attended, current_trainees, licenses_received,
+      override_hours_to_date, override_paid_hours_total, override_live_hours_total,
+      trainer_ids = [], timeline = [], progress = [], drill_times = [],
+    } = req.body
+
+    const { data: report, error: reportError } = await supabase
+      .from('class_daily_reports')
+      .update({
+        report_date,
+        group_label: group_label ?? null,
+        game: game ?? null,
+        session_label: session_label ?? null,
+        class_start_time: class_start_time ?? null,
+        class_end_time: class_end_time ?? null,
+        mg_confirmed: mg_confirmed ?? null,
+        mg_attended: mg_attended ?? null,
+        current_trainees: current_trainees ?? null,
+        licenses_received: licenses_received ?? null,
+        override_hours_to_date: override_hours_to_date ?? null,
+        override_paid_hours_total: override_paid_hours_total ?? null,
+        override_live_hours_total: override_live_hours_total ?? null,
+      })
+      .eq('id', reportId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (reportError) {
+      if (reportError.code === 'PGRST116') { res.status(404).json({ error: 'Report not found' }); return }
+      throw reportError
+    }
+
+    // Full replace nested data
+    await supabase.from('class_daily_report_trainers').delete().eq('report_id', reportId)
+    if (trainer_ids.length > 0) {
+      await supabase.from('class_daily_report_trainers')
+        .insert(trainer_ids.map((tid: string) => ({ report_id: reportId, trainer_id: tid })))
+    }
+
+    await supabase.from('class_daily_report_timeline_items').delete().eq('report_id', reportId)
+    if (timeline.length > 0) {
+      await supabase.from('class_daily_report_timeline_items').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        timeline.map((item: any, index: number) => ({
+          report_id: reportId,
+          start_time: item.start_time ?? null,
+          end_time: item.end_time ?? null,
+          activity: item.activity ?? null,
+          homework_handouts_tests: item.homework_handouts_tests ?? null,
+          category: item.category ?? null,
+          position: index,
+        })),
+      )
+    }
+
+    await supabase.from('class_daily_report_trainee_progress').delete().eq('report_id', reportId)
+    if (progress.length > 0) {
+      await supabase.from('class_daily_report_trainee_progress').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        progress.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          progress_text: row.progress_text ?? null,
+          gk_rating: row.gk_rating ?? null,
+          dex_rating: row.dex_rating ?? null,
+          hom_rating: row.hom_rating ?? null,
+          coming_back_next_day: row.coming_back_next_day ?? false,
+          homework_completed: row.homework_completed ?? false,
+          attendance: row.attendance ?? true,
+        })),
+      )
+    }
+
+    const { error: dtDelError } = await supabase.from('class_daily_report_drill_times').delete().eq('report_id', reportId)
+    if (dtDelError) throw dtDelError
+    if (drill_times.length > 0) {
+      const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        drill_times.map((row: any) => ({
+          report_id: reportId,
+          enrollment_id: row.enrollment_id,
+          drill_id: row.drill_id,
+          time_seconds: row.time_seconds ?? null,
+          score: row.score ?? null,
+        })),
+      )
+      if (dtError) throw dtError
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_daily_reports',
+      recordId: reportId,
+      metadata: { class_id: classId, report_date, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.json(report)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.post('/me/my-classes/:classId/reports/:reportId/finalize', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const reportId = req.params.reportId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { data, error } = await supabase
+      .from('class_daily_reports')
+      .update({ status: 'finalized' })
+      .eq('id', reportId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Report not found' }); return }
+      throw error
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_daily_reports',
+      recordId: reportId,
+      metadata: { action: 'finalize', finalized_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+// ─── Hours Write Endpoints ────────────────────────────────────────────────────
+
+selfServiceRouter.post('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot log hours for archived classes' }); return }
+
+    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = req.body
+
+    if (hours === undefined || typeof hours !== 'number' || hours < 0 || hours > 24) {
+      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
+      return
+    }
+
+    // Trainers can only log their own hours (trainer_id forced to their own)
+    const trainer_id = person_type === 'trainer' ? trainerRow.id : null
+
+    const { data, error } = await supabase
+      .from('class_logged_hours')
+      .insert({
+        class_id: classId,
+        log_date,
+        person_type,
+        trainer_id,
+        enrollment_id: person_type === 'student' ? (enrollment_id ?? null) : null,
+        hours,
+        paid: paid ?? false,
+        live_training: live_training ?? false,
+        notes: notes ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_logged_hours',
+      recordId: (data as { id: string }).id,
+      metadata: { class_id: classId, hours, person_type, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.status(201).json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.post('/me/my-classes/:classId/hours/bulk', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot log hours for archived classes' }); return }
+
+    const { log_date, entries, paid, live_training } = req.body as {
+      log_date: string
+      entries: Array<{ enrollment_id: string; hours: number; notes?: string }>
+      paid?: boolean
+      live_training?: boolean
+    }
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      res.status(400).json({ error: 'entries must be a non-empty array' })
+      return
+    }
+
+    for (const entry of entries) {
+      if (typeof entry.hours !== 'number' || entry.hours < 0 || entry.hours > 24) {
+        res.status(400).json({ error: 'Each entry hours must be between 0 and 24' })
+        return
+      }
+    }
+
+    const rows = entries.map(entry => ({
+      class_id: classId,
+      log_date,
+      person_type: 'student' as const,
+      trainer_id: null,
+      enrollment_id: entry.enrollment_id,
+      hours: entry.hours,
+      paid: paid ?? false,
+      live_training: live_training ?? false,
+      notes: entry.notes ?? null,
+    }))
+
+    const { data, error } = await supabase
+      .from('class_logged_hours')
+      .insert(rows)
+      .select()
+    if (error) throw error
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_logged_hours',
+      recordId: 'bulk',
+      metadata: { class_id: classId, count: entries.length, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.status(201).json({ inserted: (data ?? []).length })
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.put('/me/my-classes/:classId/hours/:hourId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const hourId = req.params.hourId as string
+    const trainerRow = await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = req.body
+
+    if (hours !== undefined && (typeof hours !== 'number' || hours < 0 || hours > 24)) {
+      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
+      return
+    }
+
+    const trainer_id = person_type === 'trainer' ? trainerRow.id : null
+
+    const { data, error } = await supabase
+      .from('class_logged_hours')
+      .update({
+        log_date,
+        person_type,
+        trainer_id,
+        enrollment_id: person_type === 'student' ? (enrollment_id ?? null) : null,
+        hours,
+        paid: paid ?? false,
+        live_training: live_training ?? false,
+        notes: notes ?? null,
+      })
+      .eq('id', hourId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Hours record not found' }); return }
+      throw error
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_logged_hours',
+      recordId: hourId,
+      metadata: { class_id: classId, hours, person_type, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const hourId = req.params.hourId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_logged_hours')
+      .select('id')
+      .eq('id', hourId)
+      .eq('class_id', classId)
+      .single()
+    if (fetchError || !existing) { res.status(404).json({ error: 'Hours record not found' }); return }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_logged_hours',
+      recordId: hourId,
+      metadata: { class_id: classId, deleted_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    const { error } = await supabase.from('class_logged_hours').delete().eq('id', hourId)
+    if (error) throw error
+    res.status(204).send()
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+// ─── Cross-class Read Endpoints ──────────────────────────────────────────────
+
+/**
+ * GET /me/reports
+ * Auth: any authenticated trainer
+ * Paginated reports across all assigned classes.
+ * Query params: class_id, date_from, date_to, status, page, limit
+ */
+selfServiceRouter.get('/me/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50 })
+      return
+    }
+
+    const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const { class_id, date_from, date_to, status, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_daily_reports')
+      .select('*, classes!inner(id, name, site, province, game_type, archived)', { count: 'exact' })
+      .in('class_id', classIds)
+      .order('report_date', { ascending: false })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('report_date', date_from)
+    if (date_to) query = query.lte('report_date', date_to)
+    if (status && (status === 'draft' || status === 'finalized')) query = query.eq('status', status)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    res.json({ data: data ?? [], total: count ?? 0, page, limit })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/schedule
+ * Auth: any authenticated trainer
+ * Schedule across all assigned classes.
+ * Query params: class_id, date_from, date_to, group_label, page, limit
+ */
+selfServiceRouter.get('/me/schedule', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50 })
+      return
+    }
+
+    const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const { class_id, date_from, date_to, group_label, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_schedule_slots')
+      .select('*, classes!inner(id, name, site, province, game_type, archived)', { count: 'exact' })
+      .in('class_id', classIds)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('slot_date', date_from)
+    if (date_to) query = query.lte('slot_date', date_to)
+    if (group_label) query = query.eq('group_label', group_label)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    res.json({ data: data ?? [], total: count ?? 0, page, limit })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/hours
+ * Auth: any authenticated trainer
+ * Personal hours across all assigned classes.
+ * Query params: class_id, date_from, date_to, page, limit
+ */
+selfServiceRouter.get('/me/hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('id, class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50, summary: { total_hours: 0, paid_hours: 0, unpaid_hours: 0 } })
+      return
+    }
+
+    const trainerIds = trainerRows.map((t: { id: string }) => t.id)
+    const { class_id, date_from, date_to, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_logged_hours')
+      .select('*, classes!inner(id, name, site, province)', { count: 'exact' })
+      .eq('person_type', 'trainer')
+      .in('trainer_id', trainerIds)
+      .order('log_date', { ascending: false })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('log_date', date_from)
+    if (date_to) query = query.lte('log_date', date_to)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    const allHours = data ?? []
+    const total_hours = allHours.reduce((sum: number, h: { hours: number }) => sum + h.hours, 0)
+    const paid_hours = allHours.filter((h: { paid: boolean }) => h.paid).reduce((sum: number, h: { hours: number }) => sum + h.hours, 0)
+
+    res.json({
+      data: allHours,
+      total: count ?? 0,
+      page,
+      limit,
+      summary: { total_hours, paid_hours, unpaid_hours: total_hours - paid_hours },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─── Drills Write Endpoints ───────────────────────────────────────────────────
+
+selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot create drills for archived classes' }); return }
+
+    const { name, type, par_time_seconds, target_score } = req.body
+    const { data, error } = await supabase
+      .from('class_drills')
+      .insert({
+        class_id: classId,
+        name,
+        type,
+        par_time_seconds: par_time_seconds ?? null,
+        target_score: target_score ?? null,
+        active: true,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_drills',
+      recordId: (data as { id: string }).id,
+      metadata: { class_id: classId, name, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+    res.status(201).json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const drillId = req.params.drillId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { name, type, par_time_seconds, target_score, active } = req.body
+    const { data, error } = await supabase
+      .from('class_drills')
+      .update({ name, type, par_time_seconds, target_score, active })
+      .eq('id', drillId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Drill not found' }); return }
+      throw error
+    }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_drills',
+      recordId: drillId,
+      metadata: { class_id: classId, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const drillId = req.params.drillId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_drills')
+      .select('id')
+      .eq('id', drillId)
+      .eq('class_id', classId)
+      .single()
+    if (fetchError || !existing) { res.status(404).json({ error: 'Drill not found' }); return }
+
+    // Check if drill has recorded times — if so, deactivate instead of deleting
+    const { count } = await supabase
+      .from('class_daily_report_drill_times')
+      .select('id', { count: 'exact', head: true })
+      .eq('drill_id', drillId)
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_drills',
+      recordId: drillId,
+      metadata: { class_id: classId, deleted_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    if (count && count > 0) {
+      // Deactivate instead of hard delete to preserve historical data
+      const { data: deactivated, error: deactivateError } = await supabase
+        .from('class_drills')
+        .update({ active: false })
+        .eq('id', drillId)
+        .select()
+        .single()
+      if (deactivateError) throw deactivateError
+      res.json({ deactivated: true, drill: deactivated })
+    } else {
+      const { error } = await supabase.from('class_drills').delete().eq('id', drillId)
+      if (error) throw error
+      res.status(204).send()
+    }
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
     next(err)
   }
 })

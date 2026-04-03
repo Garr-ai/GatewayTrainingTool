@@ -32,5 +32,7 @@ export function errorHandler(
     : err instanceof Error
       ? err.message
       : 'Internal server error'
-  res.status(500).json({ error: message })
+  // Forward an explicit status code (e.g. 403 from validateTrainerAccess) if present
+  const status = (err as { status?: number }).status ?? 500
+  res.status(status).json({ error: message })
 }
