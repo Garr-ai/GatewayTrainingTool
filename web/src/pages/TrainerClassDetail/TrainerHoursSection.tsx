@@ -12,7 +12,7 @@ type HoursTab = 'my-hours' | 'student-hours'
 const fieldClass = 'w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
 export function TrainerHoursSection() {
-  const { classId, classInfo, trainerHours, studentHours, enrollments, loading, refreshHours } = useTrainerClassDetail()
+  const { classId, classInfo, trainerHours, studentHours, enrollments, loading, refreshHours, setTrainerHours, setStudentHours } = useTrainerClassDetail()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<HoursTab>('my-hours')
   const archived = classInfo?.archived ?? false
@@ -98,14 +98,15 @@ export function TrainerHoursSection() {
 
   async function handleMyDelete() {
     if (!myDeleteTarget) return
+    const prev = trainerHours
+    setTrainerHours(h => h.filter(entry => entry.id !== myDeleteTarget.id))
+    setMyDeleteTarget(null)
+    toast('Hours entry deleted', 'success')
     try {
       await api.selfService.deleteHours(classId, myDeleteTarget.id)
-      toast('Hours entry deleted', 'success')
-      setMyDeleteTarget(null)
-      refreshHours()
     } catch (err) {
       toast((err as Error).message, 'error')
-      setMyDeleteTarget(null)
+      setTrainerHours(prev)
     }
   }
 
@@ -184,14 +185,15 @@ export function TrainerHoursSection() {
 
   async function handleStuDelete() {
     if (!stuDeleteTarget) return
+    const prev = studentHours
+    setStudentHours(h => h.filter(entry => entry.id !== stuDeleteTarget.id))
+    setStuDeleteTarget(null)
+    toast('Hours entry deleted', 'success')
     try {
       await api.selfService.deleteHours(classId, stuDeleteTarget.id)
-      toast('Hours entry deleted', 'success')
-      setStuDeleteTarget(null)
-      refreshHours()
     } catch (err) {
       toast((err as Error).message, 'error')
-      setStuDeleteTarget(null)
+      setStudentHours(prev)
     }
   }
 

@@ -24,6 +24,11 @@ interface TrainerClassDetailContextValue {
   refreshDrills: () => Promise<void>
   refreshSchedule: () => Promise<void>
   refreshEnrollments: () => Promise<void>
+  // Direct state setters for optimistic UI updates
+  setReports: React.Dispatch<React.SetStateAction<ClassDailyReport[]>>
+  setTrainerHours: React.Dispatch<React.SetStateAction<ClassLoggedHours[]>>
+  setStudentHours: React.Dispatch<React.SetStateAction<ClassLoggedHours[]>>
+  setDrills: React.Dispatch<React.SetStateAction<ClassDrill[]>>
 }
 
 const TrainerClassDetailContext = createContext<TrainerClassDetailContextValue | null>(null)
@@ -93,6 +98,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
       classId, classInfo, enrollments, schedule, reports,
       trainerHours, studentHours, drills, loading,
       refreshReports, refreshHours, refreshDrills, refreshSchedule, refreshEnrollments,
+      setReports, setTrainerHours, setStudentHours, setDrills,
     }}>
       {children}
     </TrainerClassDetailContext.Provider>

@@ -69,7 +69,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   // Data comes from the shared ClassDetailContext cache
   const {
     trainers, enrollments: allEnrollments, reports, hours, drills,
-    loading, refreshReports, refreshHours,
+    loading, refreshReports, refreshHours, setReports, setHours,
   } = useClassDetail()
   // Only enrolled students appear in daily progress (waitlisted/dropped are excluded)
   const enrollments = useMemo(
@@ -262,14 +262,38 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
         delete reportCacheRef.current[editingReport.id]
         toast('Report updated successfully.', 'success')
       } else {
+        // Optimistic: add to list immediately
+        const tempReport: ClassDailyReport = {
+          id: `temp-${Date.now()}`,
+          class_id: classId,
+          report_date: reportDate,
+          group_label: reportGroup.trim() || null,
+          game: reportGame.trim() || null,
+          session_label: reportSessionLabel.trim() || null,
+          class_start_time: reportStartTime.trim() || null,
+          class_end_time: reportEndTime.trim() || null,
+          mg_confirmed: body.mg_confirmed,
+          mg_attended: body.mg_attended,
+          current_trainees: body.current_trainees,
+          licenses_received: body.licenses_received,
+          override_hours_to_date: body.override_hours_to_date,
+          override_paid_hours_total: body.override_paid_hours_total,
+          override_live_hours_total: body.override_live_hours_total,
+          status: 'draft',
+          created_at: new Date().toISOString(),
+        }
+        setReports(prev => [tempReport, ...prev])
         await api.reports.create(classId, body)
         toast('Report created successfully.', 'success')
+        // Sync to get real ID
+        refreshReports()
       }
       setReportFormOpen(false)
-      refreshReports()
     } catch (err) {
       setError((err as Error).message)
       toast((err as Error).message, 'error')
+      // Refresh on error to roll back optimistic add
+      refreshReports()
     } finally {
       setReportSaving(false)
     }
@@ -284,12 +308,14 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       confirmVariant: 'danger',
       onConfirm: async () => {
         setConfirmState(null)
+        const prev = reports
+        setReports(r => r.filter(rep => rep.id !== id))
+        toast('Report deleted successfully.', 'success')
         try {
           await api.reports.delete(classId, id)
-          refreshReports()
-          toast('Report deleted successfully.', 'success')
         } catch (err) {
           toast((err as Error).message, 'error')
+          setReports(prev)
         }
       },
     })
@@ -389,27 +415,46 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       if (editingHours) {
         await api.hours.update(classId, editingHours.id, payload)
         toast('Hours updated successfully.', 'success')
+        refreshHours()
       } else {
+        // Optimistic: add to list immediately
+        const tempEntry: ClassLoggedHours = {
+          id: `temp-${Date.now()}`,
+          class_id: classId,
+          log_date: hoursDate,
+          person_type: hoursPersonType,
+          trainer_id: trainerId,
+          enrollment_id: enrollmentId,
+          hours: numHours,
+          paid: false,
+          live_training: false,
+          notes: hoursNotes.trim() || null,
+          created_at: new Date().toISOString(),
+        }
+        setHours(prev => [tempEntry, ...prev])
         await api.hours.create(classId, payload)
         toast('Hours logged successfully.', 'success')
+        refreshHours()
       }
       setHoursFormOpen(false)
-      refreshHours()
     } catch (err) {
       setError((err as Error).message)
       toast((err as Error).message, 'error')
+      refreshHours()
     } finally {
       setHoursSaving(false)
     }
   }
 
   async function handleRemoveHours(id: string) {
+    const prev = hours
+    setHours(h => h.filter(entry => entry.id !== id))
+    toast('Hours entry removed', 'success')
     try {
       await api.hours.delete(classId, id)
-      refreshHours()
-      toast('Hours entry removed', 'success')
     } catch (err) {
       toast((err as Error).message, 'error')
+      setHours(prev)
     }
   }
 

@@ -8,7 +8,7 @@ import { useToast } from '../../contexts/ToastContext'
 import type { DrillType, ClassDrill } from '../../types'
 
 export function TrainerDrillsSection() {
-  const { classId, classInfo, drills, loading, refreshDrills } = useTrainerClassDetail()
+  const { classId, classInfo, drills, loading, refreshDrills, setDrills } = useTrainerClassDetail()
   const { toast } = useToast()
   const [formOpen, setFormOpen] = useState(false)
   const [editingDrill, setEditingDrill] = useState<ClassDrill | null>(null)
@@ -73,29 +73,30 @@ export function TrainerDrillsSection() {
 
   async function handleDelete() {
     if (!deleteTarget) return
+    const prev = drills
+    setDrills(d => d.filter(drill => drill.id !== deleteTarget.id))
+    setDeleteTarget(null)
+    toast('Drill deleted', 'success')
     try {
       const result = await api.selfService.deleteDrill(classId, deleteTarget.id)
-      // If drill was deactivated instead of deleted (has historical data)
-      if (result && typeof result === 'object' && 'deactivated' in result) {
+      if (typeof result !== 'undefined' && result.deactivated) {
         toast('Drill has recorded data — deactivated instead of deleted', 'success')
-      } else {
-        toast('Drill deleted', 'success')
+        refreshDrills() // re-fetch to show deactivated state
       }
-      setDeleteTarget(null)
-      refreshDrills()
     } catch (err) {
       toast((err as Error).message, 'error')
-      setDeleteTarget(null)
+      setDrills(prev)
     }
   }
 
   async function handleToggleActive(drill: ClassDrill) {
+    setDrills(prev => prev.map(d => d.id === drill.id ? { ...d, active: !d.active } : d))
+    toast(drill.active ? 'Drill deactivated' : 'Drill activated', 'success')
     try {
       await api.selfService.updateDrill(classId, drill.id, { active: !drill.active })
-      refreshDrills()
-      toast(drill.active ? 'Drill deactivated' : 'Drill activated', 'success')
     } catch (err) {
       toast((err as Error).message, 'error')
+      setDrills(prev => prev.map(d => d.id === drill.id ? { ...d, active: drill.active } : d))
     }
   }
 

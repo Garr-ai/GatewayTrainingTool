@@ -547,8 +547,6 @@ export const api = {
       req<ClassDailyReport>(`/me/my-classes/${classId}/reports`, { method: 'POST', body: JSON.stringify(body) }),
     updateReport: (classId: string, reportId: string, body: ReportBody) =>
       req<ClassDailyReport>(`/me/my-classes/${classId}/reports/${reportId}`, { method: 'PUT', body: JSON.stringify(body) }),
-    finalizeReport: (classId: string, reportId: string) =>
-      req<ClassDailyReport>(`/me/my-classes/${classId}/reports/${reportId}/finalize`, { method: 'POST' }),
 
     // Class-scoped writes — hours
     createHours: (classId: string, body: {
@@ -572,7 +570,7 @@ export const api = {
     updateDrill: (classId: string, drillId: string, body: Partial<ClassDrill>) =>
       req<ClassDrill>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'PUT', body: JSON.stringify(body) }),
     deleteDrill: (classId: string, drillId: string) =>
-      req<void>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'DELETE' }),
+      req<{ deactivated: true; drill: ClassDrill } | void>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'DELETE' }),
 
     // Cross-class reads
     allReports: (params?: { class_id?: string; date_from?: string; date_to?: string; status?: string; page?: number; limit?: number }) => {

@@ -35,7 +35,7 @@ interface ClassDrillsSectionProps {
 }
 
 export function ClassDrillsSection({ classId, className }: ClassDrillsSectionProps) {
-  const { drills, loading, refreshDrills } = useClassDetail()
+  const { drills, loading, refreshDrills, setDrills } = useClassDetail()
   const { toast } = useToast()
   const [error, setError] = useState<string | null>(null)
   // Controls visibility of the inline add/edit form
@@ -116,24 +116,27 @@ export function ClassDrillsSection({ classId, className }: ClassDrillsSectionPro
 
   async function handleDelete() {
     if (!deleteTarget) return
+    const prev = drills
+    setDrills(d => d.filter(drill => drill.id !== deleteTarget.id))
+    setDeleteTarget(null)
+    toast('Drill deleted', 'success')
     try {
       await api.drills.delete(classId, deleteTarget.id)
-      toast('Drill deleted', 'success')
-      setDeleteTarget(null)
-      refreshDrills()
     } catch (err) {
       toast((err as Error).message, 'error')
-      setDeleteTarget(null)
+      setDrills(prev)
     }
   }
 
   async function handleToggleActive(drill: ClassDrill) {
+    // Optimistic toggle
+    setDrills(prev => prev.map(d => d.id === drill.id ? { ...d, active: !d.active } : d))
+    toast(drill.active ? 'Drill deactivated' : 'Drill activated', 'success')
     try {
       await api.drills.update(classId, drill.id, { active: !drill.active })
-      refreshDrills()
-      toast(drill.active ? 'Drill deactivated' : 'Drill activated', 'success')
     } catch (err) {
       toast((err as Error).message, 'error')
+      setDrills(prev => prev.map(d => d.id === drill.id ? { ...d, active: drill.active } : d))
     }
   }
 

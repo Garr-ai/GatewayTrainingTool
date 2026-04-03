@@ -19,7 +19,6 @@ export function TrainerReportsPage() {
   const [filterClass, setFilterClass] = useState('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
 
   const limit = 50
 
@@ -30,7 +29,6 @@ export function TrainerReportsPage() {
       class_id: filterClass || undefined,
       date_from: filterFrom || undefined,
       date_to: filterTo || undefined,
-      status: filterStatus || undefined,
       page,
       limit,
     })
@@ -42,13 +40,12 @@ export function TrainerReportsPage() {
       .catch(err => console.error(err))
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [filterClass, filterFrom, filterTo, filterStatus, page])
+  }, [filterClass, filterFrom, filterTo, page])
 
   function reset() {
     setFilterClass('')
     setFilterFrom('')
     setFilterTo('')
-    setFilterStatus('')
     setPage(0)
   }
 
@@ -69,12 +66,7 @@ export function TrainerReportsPage() {
         </select>
         <input type="date" value={filterFrom} onChange={e => { setFilterFrom(e.target.value); setPage(0) }} className={inputClass} title="From date" />
         <input type="date" value={filterTo} onChange={e => { setFilterTo(e.target.value); setPage(0) }} className={inputClass} title="To date" />
-        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(0) }} className={inputClass}>
-          <option value="">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="finalized">Finalized</option>
-        </select>
-        {(filterClass || filterFrom || filterTo || filterStatus) && (
+        {(filterClass || filterFrom || filterTo) && (
           <button type="button" onClick={reset} className="h-8 px-3 rounded text-xs text-slate-400 border border-white/10 hover:text-slate-200 hover:border-white/20 transition-colors">Reset</button>
         )}
       </div>
@@ -95,7 +87,7 @@ export function TrainerReportsPage() {
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Class</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Session</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Group</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Game</th>
                 </tr>
               </thead>
               <tbody>
@@ -105,11 +97,7 @@ export function TrainerReportsPage() {
                     <td className="px-3 py-2 text-slate-300 text-xs">{(r.classes as ReportRowClass).name}</td>
                     <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.session_label ?? '—'}</td>
                     <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.group_label ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        r.status === 'finalized' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'
-                      }`}>{r.status}</span>
-                    </td>
+                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.game ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

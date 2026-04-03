@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { api } from '../../lib/apiClient'
 import { useTrainerClassDetail } from '../../contexts/TrainerClassDetailContext'
 import { SkeletonTable } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
-import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ReportPreviewModal } from '../../components/ReportPreviewModal'
 import { useToast } from '../../contexts/ToastContext'
-import type { ClassDailyReport, ClassDrill, ClassEnrollment, DailyRating } from '../../types'
+import type { ClassDailyReport, ClassDrill, ClassEnrollment, ClassTrainer, DailyRating } from '../../types'
 import type { ReportWithNested } from '../../lib/apiClient'
+import type { ReportPdfArgs } from '../../lib/reportPdf'
 
 type ReportBody = {
   report_date: string
@@ -77,13 +78,16 @@ function emptyDrillTimes(enrollments: ClassEnrollment[], drills: ClassDrill[]) {
 }
 
 export function TrainerReportsSection() {
-  const { classId, classInfo, reports, enrollments, drills, loading, refreshReports } = useTrainerClassDetail()
+  const { classId, classInfo, reports, enrollments, drills, loading, refreshReports, setReports } = useTrainerClassDetail()
   const { toast } = useToast()
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list')
   const [editingReport, setEditingReport] = useState<ReportWithNested | null>(null)
   const [loadingReport, setLoadingReport] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<ClassDailyReport | null>(null)
+
+  // PDF preview state
+  const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
+  const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
 
   // Form state
   const [fDate, setFDate] = useState('')
@@ -102,6 +106,12 @@ export function TrainerReportsSection() {
   const archived = classInfo?.archived ?? false
   const activeEnr = enrollments.filter(e => e.status === 'enrolled')
   const activeDrills = drills.filter(d => d.active)
+  const className = classInfo?.name ?? ''
+
+  // Build a fake trainers array for ReportPreviewModal — it expects ClassTrainer[]
+  const trainersList: ClassTrainer[] = classInfo?.trainer_id
+    ? [{ id: classInfo.trainer_id, class_id: classId, trainer_name: 'Trainer', trainer_email: '', role: 'primary' as const, created_at: '' }]
+    : []
 
   function openCreate() {
     setMode('create')
@@ -124,6 +134,7 @@ export function TrainerReportsSection() {
     setLoadingReport(true)
     try {
       const full = await api.selfService.classReportDetail(classId, report.id)
+      reportCacheRef.current[report.id] = full
       setEditingReport(full)
       setMode('edit')
       setFDate(full.report_date)
@@ -137,7 +148,6 @@ export function TrainerReportsSection() {
       setFCurrentTrainees(full.current_trainees != null ? String(full.current_trainees) : '')
       setFLicenses(full.licenses_received != null ? String(full.licenses_received) : '')
 
-      // Build progress rows — fill from existing or default
       const progressMap = new Map(full.progress.map(p => [p.enrollment_id, p]))
       setFProgress(activeEnr.map(e => {
         const existing = progressMap.get(e.id)
@@ -153,7 +163,6 @@ export function TrainerReportsSection() {
         }
       }))
 
-      // Build drill time rows
       const dtMap = new Map(full.drill_times.map(dt => [`${dt.enrollment_id}:${dt.drill_id}`, dt]))
       setFDrillTimes(activeEnr.flatMap(e =>
         activeDrills.map(d => {
@@ -173,8 +182,7 @@ export function TrainerReportsSection() {
     }
   }, [classId, activeEnr, activeDrills, toast])
 
-  function buildBody(status?: 'draft' | 'finalized'): ReportBody {
-    void status
+  function buildBody(): ReportBody {
     return {
       report_date: fDate,
       group_label: fGroupLabel || null,
@@ -196,55 +204,63 @@ export function TrainerReportsSection() {
     }
   }
 
-  async function handleSaveDraft() {
+  async function handleSave() {
     setSaving(true)
     try {
       const body = buildBody()
       if (mode === 'create') {
+        // Optimistic: add to list immediately
+        const tempReport: ClassDailyReport = {
+          id: `temp-${Date.now()}`,
+          class_id: classId,
+          report_date: fDate,
+          group_label: fGroupLabel || null,
+          game: fGame || null,
+          session_label: fSessionLabel || null,
+          class_start_time: fStartTime || null,
+          class_end_time: fEndTime || null,
+          mg_confirmed: body.mg_confirmed ?? null,
+          mg_attended: body.mg_attended ?? null,
+          current_trainees: body.current_trainees ?? null,
+          licenses_received: body.licenses_received ?? null,
+          override_hours_to_date: null,
+          override_paid_hours_total: null,
+          override_live_hours_total: null,
+          status: 'draft',
+          created_at: new Date().toISOString(),
+        }
+        setReports(prev => [tempReport, ...prev])
         await api.selfService.createReport(classId, body)
-        toast('Report saved as draft', 'success')
+        toast('Report saved', 'success')
+        refreshReports()
       } else if (editingReport) {
         await api.selfService.updateReport(classId, editingReport.id, body)
+        // Invalidate PDF cache
+        delete reportCacheRef.current[editingReport.id]
         toast('Report updated', 'success')
       }
       setMode('list')
-      refreshReports()
     } catch (err) {
       toast((err as Error).message, 'error')
+      if (mode === 'create') refreshReports() // roll back optimistic
     } finally {
       setSaving(false)
     }
   }
 
-  async function handleFinalize() {
-    if (!editingReport) return
-    setSaving(true)
+  async function handleViewPdf(r: ClassDailyReport) {
     try {
-      // Save first then finalize
-      await api.selfService.updateReport(classId, editingReport.id, buildBody())
-      await api.selfService.finalizeReport(classId, editingReport.id)
-      toast('Report finalized', 'success')
-      setMode('list')
-      refreshReports()
+      const full = reportCacheRef.current[r.id] ?? await api.selfService.classReportDetail(classId, r.id)
+      reportCacheRef.current[r.id] = full
+      setPreviewArgs({
+        report: full,
+        className,
+        trainers: trainersList,
+        enrollments: activeEnr,
+        drills,
+      })
     } catch (err) {
       toast((err as Error).message, 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleFinalizeNew() {
-    setSaving(true)
-    try {
-      const report = await api.selfService.createReport(classId, buildBody())
-      await api.selfService.finalizeReport(classId, report.id)
-      toast('Report created and finalized', 'success')
-      setMode('list')
-      refreshReports()
-    } catch (err) {
-      toast((err as Error).message, 'error')
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -264,6 +280,7 @@ export function TrainerReportsSection() {
 
   if (mode === 'list') {
     return (
+      <>
       <section className="bg-gw-surface rounded-[10px] p-4">
         <header className="flex items-center justify-between gap-2 mb-3">
           <div>
@@ -293,7 +310,7 @@ export function TrainerReportsSection() {
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Session</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Group</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Game</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
                 </tr>
               </thead>
@@ -303,28 +320,17 @@ export function TrainerReportsSection() {
                     <td className="px-3 py-2 text-slate-200 font-medium">{r.report_date}</td>
                     <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.session_label ?? '—'}</td>
                     <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.group_label ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        r.status === 'finalized' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'
-                      }`}>
-                        {r.status}
-                      </span>
-                    </td>
+                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.game ?? '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {loadingReport ? (
                           <span className="text-slate-500 text-[10px]">Loading…</span>
                         ) : (
                           <>
-                            {!archived && r.status === 'draft' && (
+                            {!archived && (
                               <button type="button" onClick={() => openEdit(r)} className="rounded px-2 py-1 text-[11px] font-medium text-gw-blue hover:bg-gw-blue/10 transition-colors">Edit</button>
                             )}
-                            {!archived && r.status === 'draft' && (
-                              <button type="button" onClick={() => setDeleteTarget(r)} className="rounded px-2 py-1 text-[11px] font-medium text-rose-400 hover:bg-rose-500/10 transition-colors">Delete</button>
-                            )}
-                            {r.status === 'finalized' && (
-                              <button type="button" onClick={() => openEdit(r)} className="rounded px-2 py-1 text-[11px] font-medium text-slate-400 hover:bg-white/5 transition-colors">View</button>
-                            )}
+                            <button type="button" onClick={() => handleViewPdf(r)} className="rounded px-2 py-1 text-[11px] font-medium text-slate-400 hover:bg-white/5 transition-colors">View PDF</button>
                           </>
                         )}
                       </div>
@@ -335,34 +341,19 @@ export function TrainerReportsSection() {
             </table>
           </div>
         )}
-
-        <ConfirmDialog
-          open={!!deleteTarget}
-          title="Delete report"
-          message={`Delete report for ${deleteTarget?.report_date}? This cannot be undone.`}
-          confirmLabel="Delete"
-          confirmVariant="danger"
-          onConfirm={async () => {
-            if (!deleteTarget) return
-            try {
-              // No delete endpoint in trainer self-service — only coordinators can delete
-              // Show informative message
-              toast('Reports can only be deleted by coordinators.', 'error')
-            } catch (err) {
-              toast((err as Error).message, 'error')
-            } finally {
-              setDeleteTarget(null)
-            }
-          }}
-          onCancel={() => setDeleteTarget(null)}
-        />
       </section>
+
+      {previewArgs && (
+        <ReportPreviewModal
+          args={previewArgs}
+          onClose={() => setPreviewArgs(null)}
+        />
+      )}
+      </>
     )
   }
 
-  // Report form (create or edit)
-  const isFinalized = editingReport?.status === 'finalized'
-
+  // Report form (create or edit) — always editable for trainers
   return (
     <section className="bg-gw-surface rounded-[10px] p-4 flex flex-col gap-4">
       {/* Header */}
@@ -371,63 +362,60 @@ export function TrainerReportsSection() {
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
         <h3 className="text-sm font-semibold text-slate-200">
-          {mode === 'create' ? 'New Report' : isFinalized ? 'View Report' : 'Edit Report'}
+          {mode === 'create' ? 'New Report' : 'Edit Report'}
         </h3>
-        {isFinalized && (
-          <span className="ml-auto text-[10px] bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded-full font-medium">Finalized</span>
-        )}
       </div>
 
       {/* Header fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Report date *
-            <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} required />
+            <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className={fieldClass + ' mt-1'} required />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Session label
-            <input type="text" value={fSessionLabel} onChange={e => setFSessionLabel(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} placeholder="e.g. Day 4 AM" />
+            <input type="text" value={fSessionLabel} onChange={e => setFSessionLabel(e.target.value)} className={fieldClass + ' mt-1'} placeholder="e.g. Day 4 AM" />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Group
-            <input type="text" value={fGroupLabel} onChange={e => setFGroupLabel(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} placeholder="e.g. A" />
+            <input type="text" value={fGroupLabel} onChange={e => setFGroupLabel(e.target.value)} className={fieldClass + ' mt-1'} placeholder="e.g. A" />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Game
-            <input type="text" value={fGame} onChange={e => setFGame(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="text" value={fGame} onChange={e => setFGame(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Class start time
-            <input type="time" value={fStartTime} onChange={e => setFStartTime(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="time" value={fStartTime} onChange={e => setFStartTime(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Class end time
-            <input type="time" value={fEndTime} onChange={e => setFEndTime(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="time" value={fEndTime} onChange={e => setFEndTime(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">M&amp;G Confirmed
-            <input type="number" min={0} value={fMgConfirmed} onChange={e => setFMgConfirmed(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="number" min={0} value={fMgConfirmed} onChange={e => setFMgConfirmed(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">M&amp;G Attended
-            <input type="number" min={0} value={fMgAttended} onChange={e => setFMgAttended(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="number" min={0} value={fMgAttended} onChange={e => setFMgAttended(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Current trainees
-            <input type="number" min={0} value={fCurrentTrainees} onChange={e => setFCurrentTrainees(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="number" min={0} value={fCurrentTrainees} onChange={e => setFCurrentTrainees(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1">Licenses received
-            <input type="number" min={0} value={fLicenses} onChange={e => setFLicenses(e.target.value)} disabled={isFinalized} className={fieldClass + ' mt-1'} />
+            <input type="number" min={0} value={fLicenses} onChange={e => setFLicenses(e.target.value)} className={fieldClass + ' mt-1'} />
           </label>
         </div>
       </div>
@@ -457,13 +445,12 @@ export function TrainerReportsSection() {
                     <tr key={p.enrollment_id} className="border-b border-white/[0.03]">
                       <td className="px-3 py-2 text-slate-300 font-medium text-[11px]">{enr?.student_name ?? p.enrollment_id}</td>
                       <td className="px-3 py-2">
-                        <input type="checkbox" checked={p.attendance} disabled={isFinalized} onChange={e => updateProgress(idx, 'attendance', e.target.checked)} className="accent-gw-blue" />
+                        <input type="checkbox" checked={p.attendance} onChange={e => updateProgress(idx, 'attendance', e.target.checked)} className="accent-gw-blue" />
                       </td>
                       {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(field => (
                         <td key={field} className="px-2 py-1">
                           <select
                             value={p[field] ?? ''}
-                            disabled={isFinalized}
                             onChange={e => updateProgress(idx, field, e.target.value || null)}
                             className="bg-gw-surface border border-white/10 rounded px-1.5 py-1 text-[10px] text-slate-200 outline-none"
                           >
@@ -473,16 +460,15 @@ export function TrainerReportsSection() {
                         </td>
                       ))}
                       <td className="px-3 py-2">
-                        <input type="checkbox" checked={p.homework_completed} disabled={isFinalized} onChange={e => updateProgress(idx, 'homework_completed', e.target.checked)} className="accent-gw-blue" />
+                        <input type="checkbox" checked={p.homework_completed} onChange={e => updateProgress(idx, 'homework_completed', e.target.checked)} className="accent-gw-blue" />
                       </td>
                       <td className="px-3 py-2">
-                        <input type="checkbox" checked={p.coming_back_next_day} disabled={isFinalized} onChange={e => updateProgress(idx, 'coming_back_next_day', e.target.checked)} className="accent-gw-blue" />
+                        <input type="checkbox" checked={p.coming_back_next_day} onChange={e => updateProgress(idx, 'coming_back_next_day', e.target.checked)} className="accent-gw-blue" />
                       </td>
                       <td className="px-2 py-1">
                         <input
                           type="text"
                           value={p.progress_text ?? ''}
-                          disabled={isFinalized}
                           onChange={e => updateProgress(idx, 'progress_text', e.target.value || null)}
                           className="w-full bg-gw-surface border border-white/10 rounded px-1.5 py-1 text-[10px] text-slate-200 outline-none"
                           placeholder="Notes…"
@@ -523,11 +509,8 @@ export function TrainerReportsSection() {
                             <input
                               type="number"
                               min={0}
-                              disabled={isFinalized}
                               value={drill.type === 'drill' ? (dt?.time_seconds ?? '') : (dt?.score ?? '')}
-                              onChange={e => updateDrillTime(e.target.closest('tr')!.dataset.eid ?? '', drill.id, drill.type === 'drill' ? 'time_seconds' : 'score', e.target.value)}
-                              // Use data attribute to pass enrollment id
-                              // Actually, we need a closure here:
+                              onChange={ev => updateDrillTime(e.id, drill.id, drill.type === 'drill' ? 'time_seconds' : 'score', ev.target.value)}
                               className="bg-gw-surface border border-white/10 rounded px-1.5 py-1 text-[10px] text-slate-200 outline-none w-24"
                             />
                           </td>
@@ -542,30 +525,13 @@ export function TrainerReportsSection() {
         </div>
       )}
 
-      {/* Action buttons */}
-      {!isFinalized && (
-        <div className="flex gap-2 justify-end pt-2 border-t border-white/[0.06]">
-          <button type="button" onClick={() => setMode('list')} className="rounded-md bg-gw-elevated text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-surface transition-colors">Cancel</button>
-          <button type="button" onClick={handleSaveDraft} disabled={saving || !fDate} className="rounded-md bg-gw-surface border border-white/10 text-slate-200 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors disabled:opacity-50">
-            {saving ? 'Saving…' : 'Save draft'}
-          </button>
-          {mode === 'create' && (
-            <button type="button" onClick={handleFinalizeNew} disabled={saving || !fDate} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50">
-              Create &amp; finalize
-            </button>
-          )}
-          {mode === 'edit' && editingReport && (
-            <button type="button" onClick={handleFinalize} disabled={saving || !fDate} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50">
-              Save &amp; finalize
-            </button>
-          )}
-        </div>
-      )}
-      {isFinalized && (
-        <div className="flex gap-2 justify-end pt-2 border-t border-white/[0.06]">
-          <button type="button" onClick={() => setMode('list')} className="rounded-md bg-gw-elevated text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-surface transition-colors">Back to list</button>
-        </div>
-      )}
+      {/* Action buttons — always editable, no finalize */}
+      <div className="flex gap-2 justify-end pt-2 border-t border-white/[0.06]">
+        <button type="button" onClick={() => setMode('list')} className="rounded-md bg-gw-elevated text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-surface transition-colors">Cancel</button>
+        <button type="button" onClick={handleSave} disabled={saving || !fDate} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50">
+          {saving ? 'Saving…' : mode === 'create' ? 'Create report' : 'Save changes'}
+        </button>
+      </div>
     </section>
   )
 }

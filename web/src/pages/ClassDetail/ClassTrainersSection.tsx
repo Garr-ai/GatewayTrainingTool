@@ -36,7 +36,7 @@ interface ClassTrainersSectionProps {
 
 export function ClassTrainersSection({ classId, className }: ClassTrainersSectionProps) {
   const { toast } = useToast()
-  const { trainers, loading, refreshTrainers } = useClassDetail()
+  const { trainers, loading, refreshTrainers, setTrainers } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; confirmLabel: string; confirmVariant: 'danger' | 'primary'; onConfirm: () => void } | null>(null)
   // Controls the assign-trainer search modal
@@ -84,20 +84,34 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
    */
   async function handleAssignTrainer(profile: Pick<Profile, 'id' | 'full_name' | 'email'>) {
     setError(null)
+    // Optimistic: remove from search results immediately
+    setSearchResults(prev => prev.filter(p => p.id !== profile.id))
+    // Optimistic: add to trainers list immediately with a temp ID
+    const tempId = `temp-${Date.now()}`
+    const optimisticTrainer: ClassTrainer = {
+      id: tempId,
+      class_id: classId,
+      trainer_name: profile.full_name ?? profile.email,
+      trainer_email: profile.email,
+      role,
+      created_at: new Date().toISOString(),
+    }
+    setTrainers(prev => [...prev, optimisticTrainer])
+    toast('Trainer assigned', 'success')
     try {
       await api.trainers.create(classId, {
         trainer_name: profile.full_name ?? profile.email,
         trainer_email: profile.email,
         role,
       })
-      // Refresh both lists so the newly assigned trainer appears in the table
-      // and disappears from the search results
-      await refreshTrainers()
-      await searchProfiles(searchTerm)
-      toast('Trainer assigned', 'success')
+      // Sync with server to get real ID
+      refreshTrainers()
     } catch (err) {
       console.error('createTrainer error:', (err as Error).message)
       toast((err as Error).message, 'error')
+      // Roll back optimistic updates
+      setTrainers(prev => prev.filter(t => t.id !== tempId))
+      setSearchResults(prev => [...prev, profile])
     }
   }
 
@@ -139,13 +153,16 @@ export function ClassTrainersSection({ classId, className }: ClassTrainersSectio
       confirmVariant: 'danger',
       onConfirm: async () => {
         setConfirmState(null)
+        // Optimistic: remove from list immediately
+        const prev = trainers
+        setTrainers(t => t.filter(tr => tr.id !== id))
+        toast('Trainer removed', 'success')
         try {
           await api.trainers.delete(classId, id)
-          await refreshTrainers()
-          toast('Trainer removed', 'success')
         } catch (err) {
           console.error('removeTrainer error:', (err as Error).message)
           toast((err as Error).message, 'error')
+          setTrainers(prev) // roll back
         }
       },
     })
