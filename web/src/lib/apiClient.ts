@@ -45,6 +45,11 @@ import type {
   StudentProgressResponse,
   TrainerDashboardResponse,
   TraineeDashboardResponse,
+  TrainerMyClassesResponse,
+  TrainerClassDetailResponse,
+  TrainerClassHoursResponse,
+  TrainerStudentProgressResponse,
+  TrainerMyHoursResponse,
 } from '../types'
 
 // In production (same Vercel project) this is empty → relative URLs /api/...
@@ -132,7 +137,7 @@ interface DrillTimeInput {
 }
 
 /** The full request body sent to POST /classes/:id/reports and PUT /classes/:id/reports/:id. */
-interface ReportBody {
+export interface ReportBody {
   report_date: string
   group_label?: string | null
   game?: string | null
@@ -523,6 +528,71 @@ export const api = {
   selfService: {
     trainerDashboard: () => req<TrainerDashboardResponse>('/me/trainer-dashboard'),
     traineeDashboard: () => req<TraineeDashboardResponse>('/me/trainee-progress'),
+
+    // Trainer class management
+    myClasses: () => req<TrainerMyClassesResponse>('/me/my-classes'),
+    classDetail: (classId: string) => req<TrainerClassDetailResponse>(`/me/my-classes/${classId}`),
+
+    // Class-scoped reads
+    classReports: (classId: string) => req<ClassDailyReport[]>(`/me/my-classes/${classId}/reports`),
+    classReportDetail: (classId: string, reportId: string) =>
+      req<ReportWithNested>(`/me/my-classes/${classId}/reports/${reportId}`),
+    classSchedule: (classId: string) => req<ClassScheduleSlot[]>(`/me/my-classes/${classId}/schedule`),
+    classHours: (classId: string) => req<TrainerClassHoursResponse>(`/me/my-classes/${classId}/hours`),
+    studentProgress: (classId: string, enrollmentId: string) =>
+      req<TrainerStudentProgressResponse>(`/me/my-classes/${classId}/students/${enrollmentId}/progress`),
+
+    // Class-scoped writes — reports
+    createReport: (classId: string, body: ReportBody) =>
+      req<ClassDailyReport>(`/me/my-classes/${classId}/reports`, { method: 'POST', body: JSON.stringify(body) }),
+    updateReport: (classId: string, reportId: string, body: ReportBody) =>
+      req<ClassDailyReport>(`/me/my-classes/${classId}/reports/${reportId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    finalizeReport: (classId: string, reportId: string) =>
+      req<ClassDailyReport>(`/me/my-classes/${classId}/reports/${reportId}/finalize`, { method: 'POST' }),
+
+    // Class-scoped writes — hours
+    createHours: (classId: string, body: {
+      log_date: string; person_type: LoggedHoursPersonType;
+      enrollment_id?: string | null; hours: number;
+      paid?: boolean; live_training?: boolean; notes?: string | null;
+    }) => req<ClassLoggedHours>(`/me/my-classes/${classId}/hours`, { method: 'POST', body: JSON.stringify(body) }),
+    createHoursBulk: (classId: string, body: {
+      log_date: string;
+      entries: Array<{ enrollment_id: string; hours: number; notes?: string }>;
+      paid?: boolean; live_training?: boolean;
+    }) => req<{ inserted: number }>(`/me/my-classes/${classId}/hours/bulk`, { method: 'POST', body: JSON.stringify(body) }),
+    updateHours: (classId: string, hourId: string, body: Partial<ClassLoggedHours>) =>
+      req<ClassLoggedHours>(`/me/my-classes/${classId}/hours/${hourId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteHours: (classId: string, hourId: string) =>
+      req<void>(`/me/my-classes/${classId}/hours/${hourId}`, { method: 'DELETE' }),
+
+    // Class-scoped writes — drills
+    createDrill: (classId: string, body: { name: string; type: DrillType; par_time_seconds?: number | null; target_score?: number | null }) =>
+      req<ClassDrill>(`/me/my-classes/${classId}/drills`, { method: 'POST', body: JSON.stringify(body) }),
+    updateDrill: (classId: string, drillId: string, body: Partial<ClassDrill>) =>
+      req<ClassDrill>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteDrill: (classId: string, drillId: string) =>
+      req<void>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'DELETE' }),
+
+    // Cross-class reads
+    allReports: (params?: { class_id?: string; date_from?: string; date_to?: string; status?: string; page?: number; limit?: number }) => {
+      const entries: Record<string, string> = {}
+      if (params) { for (const [k, v] of Object.entries(params)) { if (v !== undefined && v !== '') entries[k] = String(v) } }
+      const qs = new URLSearchParams(entries).toString()
+      return req<PaginatedReports>(`/me/reports${qs ? `?${qs}` : ''}`)
+    },
+    allSchedule: (params?: { class_id?: string; date_from?: string; date_to?: string; group_label?: string; page?: number; limit?: number }) => {
+      const entries: Record<string, string> = {}
+      if (params) { for (const [k, v] of Object.entries(params)) { if (v !== undefined && v !== '') entries[k] = String(v) } }
+      const qs = new URLSearchParams(entries).toString()
+      return req<PaginatedSchedule>(`/me/schedule${qs ? `?${qs}` : ''}`)
+    },
+    allHours: (params?: { class_id?: string; date_from?: string; date_to?: string; page?: number; limit?: number }) => {
+      const entries: Record<string, string> = {}
+      if (params) { for (const [k, v] of Object.entries(params)) { if (v !== undefined && v !== '') entries[k] = String(v) } }
+      const qs = new URLSearchParams(entries).toString()
+      return req<TrainerMyHoursResponse>(`/me/hours${qs ? `?${qs}` : ''}`)
+    },
   },
 
   dashboard: {

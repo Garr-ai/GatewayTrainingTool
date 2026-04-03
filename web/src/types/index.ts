@@ -352,6 +352,58 @@ export interface PayrollRow {
   class_count: number
 }
 
+/** Response from GET /me/my-classes — enhanced trainer dashboard. */
+export interface TrainerMyClassesResponse {
+  trainer_name: string | null
+  trainer_email: string
+  classes: Array<{
+    class_id: string
+    trainer_id: string
+    class_name: string
+    site: string
+    province: string
+    game_type: string | null
+    start_date: string | null
+    end_date: string | null
+    archived: boolean
+    trainer_role: string
+    enrolled_count: number
+    draft_report_count: number
+    total_hours: number
+    upcoming_slots: UpcomingSlot[]
+  }>
+}
+
+/** Response from GET /me/my-classes/:classId. */
+export interface TrainerClassDetailResponse extends Class {
+  trainer_role: string
+  trainer_id: string
+  enrollments: ClassEnrollment[]
+  drills: ClassDrill[]
+}
+
+/** Response from GET /me/my-classes/:classId/hours — split by person type. */
+export interface TrainerClassHoursResponse {
+  trainer_hours: ClassLoggedHours[]
+  student_hours: ClassLoggedHours[]
+}
+
+/** Response from GET /me/my-classes/:classId/students/:enrollmentId/progress. */
+export interface TrainerStudentProgressResponse {
+  enrollment: ClassEnrollment
+  progress: ClassDailyReportTraineeProgress[]
+  drill_times: ClassDailyReportDrillTime[]
+}
+
+/** Response from GET /me/hours — personal hours with summary. */
+export interface TrainerMyHoursResponse {
+  data: (ClassLoggedHours & { classes: { id: string; name: string; site: string; province: string } })[]
+  total: number
+  page: number
+  limit: number
+  summary: { total_hours: number; paid_hours: number; unpaid_hours: number }
+}
+
 /** Static list of supported provinces used for dropdowns and display labels. */
 export const PROVINCES: { value: Province; label: string }[] = [
   { value: 'BC', label: 'British Columbia' },

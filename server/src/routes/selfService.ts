@@ -1039,6 +1039,172 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
   }
 })
 
+// ─── Cross-class Read Endpoints ──────────────────────────────────────────────
+
+/**
+ * GET /me/reports
+ * Auth: any authenticated trainer
+ * Paginated reports across all assigned classes.
+ * Query params: class_id, date_from, date_to, status, page, limit
+ */
+selfServiceRouter.get('/me/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50 })
+      return
+    }
+
+    const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const { class_id, date_from, date_to, status, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_daily_reports')
+      .select('*, classes!inner(id, name, site, province, game_type, archived)', { count: 'exact' })
+      .in('class_id', classIds)
+      .order('report_date', { ascending: false })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('report_date', date_from)
+    if (date_to) query = query.lte('report_date', date_to)
+    if (status && (status === 'draft' || status === 'finalized')) query = query.eq('status', status)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    res.json({ data: data ?? [], total: count ?? 0, page, limit })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/schedule
+ * Auth: any authenticated trainer
+ * Schedule across all assigned classes.
+ * Query params: class_id, date_from, date_to, group_label, page, limit
+ */
+selfServiceRouter.get('/me/schedule', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50 })
+      return
+    }
+
+    const classIds = [...new Set(trainerRows.map((t: { class_id: string }) => t.class_id))]
+    const { class_id, date_from, date_to, group_label, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_schedule_slots')
+      .select('*, classes!inner(id, name, site, province, game_type, archived)', { count: 'exact' })
+      .in('class_id', classIds)
+      .order('slot_date', { ascending: true })
+      .order('start_time', { ascending: true })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('slot_date', date_from)
+    if (date_to) query = query.lte('slot_date', date_to)
+    if (group_label) query = query.eq('group_label', group_label)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    res.json({ data: data ?? [], total: count ?? 0, page, limit })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/hours
+ * Auth: any authenticated trainer
+ * Personal hours across all assigned classes.
+ * Query params: class_id, date_from, date_to, page, limit
+ */
+selfServiceRouter.get('/me/hours', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.userEmail
+    if (!email) { res.status(401).json({ error: 'No email' }); return }
+
+    const { data: trainerRows, error: trainerError } = await supabase
+      .from('class_trainers')
+      .select('id, class_id')
+      .eq('trainer_email', email)
+    if (trainerError) throw trainerError
+    if (!trainerRows || trainerRows.length === 0) {
+      res.json({ data: [], total: 0, page: 0, limit: 50, summary: { total_hours: 0, paid_hours: 0, unpaid_hours: 0 } })
+      return
+    }
+
+    const trainerIds = trainerRows.map((t: { id: string }) => t.id)
+    const { class_id, date_from, date_to, page: pageStr, limit: limitStr } = req.query as Record<string, string | undefined>
+
+    const limit = Math.min(Math.max(Number(limitStr) || 50, 1), 200)
+    const page = Math.max(Number(pageStr) || 0, 0)
+    const offset = page * limit
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = supabase
+      .from('class_logged_hours')
+      .select('*, classes!inner(id, name, site, province)', { count: 'exact' })
+      .eq('person_type', 'trainer')
+      .in('trainer_id', trainerIds)
+      .order('log_date', { ascending: false })
+
+    if (class_id) query = query.eq('class_id', class_id)
+    if (date_from) query = query.gte('log_date', date_from)
+    if (date_to) query = query.lte('log_date', date_to)
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    const allHours = data ?? []
+    const total_hours = allHours.reduce((sum: number, h: { hours: number }) => sum + h.hours, 0)
+    const paid_hours = allHours.filter((h: { paid: boolean }) => h.paid).reduce((sum: number, h: { hours: number }) => sum + h.hours, 0)
+
+    res.json({
+      data: allHours,
+      total: count ?? 0,
+      page,
+      limit,
+      summary: { total_hours, paid_hours, unpaid_hours: total_hours - paid_hours },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
 // ─── Drills Write Endpoints ───────────────────────────────────────────────────
 
 selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, res: Response, next: NextFunction) => {
