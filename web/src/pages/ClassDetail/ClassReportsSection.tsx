@@ -108,7 +108,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
   const [reportSaving, setReportSaving] = useState(false)
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
-  const [previewReportId, setPreviewReportId] = useState<string | null>(null)
   // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
   const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
   // Tracks the source row index during a timeline drag operation
@@ -328,7 +327,6 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     try {
       const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
       reportCacheRef.current[r.id] = full
-      setPreviewReportId(r.id)
       setPreviewArgs({ report: full, className, trainers, enrollments, drills })
     } catch (err) {
       setError((err as Error).message)
@@ -1035,7 +1033,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
     {previewArgs && (
       <ReportPreviewModal
         args={previewArgs}
-        onClose={() => { setPreviewArgs(null); setPreviewReportId(null) }}
+        onClose={() => { setPreviewArgs(null) }}
       />
     )}
 
