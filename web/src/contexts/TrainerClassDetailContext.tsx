@@ -6,6 +6,7 @@ import type {
   ClassDailyReport,
   ClassLoggedHours,
   ClassDrill,
+  ClassTrainer,
   TrainerClassDetailResponse,
 } from '../types'
 
@@ -15,6 +16,7 @@ interface TrainerClassDetailContextValue {
   enrollments: ClassEnrollment[]
   schedule: ClassScheduleSlot[]
   reports: ClassDailyReport[]
+  trainers: ClassTrainer[]
   trainerHours: ClassLoggedHours[]
   studentHours: ClassLoggedHours[]
   drills: ClassDrill[]
@@ -38,6 +40,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
   const [enrollments, setEnrollments] = useState<ClassEnrollment[]>([])
   const [schedule, setSchedule] = useState<ClassScheduleSlot[]>([])
   const [reports, setReports] = useState<ClassDailyReport[]>([])
+  const [trainers, setTrainers] = useState<ClassTrainer[]>([])
   const [trainerHours, setTrainerHours] = useState<ClassLoggedHours[]>([])
   const [studentHours, setStudentHours] = useState<ClassLoggedHours[]>([])
   const [drills, setDrills] = useState<ClassDrill[]>([])
@@ -59,6 +62,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
     setClassInfo(detail)
     setDrills(detail.drills)
     setEnrollments(detail.enrollments)
+    setTrainers(detail.trainers ?? [])
   }, [classId])
 
   const refreshSchedule = useCallback(async () => {
@@ -71,6 +75,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
     setClassInfo(detail)
     setEnrollments(detail.enrollments)
     setDrills(detail.drills)
+    setTrainers(detail.trainers ?? [])
   }, [classId])
 
   useEffect(() => {
@@ -87,6 +92,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
         setClassInfo(detail)
         setEnrollments(detail.enrollments)
         setDrills(detail.drills)
+        setTrainers(detail.trainers ?? [])
         setSchedule(sched)
         setReports(reps)
         setTrainerHours(hrs.trainer_hours)
@@ -100,6 +106,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
   return (
     <TrainerClassDetailContext.Provider value={{
       classId, classInfo, enrollments, schedule, reports,
+      trainers,
       trainerHours, studentHours, drills, loading,
       refreshReports, refreshHours, refreshDrills, refreshSchedule, refreshEnrollments,
       setReports, setTrainerHours, setStudentHours, setDrills,
