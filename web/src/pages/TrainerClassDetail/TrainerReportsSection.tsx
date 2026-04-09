@@ -17,7 +17,7 @@ export function TrainerReportsSection() {
   const { toast } = useToast()
   const [mode, setMode] = useState<'list' | 'create' | 'edit'>('list')
   const [editingReport, setEditingReport] = useState<ReportWithNested | null>(null)
-  const [loadingReport, setLoadingReport] = useState(false)
+  const [loadingReportId, setLoadingReportId] = useState<string | null>(null)
 
   // PDF preview state
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
@@ -33,7 +33,7 @@ export function TrainerReportsSection() {
   }
 
   const openEdit = useCallback(async (report: ClassDailyReport) => {
-    setLoadingReport(true)
+    setLoadingReportId(report.id)
     try {
       const full = reportCacheRef.current[report.id] ?? await api.selfService.classReportDetail(classId, report.id)
       reportCacheRef.current[report.id] = full
@@ -42,7 +42,7 @@ export function TrainerReportsSection() {
     } catch (err) {
       toast((err as Error).message, 'error')
     } finally {
-      setLoadingReport(false)
+      setLoadingReportId(null)
     }
   }, [classId, toast])
 
@@ -75,6 +75,7 @@ export function TrainerReportsSection() {
         await api.selfService.updateReport(classId, editingReport.id, body)
         delete reportCacheRef.current[editingReport.id]
         toast('Report updated', 'success')
+        refreshReports()
       }
       setMode('list')
       setEditingReport(null)
@@ -146,7 +147,7 @@ export function TrainerReportsSection() {
                     <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.game ?? '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {loadingReport ? (
+                        {loadingReportId === r.id ? (
                           <span className="text-slate-500 text-[10px]">Loading…</span>
                         ) : (
                           <>

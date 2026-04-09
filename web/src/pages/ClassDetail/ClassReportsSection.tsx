@@ -50,9 +50,10 @@ interface ClassReportsSectionProps {
   classId: string              // UUID of the class
   className: string            // Display name used in empty states and PDF generation
   mode: 'reports' | 'hours'   // Which tab this component is currently rendering
+  defaultGameType?: string | null  // Class's game type, used as default when creating new reports
 }
 
-export function ClassReportsSection({ classId, className, mode }: ClassReportsSectionProps) {
+export function ClassReportsSection({ classId, className, mode, defaultGameType }: ClassReportsSectionProps) {
   const { toast } = useToast()
   const [confirmState, setConfirmState] = useState<{
     title: string
@@ -359,7 +360,7 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
               enrollments={enrollments}
               drills={drills}
               hours={hours}
-              defaultGame={editingReportFull?.game ?? ''}
+              defaultGame={editingReportFull?.game ?? defaultGameType ?? ''}
               onSave={handleSaveFromForm}
               onCancel={() => { setReportFormOpen(false); setEditingReportFull(null) }}
               canDelete={!!editingReportFull}
