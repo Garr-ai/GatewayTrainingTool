@@ -380,6 +380,7 @@ export interface TrainerClassDetailResponse extends Class {
   trainer_id: string
   enrollments: ClassEnrollment[]
   drills: ClassDrill[]
+  trainers: ClassTrainer[]
 }
 
 /** Response from GET /me/my-classes/:classId/hours — split by person type. */

@@ -31,32 +31,29 @@
  */
 
 import { useMemo, useRef, useState } from 'react'
-import { api, type ReportWithNested } from '../../lib/apiClient'
+import { api, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
+import { ReportEditForm } from '../../components/ReportEditForm'
 import { useToast } from '../../contexts/ToastContext'
 import { useClassDetail } from '../../contexts/ClassDetailContext'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { SkeletonTable } from '../../components/Skeleton'
 import { EmptyState } from '../../components/EmptyState'
-import { CollapsibleSection } from '../../components/CollapsibleSection'
 import type {
   ClassDailyReport,
-  ClassDailyReportTimelineItem,
-  ClassDailyReportTraineeProgress,
-  ClassDailyReportDrillTime,
   ClassLoggedHours,
   LoggedHoursPersonType,
-  DailyRating,
 } from '../../types'
 
 interface ClassReportsSectionProps {
   classId: string              // UUID of the class
   className: string            // Display name used in empty states and PDF generation
   mode: 'reports' | 'hours'   // Which tab this component is currently rendering
+  defaultGameType?: string | null  // Class's game type, used as default when creating new reports
 }
 
-export function ClassReportsSection({ classId, className, mode }: ClassReportsSectionProps) {
+export function ClassReportsSection({ classId, className, mode, defaultGameType }: ClassReportsSectionProps) {
   const { toast } = useToast()
   const [confirmState, setConfirmState] = useState<{
     title: string
@@ -81,37 +78,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   // ── Daily report form state ───────────────────────────────────────────────
   // Controls the inline report form panel (shown above the reports table)
   const [reportFormOpen, setReportFormOpen] = useState(false)
-  // Null when adding a new report; set to the report being edited
-  const [editingReport, setEditingReport] = useState<ClassDailyReport | null>(null)
-  // All report header fields stored as strings (numeric fields converted on save)
-  const [reportDate, setReportDate] = useState('')
-  const [reportGroup, setReportGroup] = useState('')
-  const [reportGame, setReportGame] = useState('')
-  const [reportSessionLabel, setReportSessionLabel] = useState('')
-  const [reportStartTime, setReportStartTime] = useState('')
-  const [reportEndTime, setReportEndTime] = useState('')
-  const [mgConfirmed, setMgConfirmed] = useState('')
-  const [mgAttended, setMgAttended] = useState('')
-  const [currentTrainees, setCurrentTrainees] = useState('')
-  const [licensesReceived, setLicensesReceived] = useState('')
-  // Override fields for hours totals — empty string means "use calculated value"
-  const [overrideHoursToDate, setOverrideHoursToDate] = useState('')
-  const [overridePaidHours, setOverridePaidHours] = useState('')
-  const [overrideLiveHours, setOverrideLiveHours] = useState('')
-  // IDs of trainers selected via checkboxes for the "trainers for the day" section
-  const [selectedTrainerIds, setSelectedTrainerIds] = useState<string[]>([])
-  // Timeline rows — the ordered list of training time blocks for the day
-  const [timelineItems, setTimelineItems] = useState<ClassDailyReportTimelineItem[]>([])
-  // Per-trainee progress rows — one per enrolled student
-  const [progressRows, setProgressRows] = useState<ClassDailyReportTraineeProgress[]>([])
-  // Per-student drill/test time recordings
-  const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
-  const [reportSaving, setReportSaving] = useState(false)
+  // Full report being edited (null when creating new)
+  const [editingReportFull, setEditingReportFull] = useState<ReportWithNested | null>(null)
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
   // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
   const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
-  // Tracks the source row index during a timeline drag operation
-  const dragIndexRef = useRef<number | null>(null)
 
   // ── Logged hours form state ───────────────────────────────────────────────
   const [hoursFormOpen, setHoursFormOpen] = useState(false)
@@ -125,174 +96,66 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   const [hoursSaving, setHoursSaving] = useState(false)
 
 
-  /** Resets all report form fields to their empty defaults. */
-  function resetReportForm() {
-    setReportDate('')
-    setReportGroup('')
-    setReportGame('')
-    setReportSessionLabel('')
-    setReportStartTime('')
-    setReportEndTime('')
-    setMgConfirmed('')
-    setMgAttended('')
-    setCurrentTrainees('')
-    setLicensesReceived('')
-    setOverrideHoursToDate('')
-    setOverridePaidHours('')
-    setOverrideLiveHours('')
-    setSelectedTrainerIds([])
-    setTimelineItems([])
-    setProgressRows([])
-    setDrillTimeRows([])
-  }
-
-  /**
-   * Fetches the full report details (trainer_ids, timeline, progress) for editing.
-   * The list endpoint only returns the report header; nested data requires a
-   * separate GET /reports/:id call.
-   */
-  async function loadReportDetails(reportId: string) {
-    const full = await api.reports.get(reportId)
-    // Cache so View PDF can reuse without re-fetching
-    reportCacheRef.current[reportId] = full
-    setSelectedTrainerIds(full.trainer_ids)
-    setTimelineItems(full.timeline)
-    setProgressRows(full.progress)
-    setDrillTimeRows(full.drill_times)
-  }
-
   /** Resets the form and opens it in "add new report" mode. */
   function openAddReport() {
-    setEditingReport(null)
-    resetReportForm()
+    setEditingReportFull(null)
     setReportFormOpen(true)
   }
 
   /**
-   * Pre-fills the report form with an existing report's data and opens it in edit mode.
-   * Fetches nested data (timeline, progress) via a separate API call because the
-   * list endpoint does not include them.
+   * Fetches the full report (with nested data) for editing and opens the form.
+   * Uses the cache so switching between edit and PDF preview avoids extra fetches.
    */
   async function openEditReport(r: ClassDailyReport) {
-    setEditingReport(r)
-    setReportDate(r.report_date)
-    setReportGroup(r.group_label ?? '')
-    setReportGame(r.game ?? '')
-    setReportSessionLabel(r.session_label ?? '')
-    setReportStartTime(r.class_start_time ?? '')
-    setReportEndTime(r.class_end_time ?? '')
-    // Convert nullable numbers to strings for controlled inputs
-    setMgConfirmed(r.mg_confirmed?.toString() ?? '')
-    setMgAttended(r.mg_attended?.toString() ?? '')
-    setCurrentTrainees(r.current_trainees?.toString() ?? '')
-    setLicensesReceived(r.licenses_received?.toString() ?? '')
-    setOverrideHoursToDate(r.override_hours_to_date?.toString() ?? '')
-    setOverridePaidHours(r.override_paid_hours_total?.toString() ?? '')
-    setOverrideLiveHours(r.override_live_hours_total?.toString() ?? '')
-    await loadReportDetails(r.id)
-    setReportFormOpen(true)
+    try {
+      const full = reportCacheRef.current[r.id] ?? await api.reports.get(r.id)
+      reportCacheRef.current[r.id] = full
+      setEditingReportFull(full)
+      setReportFormOpen(true)
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }
 
-  /**
-   * Handles both create and update for daily reports.
-   * Numeric string fields are parsed with `parseIntOrNull` to convert empty
-   * strings to null (API expects null, not empty string).
-   * Timeline items are sent with their current array index as `position` to
-   * preserve the drag-and-drop order.
-   */
-  async function handleSaveReport(e: React.FormEvent) {
-    e.preventDefault()
-    if (!reportDate) return
-    setReportSaving(true)
+  /** Called by ReportEditForm when the user submits; handles create and update. */
+  async function handleSaveFromForm(body: ReportBody) {
     setError(null)
-
-    /** Converts a form string value to a number or null. Returns null for empty/NaN. */
-    const parseIntOrNull = (v: string) => {
-      if (!v.trim()) return null
-      const n = Number(v)
-      return Number.isNaN(n) ? null : n
-    }
-
-    const body = {
-      report_date: reportDate,
-      group_label: reportGroup.trim() || null,
-      game: reportGame.trim() || null,
-      session_label: reportSessionLabel.trim() || null,
-      class_start_time: reportStartTime.trim() || null,
-      class_end_time: reportEndTime.trim() || null,
-      mg_confirmed: parseIntOrNull(mgConfirmed),
-      mg_attended: parseIntOrNull(mgAttended),
-      current_trainees: parseIntOrNull(currentTrainees),
-      licenses_received: parseIntOrNull(licensesReceived),
-      override_hours_to_date: parseIntOrNull(overrideHoursToDate),
-      override_paid_hours_total: parseIntOrNull(overridePaidHours),
-      override_live_hours_total: parseIntOrNull(overrideLiveHours),
-      trainer_ids: selectedTrainerIds,
-      timeline: timelineItems.map(item => ({
-        start_time: item.start_time,
-        end_time: item.end_time,
-        activity: item.activity,
-        homework_handouts_tests: item.homework_handouts_tests,
-        category: item.category,
-      })),
-      progress: progressRows.map(row => ({
-        enrollment_id: row.enrollment_id,
-        progress_text: row.progress_text,
-        gk_rating: row.gk_rating,
-        dex_rating: row.dex_rating,
-        hom_rating: row.hom_rating,
-        coming_back_next_day: row.coming_back_next_day ?? false,
-        homework_completed: row.homework_completed ?? false,
-        attendance: row.attendance ?? true,
-      })),
-      drill_times: drillTimeRows.map(row => ({
-        enrollment_id: row.enrollment_id,
-        drill_id: row.drill_id,
-        time_seconds: row.time_seconds,
-        score: row.score,
-      })),
-    }
-
     try {
-      if (editingReport) {
-        await api.reports.update(classId, editingReport.id, body)
-        // Invalidate cache so View PDF fetches fresh data with drill_times
-        delete reportCacheRef.current[editingReport.id]
+      if (editingReportFull) {
+        await api.reports.update(classId, editingReportFull.id, body)
+        delete reportCacheRef.current[editingReportFull.id]
         toast('Report updated successfully.', 'success')
       } else {
-        // Optimistic: add to list immediately
         const tempReport: ClassDailyReport = {
           id: `temp-${Date.now()}`,
           class_id: classId,
-          report_date: reportDate,
-          group_label: reportGroup.trim() || null,
-          game: reportGame.trim() || null,
-          session_label: reportSessionLabel.trim() || null,
-          class_start_time: reportStartTime.trim() || null,
-          class_end_time: reportEndTime.trim() || null,
-          mg_confirmed: body.mg_confirmed,
-          mg_attended: body.mg_attended,
-          current_trainees: body.current_trainees,
-          licenses_received: body.licenses_received,
-          override_hours_to_date: body.override_hours_to_date,
-          override_paid_hours_total: body.override_paid_hours_total,
-          override_live_hours_total: body.override_live_hours_total,
+          report_date: body.report_date,
+          group_label: body.group_label ?? null,
+          game: body.game ?? null,
+          session_label: body.session_label ?? null,
+          class_start_time: body.class_start_time ?? null,
+          class_end_time: body.class_end_time ?? null,
+          mg_confirmed: body.mg_confirmed ?? null,
+          mg_attended: body.mg_attended ?? null,
+          current_trainees: body.current_trainees ?? null,
+          licenses_received: body.licenses_received ?? null,
+          override_hours_to_date: body.override_hours_to_date ?? null,
+          override_paid_hours_total: body.override_paid_hours_total ?? null,
+          override_live_hours_total: body.override_live_hours_total ?? null,
           created_at: new Date().toISOString(),
         }
         setReports(prev => [tempReport, ...prev])
         await api.reports.create(classId, body)
         toast('Report created successfully.', 'success')
-        // Sync to get real ID
         refreshReports()
       }
       setReportFormOpen(false)
+      setEditingReportFull(null)
     } catch (err) {
       setError((err as Error).message)
       toast((err as Error).message, 'error')
-      // Refresh on error to roll back optimistic add
       refreshReports()
-    } finally {
-      setReportSaving(false)
+      throw err
     }
   }
 
@@ -305,6 +168,8 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
       confirmVariant: 'danger',
       onConfirm: async () => {
         setConfirmState(null)
+        setReportFormOpen(false)
+        setEditingReportFull(null)
         const prev = reports
         setReports(r => r.filter(rep => rep.id !== id))
         toast('Report deleted successfully.', 'success')
@@ -459,28 +324,11 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
   // Sum of all logged hours for the class, shown in the hours tab header
   const totalHours = hours.reduce((sum, h) => sum + h.hours, 0)
 
-  /**
-   * Computes cumulative hour totals for a given report date.
-   * Only includes hours logged on or before `date` (ISO date string comparison).
-   * This mimics the running total that would appear in the original spreadsheet.
-   * Returns zero totals if no date is selected yet.
-   */
-  function computedTotalsForDate(date: string) {
-    if (!date) return { hoursToDate: 0, paid: 0, live: 0 }
-    // String comparison works for ISO date strings (YYYY-MM-DD)
-    const relevant = hours.filter(h => h.log_date <= date)
-    const hoursToDate = relevant.reduce((sum, h) => sum + h.hours, 0)
-    const paid = relevant.filter(h => h.paid).reduce((sum, h) => sum + h.hours, 0)
-    const live = relevant.filter(h => h.live_training).reduce((sum, h) => sum + h.hours, 0)
-    return { hoursToDate, paid, live }
-  }
-
   if (loading) {
     return <SkeletonTable rows={4} cols={5} />
   }
 
   const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
-  const inlineFieldClass = 'bg-gw-elevated border border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
 
   return (
     <>
@@ -506,338 +354,18 @@ export function ClassReportsSection({ classId, className, mode }: ClassReportsSe
           </header>
 
           {reportFormOpen && (
-            <div className="mb-4 bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3 space-y-4 text-xs">
-              <form onSubmit={handleSaveReport} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label className="block text-xs font-medium text-slate-400">Date
-                    <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={fieldClass} required />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Group
-                    <input type="text" value={reportGroup} onChange={e => setReportGroup(e.target.value)} className={fieldClass} placeholder="e.g. A" />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Game
-                    <input type="text" value={reportGame} onChange={e => setReportGame(e.target.value)} className={fieldClass} placeholder="e.g. Blackjack" />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label className="block text-xs font-medium text-slate-400">Session
-                    <input type="text" value={reportSessionLabel} onChange={e => setReportSessionLabel(e.target.value)} className={fieldClass} placeholder="e.g. Day 4 PM" />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Class start time
-                    <input type="time" value={reportStartTime} onChange={e => setReportStartTime(e.target.value)} className={fieldClass} />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Class end time
-                    <input type="time" value={reportEndTime} onChange={e => setReportEndTime(e.target.value)} className={fieldClass} />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <label className="block text-xs font-medium text-slate-400">M&amp;G confirmed
-                    <input type="number" min="0" value={mgConfirmed} onChange={e => setMgConfirmed(e.target.value)} className={fieldClass} />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">M&amp;G attended
-                    <input type="number" min="0" value={mgAttended} onChange={e => setMgAttended(e.target.value)} className={fieldClass} />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Current trainees
-                    <input type="number" min="0" value={currentTrainees} onChange={e => setCurrentTrainees(e.target.value)} className={fieldClass} />
-                  </label>
-                  <label className="block text-xs font-medium text-slate-400">Licenses received
-                    <input type="number" min="0" value={licensesReceived} onChange={e => setLicensesReceived(e.target.value)} className={fieldClass} />
-                  </label>
-                </div>
-
-                {/* Trainers for the day */}
-                <CollapsibleSection label="Trainers for the day" defaultOpen>
-                <div>
-                  <p className="mb-1 text-[11px] font-semibold text-slate-400 hidden md:block">Trainers for the day</p>
-                  <div className="flex flex-wrap gap-2">
-                    {trainers.length === 0 ? (
-                      <span className="text-[11px] text-slate-500">No trainers assigned yet. Use the Trainers tab first.</span>
-                    ) : (
-                      trainers.map(t => {
-                        const checked = selectedTrainerIds.includes(t.id)
-                        return (
-                          <label key={t.id} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] cursor-pointer ${checked ? 'border-gw-blue/40 bg-gw-blue/15 text-gw-blue' : 'border-white/10 bg-white/[0.04] text-slate-400 hover:text-slate-300'}`}>
-                            <input type="checkbox" checked={checked} onChange={e => { setSelectedTrainerIds(prev => e.target.checked ? [...prev, t.id] : prev.filter(id => id !== t.id)) }} className="accent-gw-blue" />
-                            {t.trainer_name}
-                          </label>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-
-                </CollapsibleSection>
-
-                {/* Hours totals */}
-                <CollapsibleSection label="Hours totals">
-                <div className="bg-gw-surface rounded-[10px] border border-white/[0.06] p-3">
-                  <p className="text-[11px] font-semibold text-slate-400">Hours totals</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">Calculated from logged hours up to this report date; override fields take precedence.</p>
-                  <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {(() => {
-                      const totals = computedTotalsForDate(reportDate)
-                      const hoursToDateDisplay = overrideHoursToDate.trim() !== '' ? Number(overrideHoursToDate) : totals.hoursToDate
-                      const paidDisplay = overridePaidHours.trim() !== '' ? Number(overridePaidHours) : totals.paid
-                      const liveDisplay = overrideLiveHours.trim() !== '' ? Number(overrideLiveHours) : totals.live
-                      return (
-                        <>
-                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                            <div className="text-[10px] text-slate-500">Training hours to date</div>
-                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(hoursToDateDisplay) ? '—' : hoursToDateDisplay.toFixed(2)}</div>
-                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.hoursToDate.toFixed(2)}</div>
-                            <label className="mt-2 block text-[10px] text-slate-400">Override
-                              <input type="number" step="0.25" min="0" value={overrideHoursToDate} onChange={e => setOverrideHoursToDate(e.target.value)} className={`${fieldClass} mt-1`} />
-                            </label>
-                          </div>
-                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                            <div className="text-[10px] text-slate-500">Total paid hours</div>
-                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(paidDisplay) ? '—' : paidDisplay.toFixed(2)}</div>
-                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.paid.toFixed(2)}</div>
-                            <label className="mt-2 block text-[10px] text-slate-400">Override
-                              <input type="number" step="0.25" min="0" value={overridePaidHours} onChange={e => setOverridePaidHours(e.target.value)} className={`${fieldClass} mt-1`} />
-                            </label>
-                          </div>
-                          <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                            <div className="text-[10px] text-slate-500">Total live training hours</div>
-                            <div className="text-sm font-semibold text-slate-100">{Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}</div>
-                            <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.live.toFixed(2)}</div>
-                            <label className="mt-2 block text-[10px] text-slate-400">Override
-                              <input type="number" step="0.25" min="0" value={overrideLiveHours} onChange={e => setOverrideLiveHours(e.target.value)} className={`${fieldClass} mt-1`} />
-                            </label>
-                          </div>
-                        </>
-                      )
-                    })()}
-                  </div>
-                </div>
-
-                </CollapsibleSection>
-
-                {/* Timeline items */}
-                <CollapsibleSection label="Timeline & Progress" defaultOpen>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Daily training timeline / trainee progress</p>
-                    <button type="button" onClick={() => setTimelineItems(prev => [...prev, { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', start_time: '', end_time: '', activity: '', homework_handouts_tests: '', category: '', position: prev.length, created_at: new Date().toISOString() }])} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
-                      + Add time block
-                    </button>
-                  </div>
-
-                  {timelineItems.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">No timeline rows yet. Add blocks like in the spreadsheet.</p>
-                  ) : (
-                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
-                      <table className="min-w-full text-[11px]">
-                        <thead>
-                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                            <th className="px-2 py-1 w-6" />
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Start–end</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Activity</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Homework / handouts / tests</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Category</th>
-                            <th className="px-2 py-1" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {timelineItems.map((item, index) => (
-                            <tr key={item.id} draggable onDragStart={() => { dragIndexRef.current = index }} onDragOver={e => e.preventDefault()} onDrop={() => { const from = dragIndexRef.current; if (from === null || from === index) return; setTimelineItems(prev => { const next = [...prev]; const [moved] = next.splice(from, 1); next.splice(index, 0, moved); return next }); dragIndexRef.current = null }} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                              <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-500 select-none">⠿</td>
-                              <td className="px-2 py-1">
-                                <div className="flex gap-1">
-                                  <input type="time" value={item.start_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, start_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
-                                  <span className="self-center text-slate-500">–</span>
-                                  <input type="time" value={item.end_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, end_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
-                                </div>
-                              </td>
-                              <td className="px-2 py-1">
-                                <input type="text" value={item.activity ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, activity: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} />
-                              </td>
-                              <td className="px-2 py-1">
-                                <input type="text" value={item.homework_handouts_tests ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, homework_handouts_tests: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} />
-                              </td>
-                              <td className="px-2 py-1">
-                                <input type="text" value={item.category ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, category: e.target.value } : row))} className={`w-full ${inlineFieldClass}`} placeholder="Lecture / Dexterity / Game simulation…" />
-                              </td>
-                              <td className="px-2 py-1 text-right">
-                                <button type="button" onClick={() => setTimelineItems(prev => prev.filter((_, i) => i !== index))} className="rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 text-[10px] hover:bg-rose-500/15 transition-colors">Remove</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                </CollapsibleSection>
-
-                {/* Per-trainee progress */}
-                <CollapsibleSection label="Per-trainee progress" defaultOpen>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Per-trainee progress</p>
-                    <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
-                      Load current trainees
-                    </button>
-                  </div>
-
-                  {progressRows.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">No progress rows yet. Click &quot;Load current trainees&quot; to start.</p>
-                  ) : (
-                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
-                      <table className="min-w-full text-[11px]">
-                        <thead>
-                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Trainee</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Progress notes</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Ratings (GK / Dex / HoM)</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Attended?</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Coming back?</th>
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">HW done?</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {progressRows.map((row, index) => {
-                            const enrollment = enrollments.find(e => e.id === row.enrollment_id)
-                            const updateRow = (patch: Partial<ClassDailyReportTraineeProgress>) => { setProgressRows(prev => prev.map((r, i) => (i === index ? { ...r, ...patch } : r))) }
-                            const ratingOptions: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
-                            return (
-                              <tr key={row.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                                <td className="px-2 py-1 align-top">
-                                  <div className="text-slate-200">{enrollment?.student_name ?? 'Unknown'}</div>
-                                  <div className="text-[10px] text-slate-500">{enrollment?.student_email}</div>
-                                </td>
-                                <td className="px-2 py-1 align-top">
-                                  <textarea value={row.progress_text ?? ''} onChange={e => updateRow({ progress_text: e.target.value })} rows={3} className={`w-full ${inlineFieldClass}`} />
-                                </td>
-                                <td className="px-2 py-1 align-top">
-                                  <div className="flex flex-col gap-1">
-                                    {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(field => (
-                                      <label key={field} className="flex items-center gap-1">
-                                        <span className="w-8 text-slate-500">{field === 'gk_rating' ? 'GK' : field === 'dex_rating' ? 'Dex' : 'HoM'}</span>
-                                        <select value={row[field] ?? ''} onChange={e => updateRow({ [field]: (e.target.value || null) as DailyRating | null })} className={`flex-1 ${inlineFieldClass}`}>
-                                          <option value="">—</option>
-                                          {ratingOptions.map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
-                                    <input type="checkbox" checked={row.attendance ?? true} onChange={e => updateRow({ attendance: e.target.checked })} className="accent-gw-blue" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                                <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
-                                    <input type="checkbox" checked={row.coming_back_next_day ?? true} onChange={e => updateRow({ coming_back_next_day: e.target.checked })} className="accent-gw-blue" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                                <td className="px-2 py-1 align-top">
-                                  <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
-                                    <input type="checkbox" checked={row.homework_completed ?? false} onChange={e => updateRow({ homework_completed: e.target.checked })} className="accent-gw-blue" />
-                                    <span>Yes</span>
-                                  </label>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                </CollapsibleSection>
-
-                {/* Drill / test times */}
-                <CollapsibleSection label="Drill & test times">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Drill &amp; test times</p>
-                    {drills.filter(d => d.active).length > 0 && enrollments.length > 0 && (
-                      <button type="button" onClick={() => { const activeDrills = drills.filter(d => d.active); setDrillTimeRows(prev => { const rows: ClassDailyReportDrillTime[] = []; for (const enr of enrollments) { for (const drill of activeDrills) { const existing = prev.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id); rows.push(existing ?? { id: crypto.randomUUID(), report_id: editingReport?.id ?? 'new', enrollment_id: enr.id, drill_id: drill.id, time_seconds: null, score: null, created_at: new Date().toISOString() }) } } return rows }) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
-                        Load drills for trainees
-                      </button>
-                    )}
-                  </div>
-
-                  {drills.filter(d => d.active).length === 0 ? (
-                    <p className="text-[11px] text-slate-500">No active drills or tests defined. Add them in the Drills &amp; tests tab.</p>
-                  ) : drillTimeRows.length === 0 ? (
-                    <p className="text-[11px] text-slate-500">Click &quot;Load drills for trainees&quot; to populate the grid.</p>
-                  ) : (
-                    <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
-                      <table className="min-w-full text-[11px]">
-                        <thead>
-                          <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                            <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500 sticky left-0 bg-gw-surface">Trainee</th>
-                            {drills.filter(d => d.active).map(drill => (
-                              <th key={drill.id} className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">
-                                <div>{drill.name}</div>
-                                <div className="font-normal text-[10px] text-slate-500">{drill.type === 'drill' ? `Time (s)${drill.par_time_seconds ? ` · par ${drill.par_time_seconds}` : ''}` : `Score${drill.target_score ? ` · target ${drill.target_score}` : ''}`}</div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {enrollments.map(enr => (
-                            <tr key={enr.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                              <td className="px-2 py-1 text-slate-200 whitespace-nowrap sticky left-0 bg-gw-surface">{enr.student_name}</td>
-                              {drills.filter(d => d.active).map(drill => {
-                                const row = drillTimeRows.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id)
-                                if (!row) return <td key={drill.id} className="px-2 py-1 text-slate-500">—</td>
-                                const value = drill.type === 'drill' ? row.time_seconds : row.score
-                                return (
-                                  <td key={drill.id} className="px-2 py-1">
-                                    <input
-                                      type="number"
-                                      step={drill.type === 'drill' ? '0.1' : '1'}
-                                      min="0"
-                                      value={value ?? ''}
-                                      onChange={e => {
-                                        const v = e.target.value.trim()
-                                        const num = v === '' ? null : Number(v)
-                                        setDrillTimeRows(prev => prev.map(r => r.enrollment_id === enr.id && r.drill_id === drill.id ? { ...r, time_seconds: drill.type === 'drill' ? num : r.time_seconds, score: drill.type === 'test' ? num : r.score } : r))
-                                      }}
-                                      className={`w-20 rounded-md border px-1 py-0.5 text-[11px] outline-none ${
-                                        drill.type === 'drill' && row.time_seconds != null && drill.par_time_seconds != null
-                                          ? row.time_seconds <= drill.par_time_seconds
-                                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                                            : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                          : drill.type === 'test' && row.score != null && drill.target_score != null
-                                            ? row.score >= drill.target_score
-                                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                                              : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                            : 'border-white/10 bg-gw-elevated text-slate-200'
-                                      }`}
-                                      placeholder={drill.type === 'drill' ? 'sec' : 'score'}
-                                    />
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-
-                </CollapsibleSection>
-
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setReportFormOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
-                  <button type="submit" disabled={reportSaving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
-                    {reportSaving ? 'Saving…' : editingReport ? 'Save changes' : 'Add report'}
-                  </button>
-                </div>
-              </form>
-            </div>
+            <ReportEditForm
+              report={editingReportFull}
+              trainers={trainers}
+              enrollments={enrollments}
+              drills={drills}
+              hours={hours}
+              defaultGame={editingReportFull?.game ?? defaultGameType ?? ''}
+              onSave={handleSaveFromForm}
+              onCancel={() => { setReportFormOpen(false); setEditingReportFull(null) }}
+              canDelete={!!editingReportFull}
+              onDelete={editingReportFull ? () => handleRemoveReport(editingReportFull.id) : undefined}
+            />
           )}
 
           {reports.length === 0 ? (

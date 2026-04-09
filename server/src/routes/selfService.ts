@@ -294,7 +294,7 @@ selfServiceRouter.get('/me/trainee-progress', async (req: Request, res: Response
  * GET /me/my-classes/:classId
  * Auth: trainer assigned to class
  *
- * Returns class metadata, trainer's role, enrolled students, and drills.
+ * Returns class metadata, trainer's role, enrolled students, drills, and trainers.
  */
 selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -305,15 +305,17 @@ selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Respo
     const classId = req.params.classId as string
     const trainerRow = await validateTrainerAccess(req.userEmail, classId)
 
-    const [classResult, enrollResult, drillsResult] = await Promise.all([
+    const [classResult, enrollResult, drillsResult, trainersResult] = await Promise.all([
       supabase.from('classes').select('*').eq('id', classId).single(),
       supabase.from('class_enrollments').select('id, class_id, student_name, student_email, status, group_label, created_at').eq('class_id', classId).order('student_name', { ascending: true }),
       supabase.from('class_drills').select('*').eq('class_id', classId).order('created_at', { ascending: false }),
+      supabase.from('class_trainers').select('id, class_id, trainer_name, trainer_email, role, created_at').eq('class_id', classId).order('created_at', { ascending: true }),
     ])
 
     if (classResult.error) throw classResult.error
     if (enrollResult.error) throw enrollResult.error
     if (drillsResult.error) throw drillsResult.error
+    if (trainersResult.error) throw trainersResult.error
 
     res.json({
       ...classResult.data,
@@ -321,6 +323,7 @@ selfServiceRouter.get('/me/my-classes/:classId', async (req: Request, res: Respo
       trainer_id: trainerRow.id,
       enrollments: enrollResult.data ?? [],
       drills: drillsResult.data ?? [],
+      trainers: trainersResult.data ?? [],
     })
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) {
