@@ -258,6 +258,7 @@ selfServiceRouter.get('/me/trainee-progress', async (req: Request, res: Response
         coming_back_next_day: p.coming_back_next_day as boolean | null,
         homework_completed: p.homework_completed as boolean,
         attendance: (p.attendance as boolean) ?? true,
+        late: (p.late as boolean) ?? false,
       }
     })
     progress.sort((a: { report_date: string }, b: { report_date: string }) => a.report_date.localeCompare(b.report_date))
@@ -632,6 +633,7 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', async (req: Request, r
           coming_back_next_day: row.coming_back_next_day ?? false,
           homework_completed: row.homework_completed ?? false,
           attendance: row.attendance ?? true,
+          late: row.late ?? false,
         })),
       )
     }
@@ -746,6 +748,7 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', async (req: R
           coming_back_next_day: row.coming_back_next_day ?? false,
           homework_completed: row.homework_completed ?? false,
           attendance: row.attendance ?? true,
+          late: row.late ?? false,
         })),
       )
     }

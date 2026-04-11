@@ -193,9 +193,13 @@ export function StudentProgressPage() {
                         <td className="px-4 py-3 text-slate-500 text-xs truncate max-w-[200px] hidden lg:table-cell">{p.progress_text ?? '—'}</td>
                         <td className="px-4 py-3 text-center hidden md:table-cell">
                           {p.attendance ? (
-                            <svg className="w-4 h-4 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
+                            p.late ? (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">Late</span>
+                            ) : (
+                              <svg className="w-4 h-4 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )
                           ) : (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400">Absent</span>
                           )}

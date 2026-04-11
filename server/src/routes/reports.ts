@@ -318,6 +318,7 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
           coming_back_next_day: row.coming_back_next_day ?? false,
           homework_completed: row.homework_completed ?? false,
           attendance: row.attendance ?? true,
+          late: row.late ?? false,
         })),
       )
     }
@@ -457,6 +458,7 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
           coming_back_next_day: row.coming_back_next_day ?? false,
           homework_completed: row.homework_completed ?? false,
           attendance: row.attendance ?? true,
+          late: row.late ?? false,
         })),
       )
     }

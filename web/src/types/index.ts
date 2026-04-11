@@ -188,6 +188,7 @@ export interface ClassDailyReportTraineeProgress {
   coming_back_next_day: boolean | null
   homework_completed: boolean
   attendance: boolean       // Whether the student was present for this session
+  late: boolean              // Whether the student arrived late (only meaningful when attendance = true)
   created_at: string
 }
 
@@ -256,6 +257,7 @@ export interface StudentProgressResponse {
     coming_back_next_day: boolean | null
     homework_completed: boolean
     attendance: boolean
+    late: boolean
   }>
   drill_times: Array<{
     report_date: string
@@ -329,6 +331,7 @@ export interface TraineeDashboardResponse {
     coming_back_next_day: boolean | null
     homework_completed: boolean
     attendance: boolean
+    late: boolean
   }>
   drill_times: Array<{
     report_date: string

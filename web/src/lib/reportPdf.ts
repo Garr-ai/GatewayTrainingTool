@@ -82,9 +82,11 @@ export function generateReportHtml({ report, className, trainers, enrollments, d
     ? report.progress
         .map(row => {
           const enr = enrollments.find(e => e.id === row.enrollment_id)
+          const attendanceLabel = !row.attendance ? 'Absent' : row.late ? 'Late' : '✓'
           return `
         <tr>
           <td>${enr?.student_name ?? 'Unknown'}</td>
+          <td class="center">${attendanceLabel}</td>
           <td class="center">${fmt(row.gk_rating)}</td>
           <td class="center">${fmt(row.dex_rating)}</td>
           <td class="center">${fmt(row.hom_rating)}</td>
@@ -94,7 +96,7 @@ export function generateReportHtml({ report, className, trainers, enrollments, d
         </tr>`
         })
         .join('')
-    : '<tr><td colspan="7" class="empty">No trainee progress entries</td></tr>'
+    : '<tr><td colspan="8" class="empty">No trainee progress entries</td></tr>'
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -182,12 +184,13 @@ export function generateReportHtml({ report, className, trainers, enrollments, d
   <table>
     <thead>
       <tr>
-        <th style="width:18%">Trainee</th>
+        <th style="width:16%">Trainee</th>
+        <th style="width:7%">Attend.</th>
         <th style="width:6%">GK</th>
         <th style="width:6%">Dex</th>
         <th style="width:6%">HoM</th>
         <th style="width:8%">Coming back</th>
-        <th style="width:8%">HW done</th>
+        <th style="width:7%">HW done</th>
         <th>Progress notes</th>
       </tr>
     </thead>

@@ -164,6 +164,7 @@ export function ReportEditForm({
         coming_back_next_day: row.coming_back_next_day ?? false,
         homework_completed: row.homework_completed ?? false,
         attendance: row.attendance ?? true,
+        late: row.late ?? false,
       })),
       drill_times: drillTimeRows.map(row => ({
         enrollment_id: row.enrollment_id,
@@ -358,7 +359,7 @@ export function ReportEditForm({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Per-trainee progress</p>
-            <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
+            <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, late: progressRows.find(p => p.enrollment_id === enr.id)?.late ?? false, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
               Load current trainees
             </button>
           </div>
@@ -374,6 +375,7 @@ export function ReportEditForm({
                     <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Progress notes</th>
                     <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Ratings (GK / Dex / HoM)</th>
                     <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Attended?</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Late?</th>
                     <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Coming back?</th>
                     <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">HW done?</th>
                   </tr>
@@ -406,7 +408,13 @@ export function ReportEditForm({
                         </td>
                         <td className="px-2 py-1 align-top">
                           <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
-                            <input type="checkbox" checked={row.attendance ?? true} onChange={e => updateRow({ attendance: e.target.checked })} className="accent-gw-blue" />
+                            <input type="checkbox" checked={row.attendance ?? true} onChange={e => updateRow({ attendance: e.target.checked, ...(e.target.checked ? {} : { late: false }) })} className="accent-gw-blue" />
+                            <span>Yes</span>
+                          </label>
+                        </td>
+                        <td className="px-2 py-1 align-top">
+                          <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                            <input type="checkbox" checked={row.late ?? false} disabled={!(row.attendance ?? true)} onChange={e => updateRow({ late: e.target.checked })} className="accent-amber-400 disabled:opacity-30" />
                             <span>Yes</span>
                           </label>
                         </td>
