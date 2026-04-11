@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import { SkeletonCard, SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
@@ -91,7 +92,7 @@ export function TraineeDashboard({ email }: { email: string }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {classes.map(c => (
-              <div key={c.enrollment_id} className="rounded-[10px] border border-white/[0.08] bg-gw-surface p-4 flex flex-col gap-3">
+              <Link key={c.enrollment_id} to={`/my-class/${c.class_id}`} className="rounded-[10px] border border-white/[0.08] bg-gw-surface p-4 flex flex-col gap-3 hover:border-white/[0.15] transition-colors">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-semibold text-slate-200">{c.class_name}</p>
@@ -136,7 +137,7 @@ export function TraineeDashboard({ email }: { email: string }) {
                     </div>
                   </div>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}

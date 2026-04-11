@@ -26,9 +26,11 @@ import type { UserRole } from '../types'
 type AuthContextValue = {
   session: Session | null  // Null when the user is not signed in
   role: UserRole | null    // Null during initial load or when not signed in
+  roleSelected: boolean    // Whether the user has completed post-signup role selection
   loading: boolean         // True until session + role are both resolved
   email: string            // Convenience shortcut to session.user.email
   signOut: () => void
+  refreshAuth: () => Promise<void>  // Re-fetch session + role (e.g. after role selection)
 }
 
 // Initialised to null so `useAuth()` can detect if it's called outside a provider
@@ -51,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   // The user's role from the profiles table; drives route guards and UI branching
   const [role, setRole] = useState<UserRole | null>(null)
+  // Whether the user has completed post-signup role selection
+  const [roleSelected, setRoleSelected] = useState(true)
   // Stays true until we've resolved both session and role (prevents auth flicker)
   const [loading, setLoading] = useState(true)
 
@@ -62,11 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchRole = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, role_selected')
       .eq('id', userId)
       .single()
     if (error) console.error('fetchRole error:', error.message, error.code)
     setRole((data?.role as UserRole) ?? 'trainee')
+    setRoleSelected(data?.role_selected ?? true)
     setLoading(false)
   }, [])
 
@@ -97,15 +102,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.signOut()
   }, [])
 
+  /** Re-fetch session and role (e.g. after completing role selection). */
+  const refreshAuth = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    setSession(session)
+    if (session) await fetchRole(session.user.id)
+  }, [fetchRole])
+
   // Derive email from session to avoid spreading the entire session object
   const email = session?.user?.email ?? ''
 
   const value: AuthContextValue = {
     session,
     role,
+    roleSelected,
     loading,
     email,
     signOut,
+    refreshAuth,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

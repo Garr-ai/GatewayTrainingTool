@@ -28,6 +28,7 @@ export interface Profile {
   full_name: string | null
   role: UserRole
   province: Province | null  // Home province, used for multi-site filtering
+  role_selected: boolean     // Whether the user has completed post-signup role selection
   created_at: string
   updated_at: string
 }
@@ -343,6 +344,83 @@ export interface TraineeDashboardResponse {
     par_time_seconds: number | null
     target_score: number | null
   }>
+}
+
+/** A role change request submitted during post-signup role selection. */
+export interface RoleRequest {
+  id: string
+  user_id: string
+  requested_role: 'trainer' | 'coordinator'
+  status: 'pending' | 'approved' | 'rejected'
+  reviewed_by: string | null
+  created_at: string
+  updated_at: string
+  user_name?: string | null
+  user_email?: string
+}
+
+/** A single daily report as seen by a student, with their own progress and drill data. */
+export interface StudentReportView {
+  report_id: string
+  report_date: string
+  session_label: string | null
+  group_label: string | null
+  game: string | null
+  class_start_time: string | null
+  class_end_time: string | null
+  my_progress: {
+    gk_rating: DailyRating | null
+    dex_rating: DailyRating | null
+    hom_rating: DailyRating | null
+    attendance: boolean
+    late: boolean
+    homework_completed: boolean
+    progress_text: string | null
+    coming_back_next_day: boolean | null
+  } | null
+  my_drill_times: Array<{
+    drill_id: string
+    drill_name: string
+    drill_type: string
+    time_seconds: number | null
+    score: number | null
+    par_time_seconds: number | null
+    target_score: number | null
+  }>
+  drills: Array<{
+    id: string
+    name: string
+    type: DrillType
+    par_time_seconds: number | null
+    target_score: number | null
+  }>
+}
+
+/** Response from GET /me/my-class/:classId — student class detail. */
+export interface StudentClassDetailResponse {
+  class_info: {
+    id: string
+    name: string
+    site: string
+    province: string
+    game_type: string | null
+    start_date: string
+    end_date: string
+  }
+  enrollment: {
+    id: string
+    status: string
+    group_label: string | null
+    student_name: string
+  }
+  drills: Array<{
+    id: string
+    name: string
+    type: DrillType
+    par_time_seconds: number | null
+    target_score: number | null
+  }>
+  upcoming_slots: UpcomingSlot[]
 }
 
 /** Aggregated payroll row returned by GET /payroll/trainers and /payroll/students. */

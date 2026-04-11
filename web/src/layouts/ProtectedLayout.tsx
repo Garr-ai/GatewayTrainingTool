@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { CoordinatorLayout } from '../components/CoordinatorLayout'
 import { TrainerLayout, TRAINER_NAV_ITEMS } from '../components/TrainerLayout'
+import { StudentLayout, STUDENT_NAV_ITEMS } from '../components/StudentLayout'
+import { RoleSelectionPage } from '../pages/RoleSelectionPage'
+import { api } from '../lib/apiClient'
 
 const navIcon = (d: string) => (
   <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -24,10 +27,23 @@ const MORE_ITEMS = [
 ]
 
 export function ProtectedLayout() {
-  const { session, role, loading, email, signOut } = useAuth()
+  const { session, role, roleSelected, loading, email, signOut } = useAuth()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [pendingRequest, setPendingRequest] = useState<boolean | null>(null)
 
   const initials = email ? email.slice(0, 2).toUpperCase() : 'CO'
+
+  // Check for pending role request when user is a trainee with role_selected=true
+  // (they selected trainer/coordinator and are waiting for approval)
+  useEffect(() => {
+    if (!session || !roleSelected || role !== 'trainee') {
+      setPendingRequest(false)
+      return
+    }
+    api.selfService.myRoleRequest().then(rr => {
+      setPendingRequest(rr?.status === 'pending')
+    }).catch(() => setPendingRequest(false))
+  }, [session, role, roleSelected])
 
   if (loading || role === null) {
     if (!session && !loading) {
@@ -42,6 +58,44 @@ export function ProtectedLayout() {
 
   if (!session) {
     return <Navigate to="/login" replace />
+  }
+
+  // Gate: user hasn't completed role selection yet
+  if (!roleSelected) {
+    return <RoleSelectionPage />
+  }
+
+  // Gate: user selected trainer/coordinator and is waiting for approval
+  if (pendingRequest === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gw-darkest text-slate-500 text-sm">
+        Loading…
+      </div>
+    )
+  }
+  if (pendingRequest) {
+    return (
+      <div className="min-h-screen bg-gw-darkest flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-4">
+            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+              <path d="M12 8v4M12 16h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-slate-100 mb-2">Pending Approval</h2>
+          <p className="text-sm text-slate-400 mb-6">
+            Your role request is being reviewed by a coordinator. You will be able to access the full application once approved.
+          </p>
+          <button
+            type="button"
+            onClick={signOut}
+            className="rounded-[10px] border border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/[0.04] transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Coordinator layout: icon sidebar (desktop) + bottom nav (mobile)
@@ -238,22 +292,54 @@ export function ProtectedLayout() {
     )
   }
 
-  // Non-coordinator / non-trainer layout (trainee): minimal header
+  // Student (trainee) layout: icon sidebar (desktop) + bottom nav (mobile)
   return (
-    <div className="min-h-screen bg-gw-darkest flex flex-col">
-      <header className="px-6 py-4 border-b border-white/[0.08] bg-gw-surface flex items-center justify-between">
-        <h1 className="text-base font-semibold text-slate-200">Gateway Training Tool</h1>
+    <div className="min-h-screen w-screen bg-gw-darkest">
+      <StudentLayout />
+
+      {/* Mobile top bar */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-gw-darkest border-b border-white/[0.06] px-4 md:hidden">
+        <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center shrink-0">
+          <span className="text-white font-bold text-sm leading-none select-none">G</span>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-gw-blue/20 border border-gw-blue/30 flex items-center justify-center select-none">
+          <span className="text-xs font-semibold text-gw-blue">{initials}</span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <section className="md:ml-16 pt-14 md:pt-4 pb-20 md:pb-6 min-h-screen px-4 md:px-6 flex flex-col gap-4 overflow-auto">
+        <Outlet />
+      </section>
+
+      {/* Mobile bottom nav */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
+        aria-label="Mobile navigation"
+      >
+        {STUDENT_NAV_ITEMS.map(({ to, label, icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 px-3 py-1 transition-colors duration-100 ${
+                isActive ? 'text-gw-blue' : 'text-slate-500'
+              }`
+            }
+          >
+            {icon}
+            <span className="text-[10px] font-medium">{label}</span>
+          </NavLink>
+        ))}
         <button
           type="button"
           onClick={signOut}
-          className="rounded-md border border-rose-500/30 px-3 py-1.5 text-sm font-medium text-rose-400 hover:bg-rose-500/10"
+          className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-500"
         >
-          Sign out
+          {navIcon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
+          <span className="text-[10px] font-medium">Sign out</span>
         </button>
-      </header>
-      <main className="flex-1 flex items-start justify-center px-4 py-10">
-        <Outlet />
-      </main>
+      </nav>
     </div>
   )
 }

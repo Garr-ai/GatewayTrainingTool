@@ -50,6 +50,9 @@ import type {
   TrainerClassHoursResponse,
   TrainerStudentProgressResponse,
   TrainerMyHoursResponse,
+  RoleRequest,
+  StudentReportView,
+  StudentClassDetailResponse,
 } from '../types'
 
 // In production (same Vercel project) this is empty → relative URLs /api/...
@@ -539,6 +542,9 @@ export const api = {
     /** Update the currently authenticated user's profile (full_name, province). */
     update: (body: { full_name?: string; province?: string }) =>
       req<Profile>('/profiles/me', { method: 'PUT', body: JSON.stringify(body) }),
+    /** Select a role during post-signup flow. */
+    selectRole: (body: { selected_role: 'trainee' | 'trainer' | 'coordinator' }) =>
+      req<{ status: 'active' | 'pending' }>('/profiles/me/role-selection', { method: 'PUT', body: JSON.stringify(body) }),
   },
 
   selfService: {
@@ -607,6 +613,32 @@ export const api = {
       const qs = new URLSearchParams(entries).toString()
       return req<TrainerMyHoursResponse>(`/me/hours${qs ? `?${qs}` : ''}`)
     },
+
+    // Role request status (any authenticated user)
+    myRoleRequest: () => req<RoleRequest | null>('/me/role-request'),
+
+    // Student self-service
+    studentClassDetail: (classId: string) => req<StudentClassDetailResponse>(`/me/my-class/${classId}`),
+    studentClassReports: (classId: string) => req<StudentReportView[]>(`/me/my-class/${classId}/reports`),
+    signInAttendance: (classId: string, reportId: string) =>
+      req<{ signed_in: true }>(`/me/my-class/${classId}/reports/${reportId}/sign-in`, { method: 'POST' }),
+    updateMyProgress: (classId: string, reportId: string, body: {
+      gk_rating?: DailyRating | null; dex_rating?: DailyRating | null; hom_rating?: DailyRating | null;
+      drill_times?: Array<{ drill_id: string; time_seconds?: number | null; score?: number | null }>;
+    }) => req<{ progress: unknown; drill_times: unknown }>(`/me/my-class/${classId}/reports/${reportId}/my-progress`, {
+      method: 'PATCH', body: JSON.stringify(body),
+    }),
+  },
+
+  roleRequests: {
+    list: (params?: { status?: string; page?: number; limit?: number }) => {
+      const entries: Record<string, string> = {}
+      if (params) { for (const [k, v] of Object.entries(params)) { if (v !== undefined && v !== '') entries[k] = String(v) } }
+      const qs = new URLSearchParams(entries).toString()
+      return req<{ data: RoleRequest[]; total: number; page: number; limit: number }>(`/role-requests${qs ? `?${qs}` : ''}`)
+    },
+    approve: (id: string) => req<{ id: string; status: string; requested_role: string }>(`/role-requests/${id}/approve`, { method: 'PUT' }),
+    reject: (id: string) => req<{ id: string; status: string; requested_role: string }>(`/role-requests/${id}/reject`, { method: 'PUT' }),
   },
 
   dashboard: {

@@ -105,6 +105,69 @@ profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: Nex
   }
 })
 
+/**
+ * PUT /profiles/me/role-selection
+ * Auth: any authenticated user
+ * Called once after signup to set the user's chosen role.
+ *   - 'trainee' → immediately active (role stays trainee, role_selected set to true)
+ *   - 'trainer' or 'coordinator' → creates a pending role_request for coordinator approval
+ * Returns { status: 'active' | 'pending' }.
+ */
+const SELECTABLE_ROLES = new Set(['trainee', 'trainer', 'coordinator'])
+
+profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { selected_role } = req.body as { selected_role?: string }
+    if (!selected_role || !SELECTABLE_ROLES.has(selected_role)) {
+      res.status(400).json({ error: 'Invalid selected_role. Must be trainee, trainer, or coordinator.' })
+      return
+    }
+
+    // Mark role as selected
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ role_selected: true })
+      .eq('id', req.userId!)
+    if (updateError) throw updateError
+
+    if (selected_role === 'trainee') {
+      // Students proceed immediately — role is already 'trainee' by default
+      res.json({ status: 'active' })
+      return
+    }
+
+    // Trainer or coordinator — create a pending role request
+    const { error: insertError } = await supabase
+      .from('role_requests')
+      .insert({
+        user_id: req.userId!,
+        requested_role: selected_role,
+        status: 'pending',
+      })
+    if (insertError) {
+      // Unique constraint violation = pending request already exists
+      if (insertError.code === '23505') {
+        res.status(409).json({ error: 'A pending role request already exists.' })
+        return
+      }
+      throw insertError
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'role_requests',
+      recordId: req.userId!,
+      metadata: { requested_role: selected_role },
+      ipAddress: req.ip,
+    })
+
+    res.json({ status: 'pending' })
+  } catch (err) {
+    next(err)
+  }
+})
+
 // Whitelisted role values — only these are valid for the ?role= query param
 const VALID_ROLES = new Set(['coordinator', 'trainer', 'trainee'])
 

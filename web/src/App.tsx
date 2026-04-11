@@ -49,6 +49,8 @@ import { TrainerClassDetailPage } from './pages/TrainerClassDetailPage'
 import { TrainerReportsPage } from './pages/TrainerReportsPage'
 import { TrainerSchedulePage } from './pages/TrainerSchedulePage'
 import { TrainerHoursPage } from './pages/TrainerHoursPage'
+import { StudentRoute } from './layouts/StudentRoute'
+import { StudentClassDetailPage } from './pages/StudentClassDetailPage'
 
 /** Renders role-specific content for shared paths (/reports, /schedule). */
 function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode; trainer: React.ReactNode }) {
@@ -100,6 +102,9 @@ function App() {
             <Route path="my-classes" element={<TrainerRoute><MyClassesPage /></TrainerRoute>} />
             <Route path="my-classes/:classId" element={<TrainerRoute><TrainerClassDetailPage /></TrainerRoute>} />
             <Route path="hours" element={<TrainerRoute><TrainerHoursPage /></TrainerRoute>} />
+
+            {/* Student-only routes */}
+            <Route path="my-class/:classId" element={<StudentRoute><StudentClassDetailPage /></StudentRoute>} />
           </Route>
 
           {/* Catch-all */}

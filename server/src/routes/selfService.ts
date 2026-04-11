@@ -9,6 +9,11 @@
  *   GET /me/my-classes         — Classes this trainer is assigned to, with richer metadata
  *   GET /me/trainer-dashboard  — Backwards-compat alias for /me/my-classes
  *   GET /me/trainee-progress   — Progress and drill times for this trainee across all classes
+ *   GET /me/role-request       — Current user's most recent role request (if any)
+ *   GET /me/my-class/:classId  — Student class detail (metadata, drills, schedule)
+ *   GET /me/my-class/:classId/reports — Daily reports with student's own progress/drill data
+ *   POST /me/my-class/:classId/reports/:reportId/sign-in — Student attendance sign-in
+ *   PATCH /me/my-class/:classId/reports/:reportId/my-progress — Student self-input (grades + drill times)
  */
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
@@ -1285,6 +1290,420 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
     }
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+// ─── Role request status ────────────────────────────────────────────────────
+
+/**
+ * GET /me/role-request
+ * Auth: any authenticated user
+ * Returns the calling user's most recent role request, or null if none exists.
+ */
+selfServiceRouter.get('/me/role-request', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { data, error } = await supabase
+      .from('role_requests')
+      .select('id, requested_role, status, created_at')
+      .eq('user_id', req.userId!)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─── Student self-service endpoints ─────────────────────────────────────────
+
+/**
+ * Validates that the calling user is enrolled in the given class.
+ * Returns the enrollment row or null if not enrolled.
+ */
+async function validateStudentAccess(email: string, classId: string) {
+  const { data, error } = await supabase
+    .from('class_enrollments')
+    .select('id, class_id, student_name, student_email, status, group_label')
+    .eq('student_email', email)
+    .eq('class_id', classId)
+    .eq('status', 'enrolled')
+    .single()
+  if (error || !data) return null
+  return data
+}
+
+/**
+ * GET /me/my-class/:classId
+ * Auth: enrolled student
+ * Returns class metadata, student's enrollment details, active drills, and upcoming schedule.
+ */
+selfServiceRouter.get('/me/my-class/:classId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const enrollment = await validateStudentAccess(req.userEmail!, req.params.classId as string)
+    if (!enrollment) {
+      res.status(403).json({ error: 'You are not enrolled in this class.' })
+      return
+    }
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    const [classResult, drillsResult, scheduleResult] = await Promise.all([
+      supabase
+        .from('classes')
+        .select('id, name, site, province, game_type, start_date, end_date')
+        .eq('id', req.params.classId)
+        .single(),
+      supabase
+        .from('class_drills')
+        .select('id, name, type, par_time_seconds, target_score')
+        .eq('class_id', req.params.classId)
+        .eq('active', true)
+        .order('name', { ascending: true }),
+      supabase
+        .from('class_schedule_slots')
+        .select('id, slot_date, start_time, end_time, group_label, notes')
+        .eq('class_id', req.params.classId)
+        .gte('slot_date', today)
+        .order('slot_date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .limit(10),
+    ])
+
+    if (classResult.error) throw classResult.error
+    if (drillsResult.error) throw drillsResult.error
+    if (scheduleResult.error) throw scheduleResult.error
+
+    res.json({
+      class_info: classResult.data,
+      enrollment: {
+        id: enrollment.id,
+        status: enrollment.status,
+        group_label: enrollment.group_label,
+        student_name: enrollment.student_name,
+      },
+      drills: drillsResult.data ?? [],
+      upcoming_slots: scheduleResult.data ?? [],
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /me/my-class/:classId/reports
+ * Auth: enrolled student
+ * Returns daily reports for the class, each including the student's own progress
+ * row and drill times (if they exist).
+ */
+selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const enrollment = await validateStudentAccess(req.userEmail!, req.params.classId as string)
+    if (!enrollment) {
+      res.status(403).json({ error: 'You are not enrolled in this class.' })
+      return
+    }
+
+    // Fetch reports for this class
+    const { data: reports, error: reportsError } = await supabase
+      .from('class_daily_reports')
+      .select('id, report_date, session_label, group_label, game, class_start_time, class_end_time')
+      .eq('class_id', req.params.classId)
+      .order('report_date', { ascending: false })
+
+    if (reportsError) throw reportsError
+    if (!reports || reports.length === 0) {
+      res.json([])
+      return
+    }
+
+    const reportIds = reports.map((r: { id: string }) => r.id)
+
+    // Fetch student's own progress rows and drill times in parallel
+    const [progressResult, drillTimesResult, drillsResult] = await Promise.all([
+      supabase
+        .from('class_daily_report_trainee_progress')
+        .select('report_id, gk_rating, dex_rating, hom_rating, attendance, late, homework_completed, progress_text, coming_back_next_day')
+        .eq('enrollment_id', enrollment.id)
+        .in('report_id', reportIds),
+      supabase
+        .from('class_daily_report_drill_times')
+        .select('report_id, drill_id, time_seconds, score')
+        .eq('enrollment_id', enrollment.id)
+        .in('report_id', reportIds),
+      supabase
+        .from('class_drills')
+        .select('id, name, type, par_time_seconds, target_score')
+        .eq('class_id', req.params.classId)
+        .eq('active', true),
+    ])
+
+    if (progressResult.error) throw progressResult.error
+    if (drillTimesResult.error) throw drillTimesResult.error
+    if (drillsResult.error) throw drillsResult.error
+
+    // Build lookup maps
+    const progressMap = new Map<string, Record<string, unknown>>()
+    for (const p of progressResult.data ?? []) {
+      progressMap.set((p as { report_id: string }).report_id, p as Record<string, unknown>)
+    }
+
+    const drillTimesMap = new Map<string, Array<Record<string, unknown>>>()
+    for (const dt of drillTimesResult.data ?? []) {
+      const rid = (dt as { report_id: string }).report_id
+      if (!drillTimesMap.has(rid)) drillTimesMap.set(rid, [])
+      drillTimesMap.get(rid)!.push(dt as Record<string, unknown>)
+    }
+
+    const drillLookup = new Map<string, Record<string, unknown>>()
+    for (const d of drillsResult.data ?? []) {
+      drillLookup.set((d as { id: string }).id, d as Record<string, unknown>)
+    }
+
+    const result = reports.map((r: Record<string, unknown>) => {
+      const rid = r.id as string
+      const progress = progressMap.get(rid) ?? null
+      const rawDrillTimes = drillTimesMap.get(rid) ?? []
+      const myDrillTimes = rawDrillTimes.map(dt => {
+        const drill = drillLookup.get(dt.drill_id as string)
+        return {
+          drill_id: dt.drill_id,
+          drill_name: drill ? (drill.name as string) : 'Unknown',
+          drill_type: drill ? (drill.type as string) : 'drill',
+          time_seconds: dt.time_seconds,
+          score: dt.score,
+          par_time_seconds: drill ? (drill.par_time_seconds as number | null) : null,
+          target_score: drill ? (drill.target_score as number | null) : null,
+        }
+      })
+
+      return {
+        report_id: rid,
+        report_date: r.report_date,
+        session_label: r.session_label,
+        group_label: r.group_label,
+        game: r.game,
+        class_start_time: r.class_start_time,
+        class_end_time: r.class_end_time,
+        my_progress: progress ? {
+          gk_rating: progress.gk_rating,
+          dex_rating: progress.dex_rating,
+          hom_rating: progress.hom_rating,
+          attendance: progress.attendance ?? false,
+          late: progress.late ?? false,
+          homework_completed: progress.homework_completed ?? false,
+          progress_text: progress.progress_text ?? null,
+          coming_back_next_day: progress.coming_back_next_day ?? null,
+        } : null,
+        my_drill_times: myDrillTimes,
+        drills: (drillsResult.data ?? []).map((d: Record<string, unknown>) => ({
+          id: d.id,
+          name: d.name,
+          type: d.type,
+          par_time_seconds: d.par_time_seconds,
+          target_score: d.target_score,
+        })),
+      }
+    })
+
+    res.json(result)
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /me/my-class/:classId/reports/:reportId/sign-in
+ * Auth: enrolled student
+ * Marks the student as present for the given report. Creates the progress row
+ * if it doesn't exist yet (with other fields defaulted to null/false).
+ */
+selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const enrollment = await validateStudentAccess(req.userEmail!, req.params.classId as string)
+    if (!enrollment) {
+      res.status(403).json({ error: 'You are not enrolled in this class.' })
+      return
+    }
+
+    const reportId = req.params.reportId
+
+    // Verify the report belongs to this class
+    const { data: report, error: reportError } = await supabase
+      .from('class_daily_reports')
+      .select('id')
+      .eq('id', reportId)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (reportError || !report) {
+      res.status(404).json({ error: 'Report not found in this class.' })
+      return
+    }
+
+    // Check if a progress row already exists
+    const { data: existing } = await supabase
+      .from('class_daily_report_trainee_progress')
+      .select('id')
+      .eq('report_id', reportId)
+      .eq('enrollment_id', enrollment.id)
+      .maybeSingle()
+
+    if (existing) {
+      // Update existing row
+      const { error: updateError } = await supabase
+        .from('class_daily_report_trainee_progress')
+        .update({ attendance: true })
+        .eq('id', existing.id)
+      if (updateError) throw updateError
+    } else {
+      // Insert new row with attendance = true, other fields null/default
+      const { error: insertError } = await supabase
+        .from('class_daily_report_trainee_progress')
+        .insert({
+          report_id: reportId,
+          enrollment_id: enrollment.id,
+          attendance: true,
+          homework_completed: false,
+        })
+      if (insertError) throw insertError
+    }
+
+    res.json({ signed_in: true })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * PATCH /me/my-class/:classId/reports/:reportId/my-progress
+ * Auth: enrolled student
+ * Partial upsert of the student's own progress row and drill times.
+ * Only updates fields that are provided in the request body.
+ */
+selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const enrollment = await validateStudentAccess(req.userEmail!, req.params.classId as string)
+    if (!enrollment) {
+      res.status(403).json({ error: 'You are not enrolled in this class.' })
+      return
+    }
+
+    const reportId = req.params.reportId
+
+    // Verify the report belongs to this class
+    const { data: report, error: reportError } = await supabase
+      .from('class_daily_reports')
+      .select('id')
+      .eq('id', reportId)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (reportError || !report) {
+      res.status(404).json({ error: 'Report not found in this class.' })
+      return
+    }
+
+    const { gk_rating, dex_rating, hom_rating, drill_times } = req.body as {
+      gk_rating?: string | null
+      dex_rating?: string | null
+      hom_rating?: string | null
+      drill_times?: Array<{ drill_id: string; time_seconds?: number | null; score?: number | null }>
+    }
+
+    // Build partial update for progress row
+    const progressUpdates: Record<string, unknown> = {}
+    if (gk_rating !== undefined) progressUpdates.gk_rating = gk_rating
+    if (dex_rating !== undefined) progressUpdates.dex_rating = dex_rating
+    if (hom_rating !== undefined) progressUpdates.hom_rating = hom_rating
+
+    // Check if a progress row already exists
+    const { data: existing } = await supabase
+      .from('class_daily_report_trainee_progress')
+      .select('id')
+      .eq('report_id', reportId)
+      .eq('enrollment_id', enrollment.id)
+      .maybeSingle()
+
+    if (existing) {
+      if (Object.keys(progressUpdates).length > 0) {
+        const { error: updateError } = await supabase
+          .from('class_daily_report_trainee_progress')
+          .update(progressUpdates)
+          .eq('id', existing.id)
+        if (updateError) throw updateError
+      }
+    } else {
+      // Insert new row with provided fields
+      const { error: insertError } = await supabase
+        .from('class_daily_report_trainee_progress')
+        .insert({
+          report_id: reportId,
+          enrollment_id: enrollment.id,
+          attendance: true,
+          homework_completed: false,
+          ...progressUpdates,
+        })
+      if (insertError) throw insertError
+    }
+
+    // Handle drill times — per-drill upsert
+    if (drill_times && drill_times.length > 0) {
+      for (const dt of drill_times) {
+        const { data: existingDt } = await supabase
+          .from('class_daily_report_drill_times')
+          .select('id')
+          .eq('report_id', reportId)
+          .eq('enrollment_id', enrollment.id)
+          .eq('drill_id', dt.drill_id)
+          .maybeSingle()
+
+        if (existingDt) {
+          const dtUpdates: Record<string, unknown> = {}
+          if (dt.time_seconds !== undefined) dtUpdates.time_seconds = dt.time_seconds
+          if (dt.score !== undefined) dtUpdates.score = dt.score
+          if (Object.keys(dtUpdates).length > 0) {
+            const { error } = await supabase
+              .from('class_daily_report_drill_times')
+              .update(dtUpdates)
+              .eq('id', existingDt.id)
+            if (error) throw error
+          }
+        } else {
+          const { error } = await supabase
+            .from('class_daily_report_drill_times')
+            .insert({
+              report_id: reportId,
+              enrollment_id: enrollment.id,
+              drill_id: dt.drill_id,
+              time_seconds: dt.time_seconds ?? null,
+              score: dt.score ?? null,
+            })
+          if (error) throw error
+        }
+      }
+    }
+
+    // Return the updated progress + drill times
+    const [progressResult, drillTimesResult] = await Promise.all([
+      supabase
+        .from('class_daily_report_trainee_progress')
+        .select('gk_rating, dex_rating, hom_rating, attendance, late, homework_completed, progress_text')
+        .eq('report_id', reportId)
+        .eq('enrollment_id', enrollment.id)
+        .maybeSingle(),
+      supabase
+        .from('class_daily_report_drill_times')
+        .select('drill_id, time_seconds, score')
+        .eq('report_id', reportId)
+        .eq('enrollment_id', enrollment.id),
+    ])
+
+    res.json({
+      progress: progressResult.data ?? null,
+      drill_times: drillTimesResult.data ?? [],
+    })
+  } catch (err) {
     next(err)
   }
 })

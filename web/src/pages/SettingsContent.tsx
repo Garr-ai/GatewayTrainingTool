@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { api } from '../lib/apiClient'
 import { SkeletonCard } from '../components/Skeleton'
+import { RoleRequestsSection } from './RoleRequestsSection'
 import { PROVINCES, type Profile } from '../types'
 
 const inputClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
@@ -167,6 +168,12 @@ export function SettingsContent() {
                 </button>
               </div>
             )}
+          </section>
+
+          {/* Role Requests section */}
+          <section className="bg-gw-surface rounded-[10px] p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Role Requests</h3>
+            <RoleRequestsSection />
           </section>
 
           {/* Account section */}

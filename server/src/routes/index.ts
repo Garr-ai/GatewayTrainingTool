@@ -37,6 +37,7 @@ import { hoursRouter } from './hours'
 import { payrollRouter } from './payroll'
 import { studentProgressRouter } from './studentProgress'
 import { selfServiceRouter } from './selfService'
+import { roleRequestsRouter } from './roleRequests'
 import { profilesRouter } from './profiles'
 import { dashboardRouter } from './dashboard'
 
@@ -63,3 +64,4 @@ router.use(reportsRouter)
 router.use(hoursRouter)
 router.use(payrollRouter)
 router.use(studentProgressRouter)
+router.use(roleRequestsRouter)
