@@ -16,19 +16,37 @@ const roleIcons: Record<SelectedRole, string> = {
   coordinator: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z',
 }
 
+/** Formats phone input as (XXX) XXX-XXXX */
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
 export function RoleSelectionPage() {
   const { refreshAuth, signOut } = useAuth()
   const [selected, setSelected] = useState<SelectedRole | null>(null)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const canSubmit = selected && firstName.trim() && lastName.trim() && !submitting
+
   const handleSubmit = async () => {
-    if (!selected) return
+    if (!selected || !firstName.trim() || !lastName.trim()) return
     setSubmitting(true)
     setError(null)
     try {
-      const result = await api.profiles.selectRole({ selected_role: selected })
+      const result = await api.profiles.selectRole({
+        selected_role: selected,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone: phone.replace(/\D/g, '').length >= 10 ? phone : undefined,
+      })
       if (result.status === 'pending') {
         setPending(true)
       } else {
@@ -74,9 +92,56 @@ export function RoleSelectionPage() {
             <span className="text-white font-bold text-lg leading-none select-none">G</span>
           </div>
           <h1 className="text-2xl font-semibold text-slate-100 mb-1">Welcome to Gateway Training Tool</h1>
-          <p className="text-sm text-slate-400">Select your role to get started.</p>
+          <p className="text-sm text-slate-400">Complete your profile to get started.</p>
         </div>
 
+        {/* Profile fields */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label htmlFor="firstName" className="text-xs font-medium text-slate-400">
+                First Name <span className="text-rose-400">*</span>
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                placeholder="John"
+                className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label htmlFor="lastName" className="text-xs font-medium text-slate-400">
+                Last Name <span className="text-rose-400">*</span>
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                placeholder="Doe"
+                className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="phone" className="text-xs font-medium text-slate-400">
+              Phone Number <span className="text-slate-600">(optional)</span>
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(formatPhone(e.target.value))}
+              placeholder="(604) 555-1234"
+              className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Role selection */}
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Select your role</p>
         <div className="flex flex-col gap-3 mb-6">
           {ROLES.map(r => (
             <button
@@ -118,7 +183,7 @@ export function RoleSelectionPage() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!selected || submitting}
+          disabled={!canSubmit}
           className="w-full rounded-[10px] bg-gw-blue px-4 py-2.5 text-sm font-semibold text-white hover:bg-gw-blue/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {submitting ? 'Submitting...' : 'Continue'}

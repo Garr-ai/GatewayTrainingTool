@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // The user's role from the profiles table; drives route guards and UI branching
   const [role, setRole] = useState<UserRole | null>(null)
   // Whether the user has completed post-signup role selection
-  const [roleSelected, setRoleSelected] = useState(true)
+  const [roleSelected, setRoleSelected] = useState(false)
   // Stays true until we've resolved both session and role (prevents auth flicker)
   const [loading, setLoading] = useState(true)
 
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single()
     if (error) console.error('fetchRole error:', error.message, error.code)
     setRole((data?.role as UserRole) ?? 'trainee')
-    setRoleSelected(data?.role_selected ?? true)
+    setRoleSelected(data?.role_selected ?? false)
     setLoading(false)
   }, [])
 

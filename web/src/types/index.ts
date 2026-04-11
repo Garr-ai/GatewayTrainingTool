@@ -26,6 +26,9 @@ export interface Profile {
   id: string           // UUID matching auth.users.id in Supabase
   email: string
   full_name: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
   role: UserRole
   province: Province | null  // Home province, used for multi-site filtering
   role_selected: boolean     // Whether the user has completed post-signup role selection
@@ -368,6 +371,7 @@ export interface StudentReportView {
   game: string | null
   class_start_time: string | null
   class_end_time: string | null
+  is_today: boolean
   my_progress: {
     gk_rating: DailyRating | null
     dex_rating: DailyRating | null

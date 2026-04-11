@@ -38,7 +38,11 @@ export function StudentClassDetailPage() {
     ])
       .then(([detail, rpts]) => {
         setClassInfo(detail)
-        setReports(rpts.sort((a, b) => b.report_date.localeCompare(a.report_date)))
+        const sorted = rpts.sort((a, b) => b.report_date.localeCompare(a.report_date))
+        setReports(sorted)
+        // Auto-expand today's report
+        const todayReport = sorted.find(r => r.is_today)
+        if (todayReport) setExpandedReport(todayReport.report_id)
       })
       .catch(err => setError((err as Error).message))
       .finally(() => setLoading(false))
@@ -66,6 +70,9 @@ export function StudentClassDetailPage() {
   const handleReportUpdate = (updated: StudentReportView) => {
     setReports(prev => prev.map(r => r.report_id === updated.report_id ? updated : r))
   }
+
+  const todayReports = reports.filter(r => r.is_today)
+  const pastReports = reports.filter(r => !r.is_today)
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,21 +124,69 @@ export function StudentClassDetailPage() {
         </section>
       )}
 
-      {/* Daily reports */}
+      {/* Today's session — writable */}
       <section>
         <h3 className="text-sm font-semibold text-slate-200 mb-2">
-          Daily Reports
-          {reports.length > 0 && (
-            <span className="ml-1.5 text-xs font-normal text-slate-500">({reports.length})</span>
-          )}
+          Today's Session
         </h3>
-        {reports.length === 0 ? (
+        {todayReports.length === 0 ? (
           <div className="bg-gw-surface rounded-[10px]">
-            <EmptyState title="No reports yet" description="Daily reports will appear here once your trainer creates them." variant="neutral" />
+            <EmptyState title="No session today" description="There is no daily report for today. Check your upcoming schedule." variant="neutral" />
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {reports.map(report => {
+            {todayReports.map(report => {
+              const prog = report.my_progress
+              return (
+                <div
+                  key={report.report_id}
+                  className="rounded-[10px] border border-gw-blue/30 bg-gw-surface overflow-hidden"
+                >
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="text-sm font-medium text-slate-200">{report.report_date}</span>
+                      {report.session_label && <span className="text-xs text-slate-400">{report.session_label}</span>}
+                      {report.game && <span className="text-xs text-slate-500">{report.game}</span>}
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gw-blue/15 text-gw-blue border border-gw-blue/25">
+                        Today
+                      </span>
+                      {prog?.attendance && (
+                        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {prog?.late && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">Late</span>
+                      )}
+                    </div>
+                    {report.class_start_time && report.class_end_time && (
+                      <p className="text-xs text-slate-500 mb-3">
+                        Class time: {report.class_start_time} – {report.class_end_time}
+                      </p>
+                    )}
+                    <StudentReportInput
+                      report={report}
+                      classId={classId!}
+                      onUpdate={handleReportUpdate}
+                      readOnly={false}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Past reports — read-only, collapsible */}
+      {pastReports.length > 0 && (
+        <section>
+          <h3 className="text-sm font-semibold text-slate-200 mb-2">
+            Past Reports
+            <span className="ml-1.5 text-xs font-normal text-slate-500">({pastReports.length})</span>
+          </h3>
+          <div className="flex flex-col gap-2">
+            {pastReports.map(report => {
               const isExpanded = expandedReport === report.report_id
               const prog = report.my_progress
               return (
@@ -162,9 +217,14 @@ export function StudentClassDetailPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {prog?.attendance ? (
-                        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
+                        <div className="flex items-center gap-1">
+                          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          {prog.late && (
+                            <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-amber-500/15 text-amber-400">Late</span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-[10px] text-slate-500">Not signed in</span>
                       )}
@@ -176,7 +236,7 @@ export function StudentClassDetailPage() {
                     </div>
                   </button>
 
-                  {/* Expanded content */}
+                  {/* Expanded content — read only */}
                   {isExpanded && (
                     <div className="px-4 pb-4">
                       {report.class_start_time && report.class_end_time && (
@@ -188,6 +248,7 @@ export function StudentClassDetailPage() {
                         report={report}
                         classId={classId!}
                         onUpdate={handleReportUpdate}
+                        readOnly={true}
                       />
                     </div>
                   )}
@@ -195,8 +256,8 @@ export function StudentClassDetailPage() {
               )
             })}
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   )
 }

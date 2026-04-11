@@ -62,10 +62,10 @@ app.use(
 )
 
 // Rate limiting — applied globally. Adjust windowMs/limit per-route for sensitive endpoints.
-// These defaults allow 100 requests per 15 min per IP, suitable for an internal tool.
+// 500 requests per 15 min per IP — generous for an internal tool but still protects against abuse.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100,
+  limit: 500,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -79,7 +79,7 @@ app.use(globalLimiter)
  */
 export const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: 100,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Too many write requests, please try again later.' },

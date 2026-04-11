@@ -9,13 +9,23 @@ import { PROVINCES, type Profile } from '../types'
 const inputClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 const fieldLabel = 'text-xs font-medium text-slate-400 uppercase tracking-wider'
 
+/** Formats phone input as (XXX) XXX-XXXX */
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
 export function SettingsContent() {
   const { email, signOut } = useAuth()
   const { toast } = useToast()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
-  const [editName, setEditName] = useState('')
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editLastName, setEditLastName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
   const [editProvince, setEditProvince] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -28,7 +38,9 @@ export function SettingsContent() {
 
   function startEditing() {
     if (!profile) return
-    setEditName(profile.full_name ?? '')
+    setEditFirstName(profile.first_name ?? '')
+    setEditLastName(profile.last_name ?? '')
+    setEditPhone(profile.phone ?? '')
     setEditProvince(profile.province ?? '')
     setEditing(true)
   }
@@ -36,10 +48,16 @@ export function SettingsContent() {
   function cancelEditing() { setEditing(false) }
 
   async function handleSave() {
+    if (!editFirstName.trim() || !editLastName.trim()) {
+      toast('First name and last name are required.', 'error')
+      return
+    }
     setSaving(true)
     try {
       const updated = await api.profiles.update({
-        full_name: editName,
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.replace(/\D/g, '').length >= 10 ? editPhone : editPhone.trim() || undefined,
         province: editProvince || undefined,
       })
       setProfile(updated)
@@ -94,17 +112,51 @@ export function SettingsContent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <span className={fieldLabel}>Full name</span>
+                <span className={fieldLabel}>First Name</span>
                 {editing ? (
                   <input
                     type="text"
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
+                    value={editFirstName}
+                    onChange={e => setEditFirstName(e.target.value)}
                     className={inputClass}
-                    placeholder="Enter your name"
+                    placeholder="First name"
                   />
-                ) : profile?.full_name ? (
-                  <p className="text-sm text-slate-200 mt-1">{profile.full_name}</p>
+                ) : profile?.first_name ? (
+                  <p className="text-sm text-slate-200 mt-1">{profile.first_name}</p>
+                ) : (
+                  <p className="text-sm italic text-slate-500 mt-1">Not set</p>
+                )}
+              </div>
+
+              <div>
+                <span className={fieldLabel}>Last Name</span>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={e => setEditLastName(e.target.value)}
+                    className={inputClass}
+                    placeholder="Last name"
+                  />
+                ) : profile?.last_name ? (
+                  <p className="text-sm text-slate-200 mt-1">{profile.last_name}</p>
+                ) : (
+                  <p className="text-sm italic text-slate-500 mt-1">Not set</p>
+                )}
+              </div>
+
+              <div>
+                <span className={fieldLabel}>Phone</span>
+                {editing ? (
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={e => setEditPhone(formatPhone(e.target.value))}
+                    className={inputClass}
+                    placeholder="(604) 555-1234"
+                  />
+                ) : profile?.phone ? (
+                  <p className="text-sm text-slate-200 mt-1">{profile.phone}</p>
                 ) : (
                   <p className="text-sm italic text-slate-500 mt-1">Not set</p>
                 )}

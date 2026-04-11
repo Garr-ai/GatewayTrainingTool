@@ -539,11 +539,11 @@ export const api = {
     },
     /** Fetch the currently authenticated user's full profile record. */
     me: () => req<Profile>('/profiles/me'),
-    /** Update the currently authenticated user's profile (full_name, province). */
-    update: (body: { full_name?: string; province?: string }) =>
+    /** Update the currently authenticated user's profile. */
+    update: (body: { full_name?: string; first_name?: string; last_name?: string; phone?: string; province?: string }) =>
       req<Profile>('/profiles/me', { method: 'PUT', body: JSON.stringify(body) }),
-    /** Select a role during post-signup flow. */
-    selectRole: (body: { selected_role: 'trainee' | 'trainer' | 'coordinator' }) =>
+    /** Select a role during post-signup flow (also collects profile data). */
+    selectRole: (body: { selected_role: 'trainee' | 'trainer' | 'coordinator'; first_name: string; last_name: string; phone?: string }) =>
       req<{ status: 'active' | 'pending' }>('/profiles/me/role-selection', { method: 'PUT', body: JSON.stringify(body) }),
   },
 
@@ -621,7 +621,7 @@ export const api = {
     studentClassDetail: (classId: string) => req<StudentClassDetailResponse>(`/me/my-class/${classId}`),
     studentClassReports: (classId: string) => req<StudentReportView[]>(`/me/my-class/${classId}/reports`),
     signInAttendance: (classId: string, reportId: string) =>
-      req<{ signed_in: true }>(`/me/my-class/${classId}/reports/${reportId}/sign-in`, { method: 'POST' }),
+      req<{ signed_in: true; late: boolean }>(`/me/my-class/${classId}/reports/${reportId}/sign-in`, { method: 'POST' }),
     updateMyProgress: (classId: string, reportId: string, body: {
       gk_rating?: DailyRating | null; dex_rating?: DailyRating | null; hom_rating?: DailyRating | null;
       drill_times?: Array<{ drill_id: string; time_seconds?: number | null; score?: number | null }>;

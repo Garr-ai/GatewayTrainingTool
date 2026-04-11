@@ -31,10 +31,12 @@ export function StudentReportInput({
   report,
   classId,
   onUpdate,
+  readOnly = false,
 }: {
   report: StudentReportView
   classId: string
   onUpdate: (updated: StudentReportView) => void
+  readOnly?: boolean
 }) {
   const { toast } = useToast()
   const prog = report.my_progress
@@ -62,11 +64,13 @@ export function StudentReportInput({
   })
 
   const isSignedIn = prog?.attendance === true
+  const isLate = prog?.late === true
 
   const handleSignIn = async () => {
+    if (readOnly) return
     setSigningIn(true)
     try {
-      await api.selfService.signInAttendance(classId, report.report_id)
+      const result = await api.selfService.signInAttendance(classId, report.report_id)
       onUpdate({
         ...report,
         my_progress: {
@@ -74,13 +78,17 @@ export function StudentReportInput({
           dex_rating: prog?.dex_rating ?? null,
           hom_rating: prog?.hom_rating ?? null,
           attendance: true,
-          late: prog?.late ?? false,
+          late: result.late,
           homework_completed: prog?.homework_completed ?? false,
           progress_text: prog?.progress_text ?? null,
           coming_back_next_day: prog?.coming_back_next_day ?? null,
         },
       })
-      toast('Signed in successfully', 'success')
+      if (result.late) {
+        toast('Signed in — marked as late', 'info')
+      } else {
+        toast('Signed in successfully', 'success')
+      }
     } catch (err) {
       toast((err as Error).message, 'error')
     } finally {
@@ -89,6 +97,7 @@ export function StudentReportInput({
   }
 
   const handleSave = async () => {
+    if (readOnly) return
     setSaving(true)
     try {
       const drillTimesPayload = drillInputs
@@ -133,6 +142,7 @@ export function StudentReportInput({
   }
 
   const updateDrill = (idx: number, field: 'time_seconds' | 'score', value: string) => {
+    if (readOnly) return
     setDrillInputs(prev => {
       const next = [...prev]
       next[idx] = { ...next[idx], [field]: value === '' ? null : Number(value) }
@@ -150,7 +160,14 @@ export function StudentReportInput({
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-emerald-400 font-medium">Signed in</span>
+            {isLate && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                Late
+              </span>
+            )}
           </div>
+        ) : readOnly ? (
+          <span className="text-[10px] text-slate-500">Not signed in</span>
         ) : (
           <button
             type="button"
@@ -165,7 +182,10 @@ export function StudentReportInput({
 
       {/* Self-assessment ratings */}
       <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Self-Assessment</p>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          Self-Assessment
+          {readOnly && <span className="ml-2 text-[10px] font-normal text-slate-500 normal-case">(read only)</span>}
+        </p>
         {([['Game Knowledge (GK)', gk, setGk], ['Dexterity (DEX)', dex, setDex], ['Hands on Mechanics (HOM)', hom, setHom]] as const).map(([label, value, setter]) => (
           <div key={label} className="flex items-center gap-3">
             <span className="text-sm text-slate-300 w-44 shrink-0">{label}</span>
@@ -174,10 +194,11 @@ export function StudentReportInput({
                 <button
                   key={r}
                   type="button"
-                  onClick={() => setter(value === r ? null : r)}
+                  onClick={() => !readOnly && setter(value === r ? null : r)}
+                  disabled={readOnly}
                   className={`text-[11px] font-medium px-2.5 py-1 rounded border transition-colors ${
                     value === r ? RATING_SELECTED[r] : RATING_COLOR[r]
-                  }`}
+                  } ${readOnly ? 'cursor-default opacity-70' : ''}`}
                 >
                   {r}
                 </button>
@@ -208,15 +229,21 @@ export function StudentReportInput({
                   )}
                 </div>
                 <div className="shrink-0">
-                  <input
-                    type="number"
-                    min={0}
-                    step={isDrill ? 1 : undefined}
-                    value={isDrill ? (d.time_seconds ?? '') : (d.score ?? '')}
-                    onChange={e => updateDrill(idx, isDrill ? 'time_seconds' : 'score', e.target.value)}
-                    placeholder={isDrill ? 'Time (s)' : 'Score'}
-                    className="w-24 rounded-md bg-gw-surface border border-white/[0.08] px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
-                  />
+                  {readOnly ? (
+                    <span className="text-sm text-slate-300">
+                      {isDrill ? (d.time_seconds != null ? `${d.time_seconds}s` : '—') : (d.score != null ? d.score : '—')}
+                    </span>
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      step={isDrill ? 1 : undefined}
+                      value={isDrill ? (d.time_seconds ?? '') : (d.score ?? '')}
+                      onChange={e => updateDrill(idx, isDrill ? 'time_seconds' : 'score', e.target.value)}
+                      placeholder={isDrill ? 'Time (s)' : 'Score'}
+                      className="w-24 rounded-md bg-gw-surface border border-white/[0.08] px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+                    />
+                  )}
                 </div>
               </div>
             )
@@ -224,15 +251,17 @@ export function StudentReportInput({
         </div>
       )}
 
-      {/* Save button */}
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving}
-        className="self-start rounded-[10px] bg-gw-blue px-5 py-2 text-sm font-semibold text-white hover:bg-gw-blue/90 disabled:opacity-40 transition-colors"
-      >
-        {saving ? 'Saving...' : 'Save Progress'}
-      </button>
+      {/* Save button — only shown when writable */}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="self-start rounded-[10px] bg-gw-blue px-5 py-2 text-sm font-semibold text-white hover:bg-gw-blue/90 disabled:opacity-40 transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save Progress'}
+        </button>
+      )}
     </div>
   )
 }

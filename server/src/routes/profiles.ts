@@ -57,23 +57,35 @@ profilesRouter.get('/profiles/me', async (req: Request, res: Response, next: Nex
 /**
  * PUT /profiles/me
  * Auth: any authenticated user
- * Updates the current user's profile. Only `full_name` and `province` are
- * allowed — role changes are not permitted via this endpoint.
+ * Updates the current user's profile. Accepts first_name, last_name, phone,
+ * full_name, and province. Role changes are not permitted via this endpoint.
  */
 const VALID_PROVINCES = new Set(['BC', 'AB', 'ON'])
 
 profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { full_name, province } = req.body as { full_name?: string; province?: string }
+    const { full_name, first_name, last_name, phone, province } = req.body as {
+      full_name?: string; first_name?: string; last_name?: string; phone?: string; province?: string
+    }
 
     const updates: Record<string, unknown> = {}
     if (full_name !== undefined) updates.full_name = full_name.trim() || null
+    if (first_name !== undefined) updates.first_name = first_name.trim() || null
+    if (last_name !== undefined) updates.last_name = last_name.trim() || null
+    if (phone !== undefined) updates.phone = phone.trim() || null
     if (province !== undefined) {
       if (!VALID_PROVINCES.has(province)) {
         res.status(400).json({ error: 'Invalid province value' })
         return
       }
       updates.province = province
+    }
+
+    // Keep full_name in sync when first/last are provided
+    if (updates.first_name !== undefined || updates.last_name !== undefined) {
+      const fn = (updates.first_name ?? '') as string
+      const ln = (updates.last_name ?? '') as string
+      updates.full_name = [fn, ln].filter(Boolean).join(' ') || null
     }
 
     if (Object.keys(updates).length === 0) {
@@ -108,25 +120,43 @@ profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: Nex
 /**
  * PUT /profiles/me/role-selection
  * Auth: any authenticated user
- * Called once after signup to set the user's chosen role.
+ * Called once after signup to set the user's chosen role and profile data.
  *   - 'trainee' → immediately active (role stays trainee, role_selected set to true)
  *   - 'trainer' or 'coordinator' → creates a pending role_request for coordinator approval
+ * Also accepts first_name, last_name, phone to collect profile data during onboarding.
  * Returns { status: 'active' | 'pending' }.
  */
 const SELECTABLE_ROLES = new Set(['trainee', 'trainer', 'coordinator'])
 
 profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { selected_role } = req.body as { selected_role?: string }
+    const { selected_role, first_name, last_name, phone } = req.body as {
+      selected_role?: string; first_name?: string; last_name?: string; phone?: string
+    }
     if (!selected_role || !SELECTABLE_ROLES.has(selected_role)) {
       res.status(400).json({ error: 'Invalid selected_role. Must be trainee, trainer, or coordinator.' })
       return
     }
 
-    // Mark role as selected
+    // Require first and last name
+    if (!first_name?.trim() || !last_name?.trim()) {
+      res.status(400).json({ error: 'First name and last name are required.' })
+      return
+    }
+
+    // Build profile updates
+    const profileUpdates: Record<string, unknown> = {
+      role_selected: true,
+      first_name: first_name.trim(),
+      last_name: last_name.trim(),
+      full_name: [first_name.trim(), last_name.trim()].filter(Boolean).join(' '),
+    }
+    if (phone !== undefined) profileUpdates.phone = phone.trim() || null
+
+    // Mark role as selected and save profile data
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ role_selected: true })
+      .update(profileUpdates)
       .eq('id', req.userId!)
     if (updateError) throw updateError
 

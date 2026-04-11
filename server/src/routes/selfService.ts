@@ -1396,7 +1396,7 @@ selfServiceRouter.get('/me/my-class/:classId', async (req: Request, res: Respons
  * GET /me/my-class/:classId/reports
  * Auth: enrolled student
  * Returns daily reports for the class, each including the student's own progress
- * row and drill times (if they exist).
+ * row, drill times, and an `is_today` flag so the frontend can gate write access.
  */
 selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -1405,6 +1405,8 @@ selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res:
       res.status(403).json({ error: 'You are not enrolled in this class.' })
       return
     }
+
+    const today = new Date().toISOString().slice(0, 10)
 
     // Fetch reports for this class
     const { data: reports, error: reportsError } = await supabase
@@ -1464,6 +1466,7 @@ selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res:
 
     const result = reports.map((r: Record<string, unknown>) => {
       const rid = r.id as string
+      const reportDate = r.report_date as string
       const progress = progressMap.get(rid) ?? null
       const rawDrillTimes = drillTimesMap.get(rid) ?? []
       const myDrillTimes = rawDrillTimes.map(dt => {
@@ -1481,12 +1484,13 @@ selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res:
 
       return {
         report_id: rid,
-        report_date: r.report_date,
+        report_date: reportDate,
         session_label: r.session_label,
         group_label: r.group_label,
         game: r.game,
         class_start_time: r.class_start_time,
         class_end_time: r.class_end_time,
+        is_today: reportDate === today,
         my_progress: progress ? {
           gk_rating: progress.gk_rating,
           dex_rating: progress.dex_rating,
@@ -1519,6 +1523,8 @@ selfServiceRouter.get('/me/my-class/:classId/reports', async (req: Request, res:
  * Auth: enrolled student
  * Marks the student as present for the given report. Creates the progress row
  * if it doesn't exist yet (with other fields defaulted to null/false).
+ * Automatically determines if the student is late by comparing current time
+ * to the report's class_start_time.
  */
 selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -1530,16 +1536,32 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
 
     const reportId = req.params.reportId
 
-    // Verify the report belongs to this class
+    // Verify the report belongs to this class — also fetch class_start_time and report_date for late check
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
-      .select('id')
+      .select('id, class_start_time, report_date')
       .eq('id', reportId)
       .eq('class_id', req.params.classId)
       .single()
     if (reportError || !report) {
       res.status(404).json({ error: 'Report not found in this class.' })
       return
+    }
+
+    // Determine if the student is late: compare current time to class_start_time
+    let isLate = false
+    const classStartTime = (report as Record<string, unknown>).class_start_time as string | null
+    const reportDate = (report as Record<string, unknown>).report_date as string | null
+    if (classStartTime && reportDate) {
+      try {
+        // Parse scheduled start: "HH:MM" on the report date
+        const [hours, minutes] = classStartTime.split(':').map(Number)
+        const scheduledStart = new Date(`${reportDate}T00:00:00`)
+        scheduledStart.setHours(hours, minutes, 0, 0)
+        isLate = new Date() > scheduledStart
+      } catch {
+        // If parsing fails, don't mark as late
+      }
     }
 
     // Check if a progress row already exists
@@ -1554,7 +1576,7 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
       // Update existing row
       const { error: updateError } = await supabase
         .from('class_daily_report_trainee_progress')
-        .update({ attendance: true })
+        .update({ attendance: true, late: isLate })
         .eq('id', existing.id)
       if (updateError) throw updateError
     } else {
@@ -1565,12 +1587,13 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
           report_id: reportId,
           enrollment_id: enrollment.id,
           attendance: true,
+          late: isLate,
           homework_completed: false,
         })
       if (insertError) throw insertError
     }
 
-    res.json({ signed_in: true })
+    res.json({ signed_in: true, late: isLate })
   } catch (err) {
     next(err)
   }
