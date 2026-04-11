@@ -11,6 +11,7 @@ import { useToast } from '../contexts/ToastContext'
 import { classSlug, provinceLabel } from '../lib/utils'
 import { SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const provinceBadge: Record<string, string> = {
   BC: 'bg-blue-500/15 text-blue-300',
@@ -23,6 +24,7 @@ const labelClass = 'text-xs font-medium text-slate-400 mb-1 block'
 
 export function ClassesPage() {
   useAuth()
+  useDocumentTitle('Classes')
   const { toast } = useToast()
   const { active, archived, loading, refresh: fetchClasses } = useClasses()
   const [createOpen, setCreateOpen] = useState(false)

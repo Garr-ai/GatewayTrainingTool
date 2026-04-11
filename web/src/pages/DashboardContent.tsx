@@ -6,6 +6,7 @@ import type { ScheduleRow } from '../lib/apiClient'
 import { formatTime, classSlug } from '../lib/utils'
 import { SkeletonText, SkeletonTable } from '../components/Skeleton'
 import { CreateClassModal } from '../components/CreateClassModal'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { Province } from '../types'
 
 const provinceBadge: Record<Province, string> = {
@@ -49,6 +50,7 @@ const MAX_CLASSES_SHOWN = 5
 export function DashboardContent() {
   const { active, loading: classesLoading, refresh: refreshClasses } = useClasses()
   const navigate = useNavigate()
+  useDocumentTitle('Dashboard')
 
   const [upcomingSessions, setUpcomingSessions] = useState<ScheduleRow[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)

@@ -15,7 +15,7 @@
  *     /trainers             — Trainer roster (coordinator only)
  *     /reports              — Cross-class daily reports (coordinator or trainer, role-aware)
  *     /schedule             — Upcoming schedule across all classes (coordinator or trainer, role-aware)
- *     /settings             — App/account settings (coordinator only)
+ *     /settings             — App/account settings (coordinator or trainee)
  *     /my-classes           — Trainer's assigned classes list (trainer only)
  *     /my-classes/:classId  — Tabbed class detail page (trainer only)
  *     /hours                — Personal hours overview (trainer only)
@@ -35,6 +35,8 @@ import { CoordinatorRoute } from './layouts/CoordinatorRoute'
 import { TrainerRoute } from './layouts/TrainerRoute'
 import { ConditionalTrainerProvider } from './contexts/TrainerContext'
 import { ProtectedLayout } from './layouts/ProtectedLayout'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { CommandPalette } from './components/CommandPalette'
 import { LoginView } from './pages/LoginView'
 import { DashboardView } from './pages/DashboardView'
 import { ClassesPage } from './pages/ClassesPage'
@@ -51,6 +53,7 @@ import { TrainerSchedulePage } from './pages/TrainerSchedulePage'
 import { TrainerHoursPage } from './pages/TrainerHoursPage'
 import { StudentRoute } from './layouts/StudentRoute'
 import { StudentClassDetailPage } from './pages/StudentClassDetailPage'
+import { StudentSettingsPage } from './pages/StudentSettingsPage'
 
 /** Renders role-specific content for shared paths (/reports, /schedule). */
 function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode; trainer: React.ReactNode }) {
@@ -62,9 +65,11 @@ function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode
 
 function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <ToastProvider>
       <BrowserRouter>
+        <CommandPalette />
         <Routes>
           {/* Public — accessible without authentication */}
           <Route path="/login" element={<LoginView />} />
@@ -82,7 +87,7 @@ function App() {
             <Route path="students/progress/:email" element={<CoordinatorRoute><StudentProgressPage /></CoordinatorRoute>} />
             <Route path="students" element={<CoordinatorRoute><RosterPage role="trainee" title="Students" subtitle="All registered trainees" /></CoordinatorRoute>} />
             <Route path="trainers" element={<CoordinatorRoute><RosterPage role="trainer" title="Trainers" subtitle="All registered trainers" /></CoordinatorRoute>} />
-            <Route path="settings" element={<CoordinatorRoute><SettingsContent /></CoordinatorRoute>} />
+            <Route path="settings" element={<SettingsContent />} />
 
             {/* Shared paths — role-aware (coordinator vs trainer) */}
             <Route path="reports" element={
@@ -105,6 +110,7 @@ function App() {
 
             {/* Student-only routes */}
             <Route path="my-class/:classId" element={<StudentRoute><StudentClassDetailPage /></StudentRoute>} />
+            <Route path="my-settings" element={<StudentRoute><StudentSettingsPage /></StudentRoute>} />
           </Route>
 
           {/* Catch-all */}
@@ -113,6 +119,7 @@ function App() {
       </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

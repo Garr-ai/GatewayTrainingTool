@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { CoordinatorLayout } from '../components/CoordinatorLayout'
 import { TrainerLayout, TRAINER_NAV_ITEMS } from '../components/TrainerLayout'
 import { StudentLayout, STUDENT_NAV_ITEMS } from '../components/StudentLayout'
+import { BrandedLoader } from '../components/BrandedLoader'
 import { RoleSelectionPage } from '../pages/RoleSelectionPage'
 import { api } from '../lib/apiClient'
 
@@ -49,11 +50,7 @@ export function ProtectedLayout() {
     if (!session && !loading) {
       return <Navigate to="/login" replace />
     }
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gw-darkest text-slate-500 text-sm">
-        Loading…
-      </div>
-    )
+    return <BrandedLoader />
   }
 
   if (!session) {
@@ -67,11 +64,7 @@ export function ProtectedLayout() {
 
   // Gate: user selected trainer/coordinator and is waiting for approval
   if (pendingRequest === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gw-darkest text-slate-500 text-sm">
-        Loading…
-      </div>
-    )
+    return <BrandedLoader message="Checking your account status…" />
   }
   if (pendingRequest) {
     return (
