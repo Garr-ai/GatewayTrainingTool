@@ -4,7 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import type { RoleRequest } from '../types'
 
 export function RoleRequestsSection() {
-  const { addToast } = useToast()
+  const { toast } = useToast()
   const [requests, setRequests] = useState<RoleRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [actioning, setActioning] = useState<string | null>(null)
@@ -14,9 +14,9 @@ export function RoleRequestsSection() {
     api.roleRequests
       .list({ status: 'pending' })
       .then(res => setRequests(res.data))
-      .catch(err => addToast((err as Error).message, 'error'))
+      .catch(err => toast((err as Error).message, 'error'))
       .finally(() => setLoading(false))
-  }, [addToast])
+  }, [toast])
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -25,14 +25,14 @@ export function RoleRequestsSection() {
     try {
       if (action === 'approve') {
         await api.roleRequests.approve(id)
-        addToast('Role request approved', 'success')
+        toast('Role request approved', 'success')
       } else {
         await api.roleRequests.reject(id)
-        addToast('Role request rejected', 'success')
+        toast('Role request rejected', 'success')
       }
       setRequests(prev => prev.filter(r => r.id !== id))
     } catch (err) {
-      addToast((err as Error).message, 'error')
+      toast((err as Error).message, 'error')
     } finally {
       setActioning(null)
     }

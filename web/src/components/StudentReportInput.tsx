@@ -36,7 +36,7 @@ export function StudentReportInput({
   classId: string
   onUpdate: (updated: StudentReportView) => void
 }) {
-  const { addToast } = useToast()
+  const { toast } = useToast()
   const prog = report.my_progress
 
   const [gk, setGk] = useState<DailyRating | null>(prog?.gk_rating ?? null)
@@ -80,9 +80,9 @@ export function StudentReportInput({
           coming_back_next_day: prog?.coming_back_next_day ?? null,
         },
       })
-      addToast('Signed in successfully', 'success')
+      toast('Signed in successfully', 'success')
     } catch (err) {
-      addToast((err as Error).message, 'error')
+      toast((err as Error).message, 'error')
     } finally {
       setSigningIn(false)
     }
@@ -124,9 +124,9 @@ export function StudentReportInput({
           target_score: d.target_score,
         })),
       })
-      addToast('Progress saved', 'success')
+      toast('Progress saved', 'success')
     } catch (err) {
-      addToast((err as Error).message, 'error')
+      toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
     }
