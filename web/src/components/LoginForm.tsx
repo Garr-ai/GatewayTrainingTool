@@ -124,7 +124,7 @@ export function LoginForm() {
         {/* Name fields — signup only */}
         {mode === 'signup' && (
           <div className="flex gap-3">
-            <div className="flex flex-col gap-1.5 flex-1">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
               <label htmlFor="firstName" className="text-sm font-medium text-slate-900">
                 First Name <span className="text-rose-500">*</span>
               </label>
@@ -136,10 +136,10 @@ export function LoginForm() {
                 placeholder="John"
                 required
                 disabled={status === 'loading'}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
               />
             </div>
-            <div className="flex flex-col gap-1.5 flex-1">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
               <label htmlFor="lastName" className="text-sm font-medium text-slate-900">
                 Last Name <span className="text-rose-500">*</span>
               </label>
@@ -151,7 +151,7 @@ export function LoginForm() {
                 placeholder="Doe"
                 required
                 disabled={status === 'loading'}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-gw-blue focus:ring-1 focus:ring-gw-blue disabled:bg-slate-50 disabled:text-slate-400"
               />
             </div>
           </div>
