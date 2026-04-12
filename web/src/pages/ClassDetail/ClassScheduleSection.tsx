@@ -193,19 +193,19 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
     return trainers.find(t => t.id === id)?.trainer_name ?? '—'
   }
 
-  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+  const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
-    <section className="bg-gw-surface rounded-[10px] p-4">
+    <section className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Schedule</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Schedule</h3>
           <p className="mt-0.5 text-xs text-slate-500">
             Schedule trainers and student groups for different times. Assign trainers from the Trainers tab first.
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
-          <button type="button" onClick={() => { setRecDateFrom(startDate ?? ''); setRecDateTo(endDate ?? ''); setRecurringOpen(true) }} className="rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
+          <button type="button" onClick={() => { setRecDateFrom(startDate ?? ''); setRecDateTo(endDate ?? ''); setRecurringOpen(true) }} className="rounded-md bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
             Recurring
           </button>
           <button type="button" onClick={openAddForm} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150">
@@ -222,33 +222,33 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
 
       {formOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-100">{editingSlot ? 'Edit schedule slot' : 'Add schedule slot'}</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">{editingSlot ? 'Edit schedule slot' : 'Add schedule slot'}</h4>
                 <p className="mt-0.5 text-[11px] text-slate-500">Set date, time range, trainer, and student group for this slot.</p>
               </div>
-              <button type="button" onClick={closeForm} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+              <button type="button" onClick={closeForm} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
 
             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Date
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Date
                   <input type="date" value={slotDate} onChange={e => setSlotDate(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
               <div className="flex gap-2">
-                <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Start time
+                <label className="flex-1 block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start time
                   <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={fieldClass} required />
                 </label>
-                <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">End time
+                <label className="flex-1 block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">End time
                   <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Trainer
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Trainer
                   <select value={trainerId} onChange={e => setTrainerId(e.target.value)} className={fieldClass}>
                     <option value="">— None —</option>
                     {trainers.map(t => (
@@ -258,17 +258,17 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
                 </label>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Student group (A/B/C)
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Student group (A/B/C)
                   <input type="text" value={groupLabel} onChange={e => setGroupLabel(e.target.value)} className={fieldClass} placeholder="e.g. A" />
                 </label>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-slate-400 mb-1">Notes
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Notes
                   <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className={fieldClass} placeholder="Optional notes" />
                 </label>
               </div>
               <div className="md:col-span-2 flex justify-end gap-2">
-                <button type="button" onClick={closeForm} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                <button type="button" onClick={closeForm} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Cancel</button>
                 <button type="submit" disabled={saving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                   {saving ? 'Saving…' : editingSlot ? 'Save changes' : 'Add slot'}
                 </button>
@@ -280,23 +280,23 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
 
       {recurringOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-100">Create recurring schedule</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Create recurring schedule</h4>
                 <p className="mt-0.5 text-[11px] text-slate-500">Generate slots for selected days of the week within a date range.</p>
               </div>
-              <button type="button" onClick={() => setRecurringOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+              <button type="button" onClick={() => setRecurringOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
 
             <form onSubmit={handleRecurringSave} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Days of the week</label>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Days of the week</label>
                 <div className="flex gap-1.5">
                   {DAY_NAMES.map((name, i) => (
-                    <button key={i} type="button" onClick={() => toggleRecDay(i)} className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-colors ${recDays.includes(i) ? 'bg-gw-blue/20 border border-gw-blue/35 text-gw-blue' : 'bg-gw-elevated border border-white/10 text-slate-400 hover:text-slate-200'}`}>
+                    <button key={i} type="button" onClick={() => toggleRecDay(i)} className={`px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-colors ${recDays.includes(i) ? 'bg-gw-blue/20 border border-gw-blue/35 text-gw-blue' : 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'}`}>
                       {name}
                     </button>
                   ))}
@@ -304,41 +304,41 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs font-medium text-slate-400">Start time
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Start time
                   <input type="time" value={recStartTime} onChange={e => setRecStartTime(e.target.value)} className={fieldClass} required />
                 </label>
-                <label className="block text-xs font-medium text-slate-400">End time
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">End time
                   <input type="time" value={recEndTime} onChange={e => setRecEndTime(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs font-medium text-slate-400">From date
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">From date
                   <input type="date" value={recDateFrom} onChange={e => setRecDateFrom(e.target.value)} className={fieldClass} required />
                 </label>
-                <label className="block text-xs font-medium text-slate-400">To date
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">To date
                   <input type="date" value={recDateTo} onChange={e => setRecDateTo(e.target.value)} className={fieldClass} required />
                 </label>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs font-medium text-slate-400">Trainer
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Trainer
                   <select value={recTrainerId} onChange={e => setRecTrainerId(e.target.value)} className={fieldClass}>
                     <option value="">— None —</option>
                     {trainers.map(t => <option key={t.id} value={t.id}>{t.trainer_name}</option>)}
                   </select>
                 </label>
-                <label className="block text-xs font-medium text-slate-400">Group
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Group
                   <input type="text" value={recGroupLabel} onChange={e => setRecGroupLabel(e.target.value)} className={fieldClass} placeholder="e.g. A" />
                 </label>
               </div>
 
               {recPreviewCount > 0 && (
-                <p className="text-[11px] text-slate-400">This will create <span className="font-semibold text-slate-200">{recPreviewCount}</span> slot{recPreviewCount !== 1 ? 's' : ''} (duplicates will be skipped).</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">This will create <span className="font-semibold text-slate-700 dark:text-slate-200">{recPreviewCount}</span> slot{recPreviewCount !== 1 ? 's' : ''} (duplicates will be skipped).</p>
               )}
 
               <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setRecurringOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                <button type="button" onClick={() => setRecurringOpen(false)} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Cancel</button>
                 <button type="submit" disabled={recSaving || recDays.length === 0} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                   {recSaving ? 'Creating…' : `Create ${recPreviewCount} slot${recPreviewCount !== 1 ? 's' : ''}`}
                 </button>
@@ -351,7 +351,7 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
       {loading ? (
         <SkeletonTable rows={3} cols={7} />
       ) : slots.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px]">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
           <EmptyState
             title="No schedule slots yet"
             description={`Add slots for ${className} to assign trainers and groups to specific times.`}
@@ -359,10 +359,10 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
           />
         </div>
       ) : (
-        <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-x-auto">
           <table className="min-w-full text-xs">
             <thead>
-              <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+              <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Start</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">End</th>
@@ -374,13 +374,13 @@ export function ClassScheduleSection({ classId, className, startDate, endDate }:
             </thead>
             <tbody>
               {slots.map(slot => (
-                <tr key={slot.id} className="border-b border-white/[0.03] hover:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditForm(slot)}>
-                  <td className="px-3 py-2 text-slate-200">{slot.slot_date}</td>
-                  <td className="px-3 py-2 text-slate-400">{slot.start_time}</td>
-                  <td className="px-3 py-2 text-slate-400">{slot.end_time}</td>
-                  <td className="px-3 py-2 text-slate-400">{trainerName(slot.trainer_id)}</td>
-                  <td className="px-3 py-2 text-slate-400">{slot.group_label ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-400 max-w-[120px] truncate" title={slot.notes ?? undefined}>{slot.notes ?? '—'}</td>
+                <tr key={slot.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditForm(slot)}>
+                  <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{slot.slot_date}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{slot.start_time}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{slot.end_time}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{trainerName(slot.trainer_id)}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{slot.group_label ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 max-w-[120px] truncate" title={slot.notes ?? undefined}>{slot.notes ?? '—'}</td>
                   <td className="px-3 py-2 text-right">
                     <button type="button" onClick={e => { e.stopPropagation(); handleRemove(slot.id) }} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2 py-1 text-[11px] font-medium hover:bg-rose-500/20 transition-colors">Remove</button>
                   </td>

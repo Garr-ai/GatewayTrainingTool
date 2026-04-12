@@ -17,16 +17,16 @@ interface InProgressPageProps {
 export function InProgressPage({ email, onSignOut }: InProgressPageProps) {
   return (
     <div className="flex w-full justify-center">
-      <div className="w-full max-w-md rounded-[14px] border border-white/[0.08] bg-gw-surface shadow-xl p-8 flex flex-col items-center gap-4 text-center">
+      <div className="w-full max-w-md rounded-[14px] border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-gw-surface shadow-xl p-8 flex flex-col items-center gap-4 text-center">
         <div className="text-4xl" aria-hidden="true">🚧</div>
-        <h2 className="text-lg font-semibold text-slate-100">Work in progress</h2>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Work in progress</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Your dashboard is being built. Check back soon.
         </p>
-        <p className="text-xs text-slate-500">{email}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">{email}</p>
         <button
           type="button"
-          className="mt-2 inline-flex items-center rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/[0.06] transition-colors"
+          className="mt-2 inline-flex items-center rounded-md border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-white/[0.06] transition-colors"
           onClick={onSignOut}
         >
           Sign out

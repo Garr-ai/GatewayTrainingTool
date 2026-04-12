@@ -14,7 +14,7 @@ export function CollapsibleSection({ label, defaultOpen = false, children }: Col
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors mb-2 md:hidden"
+        className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors mb-2 md:hidden"
       >
         <svg
           width="12"

@@ -162,12 +162,12 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
     setDisplayMonth(now.getMonth())
   }
 
-  const btnClass = 'p-1 rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors'
+  const btnClass = 'p-1 rounded-md text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300 transition-colors'
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-gw-surface overflow-hidden">
       {/* Navigation header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-white/[0.06]">
         {/* Left: prev year / prev month */}
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={goToPrevYear} className={btnClass} title="Previous year">
@@ -180,11 +180,11 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
 
         {/* Center: month label + today button */}
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">{monthLabel}</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{monthLabel}</h3>
           <button
             type="button"
             onClick={goToToday}
-            className="rounded-md border border-slate-300 px-2 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+            className="rounded-md border border-slate-300 dark:border-slate-200 dark:border-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
           >
             Today
           </button>
@@ -202,16 +202,16 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
       </div>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-slate-200">
+      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-white/[0.06]">
         {WEEKDAYS.map(day => (
-          <div key={day} className="py-2 text-center text-[11px] font-medium text-slate-500">
+          <div key={day} className="py-2 text-center text-[11px] font-medium text-slate-400 dark:text-slate-500">
             {day}
           </div>
         ))}
       </div>
 
       {/* Calendar grid — gap-px + bg-slate-200 creates gridlines */}
-      <div className="grid grid-cols-7 gap-px bg-slate-200">
+      <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-white/[0.06]">
         {calendarDays.map((day, index) => {
           const dateStr = toISODate(day)
           const isCurrentMonth = day.getMonth() === displayMonth
@@ -221,7 +221,7 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
           return (
             <div
               key={index}
-              className={`min-h-[90px] bg-white p-1.5 transition-colors ${isCurrentMonth ? '' : 'bg-slate-50'}`}
+              className={`min-h-[90px] p-1.5 transition-colors ${isCurrentMonth ? 'bg-white dark:bg-gw-surface' : 'bg-slate-50 dark:bg-gw-darkest'}`}
             >
               {/* Day number */}
               <div className="flex items-start justify-between mb-1">
@@ -231,15 +231,15 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
                     ${isToday
                       ? 'w-6 h-6 rounded-full bg-gw-blue text-white font-bold'
                       : isCurrentMonth
-                        ? 'text-slate-700 font-medium'
-                        : 'text-slate-400'
+                        ? 'text-slate-700 dark:text-slate-300 font-medium'
+                        : 'text-slate-400 dark:text-slate-600'
                     }
                   `}
                 >
                   {day.getDate()}
                 </span>
                 {daySlots.length > 1 && isCurrentMonth && (
-                  <span className="text-[10px] text-slate-400 font-medium">{daySlots.length}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{daySlots.length}</span>
                 )}
               </div>
 
@@ -251,7 +251,7 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
                     <div
                       key={slot.id}
                       onClick={() => navigate(`/classes/${classSlug(slot.classes.name)}`)}
-                      className={`rounded px-1.5 py-0.5 text-[10px] leading-tight truncate cursor-pointer transition-colors hover:opacity-80 ${PROVINCE_BADGE[province] ?? 'bg-slate-100 text-slate-600'}`}
+                      className={`rounded px-1.5 py-0.5 text-[10px] leading-tight truncate cursor-pointer transition-colors hover:opacity-80 ${PROVINCE_BADGE[province] ?? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
                       title={`${slot.classes.name} — ${formatTime(slot.start_time)}–${formatTime(slot.end_time)}${slot.class_trainers?.trainer_name ? ` — ${slot.class_trainers.trainer_name}` : ''}`}
                     >
                       <span className="font-semibold">{formatTime(slot.start_time)}</span>
@@ -260,7 +260,7 @@ export function ScheduleCalendar({ slots }: ScheduleCalendarProps) {
                   )
                 })}
                 {daySlots.length > 3 && (
-                  <p className="text-[9px] text-slate-400 pl-1">+{daySlots.length - 3} more</p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500 pl-1">+{daySlots.length - 3} more</p>
                 )}
               </div>
             </div>

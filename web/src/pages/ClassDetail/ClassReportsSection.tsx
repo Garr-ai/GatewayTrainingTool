@@ -328,7 +328,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
     return <SkeletonTable rows={4} cols={5} />
   }
 
-  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+  const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
     <>
@@ -340,10 +340,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
       )}
 
       {mode === 'reports' && (
-        <div className="bg-gw-surface rounded-[10px] p-4">
+        <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Daily reports</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Daily reports</h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 Detailed daily reports by group, including schedule, homework/tests, and trainee progress.
               </p>
@@ -369,7 +369,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
           )}
 
           {reports.length === 0 ? (
-            <div className="bg-gw-elevated rounded-[10px]">
+            <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
               <EmptyState
                 title="No daily reports yet"
                 description={`Create a report for ${className} to start tracking training sessions.`}
@@ -381,15 +381,15 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {reports.map(r => (
-                <div key={r.id} className="bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3">
+                <div key={r.id} className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="text-xs">
-                      <p className="font-medium text-slate-200">{r.report_date}</p>
+                      <p className="font-medium text-slate-700 dark:text-slate-200">{r.report_date}</p>
                       <p className="text-slate-500 mt-0.5">{r.group_label ?? '—'} &middot; {r.session_label ?? '—'} &middot; {r.game ?? '—'}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10 transition-colors">Edit</button>
+                    <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Edit</button>
                     <button type="button" onClick={() => handleViewPdf(r)} className="rounded-md bg-gw-blue/15 border border-gw-blue/35 px-2.5 py-1.5 text-xs text-gw-blue hover:bg-gw-blue/20 transition-colors">View PDF</button>
                     <button type="button" onClick={() => handleRemoveReport(r.id)} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                   </div>
@@ -397,10 +397,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
               ))}
             </div>
             {/* Desktop: table layout */}
-            <div className="hidden sm:block bg-gw-elevated rounded-[10px] overflow-hidden">
+            <div className="hidden sm:block bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Group</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Session</th>
@@ -410,14 +410,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
                 </thead>
                 <tbody>
                   {reports.map(r => (
-                    <tr key={r.id} className="border-b border-white/[0.03] hover:bg-gw-surface transition-colors duration-100">
-                      <td className="px-3 py-2 text-slate-200">{r.report_date}</td>
-                      <td className="px-3 py-2 text-slate-400">{r.group_label ?? '—'}</td>
-                      <td className="px-3 py-2 text-slate-400">{r.session_label ?? '—'}</td>
-                      <td className="px-3 py-2 text-slate-400">{r.game ?? '—'}</td>
+                    <tr key={r.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface transition-colors duration-100">
+                      <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{r.report_date}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{r.group_label ?? '—'}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{r.session_label ?? '—'}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{r.game ?? '—'}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-slate-300 hover:bg-white/10 transition-colors">Edit</button>
+                          <button type="button" onClick={() => openEditReport(r)} className="rounded-md bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Edit</button>
                           <button type="button" onClick={() => handleViewPdf(r)} className="rounded-md bg-gw-blue/15 border border-gw-blue/35 px-2 py-1 text-gw-blue hover:bg-gw-blue/20 transition-colors">View PDF</button>
                           <button type="button" onClick={() => handleRemoveReport(r.id)} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2 py-1 text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                         </div>
@@ -433,10 +433,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
       )}
 
       {mode === 'hours' && (
-        <div className="bg-gw-surface rounded-[10px] p-4">
+        <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
           <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Logged hours</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Logged hours</h3>
               <p className="mt-0.5 text-xs text-slate-500">Track hours for trainers and students for payroll. Total: {totalHours.toFixed(1)} hrs</p>
             </div>
             <button type="button" onClick={openAddHours} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 self-start sm:self-auto flex-shrink-0">
@@ -445,24 +445,24 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
           </header>
 
           {hoursFormOpen && (
-            <div className="mb-4 bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3">
+            <div className="mb-4 bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3">
               <form onSubmit={handleSaveHours} className="space-y-3 text-xs">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className="block text-xs font-medium text-slate-400">Date
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Date
                     <input type="date" value={hoursDate} onChange={e => setHoursDate(e.target.value)} className={fieldClass} required />
                   </label>
-                  <label className="block text-xs font-medium text-slate-400">Hours
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Hours
                     <input type="number" step="0.25" min="0.25" value={hoursValue} onChange={e => setHoursValue(e.target.value)} className={fieldClass} placeholder="e.g. 4.5" required />
                   </label>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Person type</label>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Person type</label>
                   <div className="flex gap-4">
-                    <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer">
                       <input type="radio" name="personType" checked={hoursPersonType === 'trainer'} onChange={() => { setHoursPersonType('trainer'); setHoursEnrollmentId('') }} className="accent-gw-blue" />
                       Trainer
                     </label>
-                    <label className="flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer">
                       <input type="radio" name="personType" checked={hoursPersonType === 'student'} onChange={() => { setHoursPersonType('student'); setHoursTrainerId('') }} className="accent-gw-blue" />
                       Student
                     </label>
@@ -470,7 +470,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
                 </div>
                 {hoursPersonType === 'trainer' && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">Trainer</label>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Trainer</label>
                     <select value={hoursTrainerId} onChange={e => setHoursTrainerId(e.target.value)} className={fieldClass} required>
                       <option value="">— Select —</option>
                       {trainers.map(t => <option key={t.id} value={t.id}>{t.trainer_name}</option>)}
@@ -479,7 +479,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
                 )}
                 {hoursPersonType === 'student' && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">Student</label>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Student</label>
                     <select value={hoursEnrollmentId} onChange={e => setHoursEnrollmentId(e.target.value)} className={fieldClass} required>
                       <option value="">— Select —</option>
                       {enrollments.map(enr => <option key={enr.id} value={enr.id}>{enr.student_name}</option>)}
@@ -487,12 +487,12 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-medium text-slate-400">Notes
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Notes
                     <input type="text" value={hoursNotes} onChange={e => setHoursNotes(e.target.value)} className={fieldClass} placeholder="Optional" />
                   </label>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setHoursFormOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                  <button type="button" onClick={() => setHoursFormOpen(false)} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Cancel</button>
                   <button type="submit" disabled={hoursSaving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                     {hoursSaving ? 'Saving…' : editingHours ? 'Save changes' : 'Log hours'}
                   </button>
@@ -502,7 +502,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
           )}
 
           {hours.length === 0 ? (
-            <div className="bg-gw-elevated rounded-[10px]">
+            <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
               <EmptyState
                 title="No logged hours yet"
                 description={`Log hours for ${className} to track trainer and student time.`}
@@ -514,10 +514,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
             {/* Mobile: card layout */}
             <div className="sm:hidden space-y-2">
               {hours.map(h => (
-                <div key={h.id} className="bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3 cursor-pointer active:bg-gw-surface" onClick={() => openEditHours(h)}>
+                <div key={h.id} className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3 cursor-pointer active:bg-white dark:bg-gw-surface" onClick={() => openEditHours(h)}>
                   <div className="flex items-start justify-between gap-2 text-xs">
                     <div>
-                      <p className="font-medium text-slate-200">{h.log_date}</p>
+                      <p className="font-medium text-slate-700 dark:text-slate-200">{h.log_date}</p>
                       <p className="text-slate-500 mt-0.5"><span className="capitalize">{h.person_type}</span> &middot; {personName(h)} &middot; {h.hours} hrs</p>
                     </div>
                     <button type="button" onClick={e => { e.stopPropagation(); handleRemoveHours(h.id) }} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2.5 py-1.5 text-xs text-rose-400 hover:bg-rose-500/15 transition-colors flex-shrink-0">Remove</button>
@@ -526,10 +526,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
               ))}
             </div>
             {/* Desktop: table layout */}
-            <div className="hidden sm:block bg-gw-elevated rounded-[10px] overflow-hidden">
+            <div className="hidden sm:block bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Person</th>
@@ -539,11 +539,11 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
                 </thead>
                 <tbody>
                   {hours.map(h => (
-                    <tr key={h.id} className="border-b border-white/[0.03] hover:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditHours(h)}>
-                      <td className="px-3 py-2 text-slate-200">{h.log_date}</td>
-                      <td className="px-3 py-2 text-slate-400 capitalize">{h.person_type}</td>
-                      <td className="px-3 py-2 text-slate-400">{personName(h)}</td>
-                      <td className="px-3 py-2 text-slate-400">{h.hours}</td>
+                    <tr key={h.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditHours(h)}>
+                      <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{h.log_date}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400 capitalize">{h.person_type}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{personName(h)}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{h.hours}</td>
                       <td className="px-3 py-2 text-right">
                         <button type="button" onClick={e => { e.stopPropagation(); handleRemoveHours(h.id) }} className="rounded-md bg-rose-500/10 border border-rose-500/25 px-2 py-1 text-rose-400 hover:bg-rose-500/15 transition-colors">Remove</button>
                       </td>

@@ -97,13 +97,13 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
             {title}
             {!loading && total > 0 && (
-              <span className="ml-1.5 text-sm font-normal text-slate-500">({total})</span>
+              <span className="ml-1.5 text-sm font-normal text-slate-400 dark:text-slate-500">({total})</span>
             )}
           </h2>
-          <p className="mt-0.5 text-sm text-slate-300">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">{subtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -111,10 +111,10 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
             placeholder="Search by name or email…"
             value={search}
             onChange={e => handleSearch(e.target.value)}
-            className="w-full sm:w-64 bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15"
+            className="w-full sm:w-64 bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-3 py-2 text-sm text-slate-900 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15"
           />
           {rows.length > 0 && (
-            <button type="button" onClick={handleExportCsv} className="shrink-0 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-2 text-xs hover:bg-white/[0.08] transition-colors">
+            <button type="button" onClick={handleExportCsv} className="shrink-0 rounded-md bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium px-3 py-2 text-xs hover:bg-white/[0.08] transition-colors">
               Export CSV
             </button>
           )}
@@ -125,7 +125,7 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
         {loading ? (
           <SkeletonTable rows={5} cols={2} />
         ) : rows.length === 0 ? (
-          <div className="bg-gw-surface rounded-[10px]">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px]">
             <EmptyState
               title={search ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} found`}
               description={search ? 'Try a different search term.' : `${title} appear here once enrolled in a class.`}
@@ -133,13 +133,13 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
             />
           </div>
         ) : (
-          <div className="bg-gw-surface rounded-[10px] overflow-hidden">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                     {([{ key: 'full_name' as const, label: 'Name' }, { key: 'email' as const, label: 'Email' }]).map(col => (
-                      <th key={col.key} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none group hover:text-slate-300 transition-colors" onClick={() => toggleSort(col.key)}>
+                      <th key={col.key} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 cursor-pointer select-none group hover:text-slate-700 dark:hover:text-slate-300 transition-colors" onClick={() => toggleSort(col.key)}>
                         {col.label}
                         {sortCol === col.key ? (
                           <svg className="w-3 h-3 ml-1 inline text-gw-blue" viewBox="0 0 12 12" fill="currentColor">{sortDir === 'asc' ? <path d="M6 2l3 4H3z" /> : <path d="M6 10l-3-4h6z" />}</svg>
@@ -154,17 +154,17 @@ export function RosterPage({ role, title, subtitle }: RosterPageProps) {
                   {sortedRows.map(r => (
                     <tr
                       key={r.id}
-                      className={`border-b border-white/[0.03] hover:bg-gw-elevated transition-colors duration-100${role === 'trainee' ? ' cursor-pointer' : ''}`}
+                      className={`border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-gw-elevated transition-colors duration-100${role === 'trainee' ? ' cursor-pointer' : ''}`}
                       onClick={role === 'trainee' ? () => navigate(`/students/progress/${encodeURIComponent(r.email)}`) : undefined}
                     >
-                      <td className="px-4 py-3 font-medium text-slate-200">{r.full_name ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-400">{r.email}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{r.full_name ?? '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{r.email}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2 border-t border-white/[0.03]">
+            <div className="px-4 py-2 border-t border-slate-100 dark:border-white/[0.03]">
               <Pagination
                 page={page}
                 limit={PAGE_SIZE}

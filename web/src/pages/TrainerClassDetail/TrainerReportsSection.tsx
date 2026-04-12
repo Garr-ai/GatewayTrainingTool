@@ -105,10 +105,10 @@ export function TrainerReportsSection() {
   if (mode === 'list') {
     return (
       <>
-      <section className="bg-gw-surface rounded-[10px] p-4">
+      <section className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
         <header className="flex items-center justify-between gap-2 mb-3">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Daily Reports
               {!loading && reports.length > 0 && <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-500">({reports.length})</span>}
             </h3>
@@ -123,14 +123,14 @@ export function TrainerReportsSection() {
         {loading ? (
           <SkeletonTable rows={4} cols={4} />
         ) : reports.length === 0 ? (
-          <div className="bg-gw-elevated rounded-[10px]">
+          <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
             <EmptyState title="No reports yet" description="Create the first daily report for this class." variant="neutral" />
           </div>
         ) : (
-          <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">
+          <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-x-auto">
             <table className="min-w-full text-xs">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Session</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Group</th>
@@ -140,11 +140,11 @@ export function TrainerReportsSection() {
               </thead>
               <tbody>
                 {reports.map(r => (
-                  <tr key={r.id} className="border-b border-white/[0.03] hover:bg-gw-surface transition-colors duration-100">
-                    <td className="px-3 py-2 text-slate-200 font-medium">{r.report_date}</td>
-                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.session_label ?? '—'}</td>
-                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.group_label ?? '—'}</td>
-                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{r.game ?? '—'}</td>
+                  <tr key={r.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface transition-colors duration-100">
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-200 font-medium">{r.report_date}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{r.session_label ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{r.group_label ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{r.game ?? '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {loadingReportId === r.id ? (
@@ -154,7 +154,7 @@ export function TrainerReportsSection() {
                             {!archived && (
                               <button type="button" onClick={() => openEdit(r)} className="rounded px-2 py-1 text-[11px] font-medium text-gw-blue hover:bg-gw-blue/10 transition-colors">Edit</button>
                             )}
-                            <button type="button" onClick={() => handleViewPdf(r)} className="rounded px-2 py-1 text-[11px] font-medium text-slate-400 hover:bg-white/5 transition-colors">View PDF</button>
+                            <button type="button" onClick={() => handleViewPdf(r)} className="rounded px-2 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-white/5 transition-colors">View PDF</button>
                           </>
                         )}
                       </div>
@@ -179,12 +179,12 @@ export function TrainerReportsSection() {
 
   // Form mode (create or edit)
   return (
-    <section className="bg-gw-surface rounded-[10px] p-4 flex flex-col gap-4">
+    <section className="bg-white dark:bg-gw-surface rounded-[10px] p-4 flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <button type="button" onClick={() => { setMode('list'); setEditingReport(null) }} className="text-slate-500 hover:text-slate-300 transition-colors">
+        <button type="button" onClick={() => { setMode('list'); setEditingReport(null) }} className="text-slate-500 hover:text-slate-600 dark:text-slate-300 transition-colors">
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        <h3 className="text-sm font-semibold text-slate-200">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
           {mode === 'create' ? 'New Report' : 'Edit Report'}
         </h3>
       </div>

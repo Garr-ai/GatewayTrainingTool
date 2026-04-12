@@ -53,18 +53,18 @@ export function SchedulePage() {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Schedule</h2>
-          <p className="mt-0.5 text-sm text-slate-300">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Schedule</h2>
+          <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">
             Upcoming sessions across all {filters.archived ? '' : 'active '}classes
           </p>
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 rounded-md bg-gw-surface border border-white/10 p-0.5 self-start sm:self-auto">
+        <div className="flex items-center gap-1 rounded-md bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/10 p-0.5 self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setView('table')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'table' ? 'bg-gw-elevated text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'table' ? 'bg-slate-100 dark:bg-gw-elevated text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300'}`}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
@@ -74,7 +74,7 @@ export function SchedulePage() {
           <button
             type="button"
             onClick={() => setView('calendar')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'calendar' ? 'bg-gw-elevated text-slate-100' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${view === 'calendar' ? 'bg-slate-100 dark:bg-gw-elevated text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300'}`}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" />
@@ -97,7 +97,7 @@ export function SchedulePage() {
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : slots.length === 0 ? (
-          <div className="bg-gw-surface rounded-[10px]">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px]">
             {hasActiveFilters ? (
               <EmptyState
                 title="No sessions match your filters"

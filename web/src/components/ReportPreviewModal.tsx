@@ -77,13 +77,13 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/60 animate-backdrop-in" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/40 dark:bg-black/60 animate-backdrop-in" onClick={onClose}>
       {/* Toolbar */}
       <div
-        className="flex items-center justify-between bg-gw-darkest px-4 py-3 flex-shrink-0 animate-modal-in"
+        className="flex items-center justify-between bg-slate-50 dark:bg-gw-darkest px-4 py-3 flex-shrink-0 animate-modal-in"
         onClick={e => e.stopPropagation()}
       >
-        <span className="text-sm font-medium text-white truncate">
+        <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
           {args.className} — {args.report.report_date}
           {args.report.group_label ? ` · Group ${args.report.group_label}` : ''}
         </span>
@@ -91,7 +91,7 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
           <button
             type="button"
             onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+            className="inline-flex items-center gap-1.5 rounded-md bg-slate-200 dark:bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -115,7 +115,7 @@ export function ReportPreviewModal({ args, onClose }: { args: ReportPdfArgs; onC
           <button
             type="button"
             onClick={onClose}
-            className="ml-1 rounded-md p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
+            className="ml-1 rounded-md p-1.5 text-slate-500 dark:text-white/60 hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
             aria-label="Close"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

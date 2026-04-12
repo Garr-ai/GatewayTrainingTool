@@ -19,8 +19,8 @@ const provinceBadge: Record<string, string> = {
   ON: 'bg-purple-500/15 text-purple-300',
 }
 
-const inputClass = 'bg-gw-elevated border border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
-const labelClass = 'text-xs font-medium text-slate-400 mb-1 block'
+const inputClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
+const labelClass = 'text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block'
 
 export function ClassesPage() {
   useAuth()
@@ -214,8 +214,8 @@ export function ClassesPage() {
       {/* Page header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Classes</h2>
-          <p className="mt-0.5 text-sm text-slate-300">Create and manage training classes</p>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Classes</h2>
+          <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">Create and manage training classes</p>
         </div>
         <button
           type="button"
@@ -228,7 +228,7 @@ export function ClassesPage() {
 
       {/* Filter bar */}
       {!loading && (
-        <div className="mt-4 bg-gw-surface rounded-[10px] p-3 flex-shrink-0">
+        <div className="mt-4 bg-white dark:bg-gw-surface rounded-[10px] p-3 flex-shrink-0">
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className={labelClass}>Province</label>
@@ -282,7 +282,7 @@ export function ClassesPage() {
         {loading ? (
           <SkeletonTable rows={5} cols={6} />
         ) : filteredActive.length === 0 && filteredArchived.length === 0 && hasFilters ? (
-          <div className="bg-gw-surface rounded-[10px]">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px]">
             <EmptyState
               title="No classes match your filters"
               description="Try adjusting your filters or reset them."
@@ -294,11 +294,11 @@ export function ClassesPage() {
           <>
             {/* Active classes */}
             <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Active</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Active</h3>
               {filteredActive.length === 0 ? (
-                <div className="bg-gw-surface rounded-[10px] p-8 text-center">
-                  <p className="text-sm text-slate-300">No active classes</p>
-                  <p className="mt-1 text-xs text-slate-500">Create your first class to get started.</p>
+                <div className="bg-white dark:bg-gw-surface rounded-[10px] p-8 text-center">
+                  <p className="text-sm text-slate-700 dark:text-slate-300">No active classes</p>
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Create your first class to get started.</p>
                   <button
                     type="button"
                     onClick={() => setCreateOpen(true)}
@@ -308,13 +308,13 @@ export function ClassesPage() {
                   </button>
                 </div>
               ) : (
-                <div className="bg-gw-surface rounded-[10px] overflow-hidden">
+                <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                        <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                           <th className="w-10 px-3 py-3">
-                            <input type="checkbox" checked={selected.size === filteredActive.length && filteredActive.length > 0} onChange={toggleSelectAll} className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
+                            <input type="checkbox" checked={selected.size === filteredActive.length && filteredActive.length > 0} onChange={toggleSelectAll} className="rounded border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
                           </th>
                           {([
                             { key: 'name', label: 'Name', hide: '' },
@@ -324,7 +324,7 @@ export function ClassesPage() {
                             { key: 'start_date', label: 'Start', hide: 'hidden md:table-cell' },
                             { key: 'end_date', label: 'End', hide: 'hidden md:table-cell' },
                           ] as const).map(col => (
-                            <th key={col.key} className={`${col.hide} px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 cursor-pointer select-none group hover:text-slate-300 transition-colors`} onClick={() => toggleSort(col.key)}>
+                            <th key={col.key} className={`${col.hide} px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 cursor-pointer select-none group hover:text-slate-700 dark:hover:text-slate-300 transition-colors`} onClick={() => toggleSort(col.key)}>
                               {col.label}
                               {sortCol === col.key ? (
                                 <svg className="w-3 h-3 ml-1 inline text-gw-blue" viewBox="0 0 12 12" fill="currentColor">{sortDir === 'asc' ? <path d="M6 2l3 4H3z" /> : <path d="M6 10l-3-4h6z" />}</svg>
@@ -333,7 +333,7 @@ export function ClassesPage() {
                               )}
                             </th>
                           ))}
-                          <th className="hidden lg:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Attendance</th>
+                          <th className="hidden lg:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Attendance</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
@@ -344,22 +344,22 @@ export function ClassesPage() {
                           return (
                           <tr
                             key={c.id}
-                            className={`border-b border-white/[0.03] hover:bg-gw-elevated cursor-pointer transition-colors duration-100 ${selected.has(c.id) ? 'bg-gw-blue/[0.06]' : ''}`}
+                            className={`border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-gw-elevated cursor-pointer transition-colors duration-100 ${selected.has(c.id) ? 'bg-gw-blue/[0.06]' : ''}`}
                             onClick={() => navigate(`/classes/${classSlug(c.name)}`)}
                           >
                             <td className="w-10 px-3 py-3" onClick={e => e.stopPropagation()}>
-                              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id, { stopPropagation: () => {} } as React.MouseEvent)} className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
+                              <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id, { stopPropagation: () => {} } as React.MouseEvent)} className="rounded border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]" />
                             </td>
-                            <td className="px-4 py-3 font-medium text-slate-200">{c.name}</td>
-                            <td className="px-4 py-3 text-slate-400">{c.site}</td>
+                            <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{c.name}</td>
+                            <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{c.site}</td>
                             <td className="hidden sm:table-cell px-4 py-3">
                               <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${provinceBadge[c.province] ?? 'bg-white/10 text-slate-400'}`}>
                                 {provinceLabel(c.province)}
                               </span>
                             </td>
-                            <td className="hidden sm:table-cell px-4 py-3 text-slate-400">{c.game_type ?? '—'}</td>
-                            <td className="hidden md:table-cell px-4 py-3 text-slate-400">{c.start_date}</td>
-                            <td className="hidden md:table-cell px-4 py-3 text-slate-400">{c.end_date}</td>
+                            <td className="hidden sm:table-cell px-4 py-3 text-slate-500 dark:text-slate-400">{c.game_type ?? '—'}</td>
+                            <td className="hidden md:table-cell px-4 py-3 text-slate-500 dark:text-slate-400">{c.start_date}</td>
+                            <td className="hidden md:table-cell px-4 py-3 text-slate-500 dark:text-slate-400">{c.end_date}</td>
                             <td className="hidden lg:table-cell px-4 py-3">
                               <span className={`text-xs font-medium ${rateColor}`}>{rate != null ? `${rate}%` : '—'}</span>
                             </td>
@@ -367,7 +367,7 @@ export function ClassesPage() {
                               <button
                                 type="button"
                                 onClick={e => handleArchive(c, e)}
-                                className="rounded-md bg-gw-surface text-slate-300 border border-white/10 px-2 py-1 text-xs font-medium hover:bg-gw-elevated transition-colors duration-150"
+                                className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors duration-150"
                               >
                                 Archive
                               </button>
@@ -380,11 +380,11 @@ export function ClassesPage() {
                   </div>
 
                   {selected.size > 0 && (
-                    <div className="sticky bottom-0 flex items-center justify-between gap-3 bg-gw-dark border-t border-white/[0.08] px-4 py-2.5">
-                      <span className="text-xs font-medium text-slate-300">{selected.size} selected</span>
+                    <div className="sticky bottom-0 flex items-center justify-between gap-3 bg-gw-dark border-t border-slate-200 dark:border-white/[0.08] px-4 py-2.5">
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{selected.size} selected</span>
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-slate-400 hover:text-slate-200 transition-colors">Clear</button>
-                        <button type="button" onClick={handleBulkArchive} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Archive</button>
+                        <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">Clear</button>
+                        <button type="button" onClick={handleBulkArchive} className="rounded-md bg-white dark:bg-gw-surface text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors">Archive</button>
                         <button type="button" onClick={handleBulkDelete} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/20 transition-colors">Delete</button>
                       </div>
                     </div>
@@ -396,34 +396,34 @@ export function ClassesPage() {
             {/* Archived classes */}
             {filteredArchived.length > 0 && (
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Archived</h3>
-                <div className="bg-gw-surface rounded-[10px] overflow-hidden opacity-75">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Archived</h3>
+                <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-hidden opacity-75">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
-                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Site</th>
-                          <th className="hidden sm:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Province</th>
-                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Start</th>
-                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">End</th>
+                        <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Name</th>
+                          <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Site</th>
+                          <th className="hidden sm:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Province</th>
+                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Start</th>
+                          <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">End</th>
                           <th className="px-4 py-3" />
                         </tr>
                       </thead>
                       <tbody>
                         {filteredArchived.map(c => (
-                          <tr key={c.id} className="border-b border-white/[0.03]">
-                            <td className="px-4 py-3 font-medium text-slate-400">{c.name}</td>
-                            <td className="px-4 py-3 text-slate-500">{c.site}</td>
-                            <td className="hidden sm:table-cell px-4 py-3 text-slate-500">{provinceLabel(c.province)}</td>
-                            <td className="hidden md:table-cell px-4 py-3 text-slate-500">{c.start_date}</td>
-                            <td className="hidden md:table-cell px-4 py-3 text-slate-500">{c.end_date}</td>
+                          <tr key={c.id} className="border-b border-slate-100 dark:border-white/[0.03]">
+                            <td className="px-4 py-3 font-medium text-slate-500 dark:text-slate-400">{c.name}</td>
+                            <td className="px-4 py-3 text-slate-400 dark:text-slate-500">{c.site}</td>
+                            <td className="hidden sm:table-cell px-4 py-3 text-slate-400 dark:text-slate-500">{provinceLabel(c.province)}</td>
+                            <td className="hidden md:table-cell px-4 py-3 text-slate-400 dark:text-slate-500">{c.start_date}</td>
+                            <td className="hidden md:table-cell px-4 py-3 text-slate-400 dark:text-slate-500">{c.end_date}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
                                   type="button"
                                   onClick={() => handleUnarchive(c)}
-                                  className="rounded-md bg-gw-surface text-slate-300 border border-white/10 px-2 py-1 text-xs font-medium hover:bg-gw-elevated transition-colors duration-150"
+                                  className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 px-2 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors duration-150"
                                 >
                                   Unarchive
                                 </button>

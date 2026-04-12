@@ -68,21 +68,21 @@ export function ProtectedLayout() {
   }
   if (pendingRequest) {
     return (
-      <div className="min-h-screen bg-gw-darkest flex items-center justify-center px-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-gw-darkest flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
               <path d="M12 8v4M12 16h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-slate-100 mb-2">Pending Approval</h2>
-          <p className="text-sm text-slate-400 mb-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Pending Approval</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
             Your role request is being reviewed by a coordinator. You will be able to access the full application once approved.
           </p>
           <button
             type="button"
             onClick={signOut}
-            className="rounded-[10px] border border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/[0.04] transition-colors"
+            className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
           >
             Sign out
           </button>
@@ -94,12 +94,12 @@ export function ProtectedLayout() {
   // Coordinator layout: icon sidebar (desktop) + bottom nav (mobile)
   if (role === 'coordinator') {
     return (
-      <div className="min-h-screen w-screen bg-gw-darkest">
+      <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
         {/* Desktop icon sidebar — hidden on mobile */}
         <CoordinatorLayout />
 
         {/* Mobile top bar */}
-        <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-gw-darkest border-b border-white/[0.06] px-4 md:hidden">
+        <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-white dark:bg-gw-darkest border-b border-slate-200 dark:border-white/[0.06] px-4 md:hidden">
           <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm leading-none select-none">G</span>
           </div>
@@ -115,7 +115,7 @@ export function ProtectedLayout() {
 
         {/* Mobile bottom nav */}
         <nav
-          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
+          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-white dark:bg-gw-surface border-t border-slate-200 dark:border-white/[0.06] md:hidden"
           aria-label="Mobile navigation"
         >
           {BOTTOM_NAV.map(({ to, label, icon }) => (
@@ -124,7 +124,7 @@ export function ProtectedLayout() {
               to={to}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 px-3 py-1 transition-colors duration-100 ${
-                  isActive ? 'text-gw-blue' : 'text-slate-500'
+                  isActive ? 'text-gw-blue' : 'text-slate-400 dark:text-slate-500'
                 }`
               }
             >
@@ -135,7 +135,7 @@ export function ProtectedLayout() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-500"
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 dark:text-slate-500"
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h.01M12 12h.01M19 12h.01" />
@@ -147,11 +147,11 @@ export function ProtectedLayout() {
         {/* "More" bottom sheet */}
         {moreOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-end md:hidden bg-black/60 animate-backdrop-in"
+            className="fixed inset-0 z-50 flex items-end md:hidden bg-black/40 dark:bg-black/60 animate-backdrop-in"
             onClick={() => setMoreOpen(false)}
           >
             <div
-              className="w-full bg-gw-surface border-t border-white/[0.08] rounded-t-[14px] p-4 pb-8 animate-modal-in"
+              className="w-full bg-white dark:bg-gw-surface border-t border-slate-200 dark:border-white/[0.08] rounded-t-[14px] p-4 pb-8 animate-modal-in"
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
@@ -164,8 +164,8 @@ export function ProtectedLayout() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-[10px] px-3 py-3 transition-colors duration-100 ${
                         isActive
-                          ? 'bg-gw-blue/20 border border-gw-blue/35 text-slate-100'
-                          : 'bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200'
+                          ? 'bg-gw-blue/20 border border-gw-blue/35 text-slate-900 dark:text-slate-100'
+                          : 'bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`
                     }
                   >
@@ -189,11 +189,11 @@ export function ProtectedLayout() {
     ]
 
     return (
-      <div className="min-h-screen w-screen bg-gw-darkest">
+      <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
         <TrainerLayout />
 
         {/* Mobile top bar */}
-        <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-gw-darkest border-b border-white/[0.06] px-4 md:hidden">
+        <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-white dark:bg-gw-darkest border-b border-slate-200 dark:border-white/[0.06] px-4 md:hidden">
           <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm leading-none select-none">G</span>
           </div>
@@ -211,7 +211,7 @@ export function ProtectedLayout() {
 
         {/* Mobile bottom nav */}
         <nav
-          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
+          className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-white dark:bg-gw-surface border-t border-slate-200 dark:border-white/[0.06] md:hidden"
           aria-label="Mobile navigation"
         >
           {TRAINER_BOTTOM_NAV.map(({ to, label, icon }) => (
@@ -220,7 +220,7 @@ export function ProtectedLayout() {
               to={to}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 px-3 py-1 transition-colors duration-100 ${
-                  isActive ? 'text-gw-blue' : 'text-slate-500'
+                  isActive ? 'text-gw-blue' : 'text-slate-400 dark:text-slate-500'
                 }`
               }
             >
@@ -231,7 +231,7 @@ export function ProtectedLayout() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-500"
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 dark:text-slate-500"
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h.01M12 12h.01M19 12h.01" />
@@ -243,11 +243,11 @@ export function ProtectedLayout() {
         {/* More bottom sheet */}
         {moreOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-end md:hidden bg-black/60 animate-backdrop-in"
+            className="fixed inset-0 z-50 flex items-end md:hidden bg-black/40 dark:bg-black/60 animate-backdrop-in"
             onClick={() => setMoreOpen(false)}
           >
             <div
-              className="w-full bg-gw-surface border-t border-white/[0.08] rounded-t-[14px] p-4 pb-8 animate-modal-in"
+              className="w-full bg-white dark:bg-gw-surface border-t border-slate-200 dark:border-white/[0.08] rounded-t-[14px] p-4 pb-8 animate-modal-in"
               onClick={e => e.stopPropagation()}
             >
               <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
@@ -260,8 +260,8 @@ export function ProtectedLayout() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-[10px] px-3 py-3 transition-colors duration-100 ${
                         isActive
-                          ? 'bg-gw-blue/20 border border-gw-blue/35 text-slate-100'
-                          : 'bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200'
+                          ? 'bg-gw-blue/20 border border-gw-blue/35 text-slate-900 dark:text-slate-100'
+                          : 'bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                       }`
                     }
                   >
@@ -272,7 +272,7 @@ export function ProtectedLayout() {
                 <button
                   type="button"
                   onClick={() => { signOut(); setMoreOpen(false) }}
-                  className="flex items-center gap-3 rounded-[10px] px-3 py-3 bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200 transition-colors duration-100"
+                  className="flex items-center gap-3 rounded-[10px] px-3 py-3 bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-100"
                 >
                   {navIcon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
                   <span className="text-sm font-medium">Sign out</span>
@@ -287,11 +287,11 @@ export function ProtectedLayout() {
 
   // Student (trainee) layout: icon sidebar (desktop) + bottom nav (mobile)
   return (
-    <div className="min-h-screen w-screen bg-gw-darkest">
+    <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
       <StudentLayout />
 
       {/* Mobile top bar */}
-      <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-gw-darkest border-b border-white/[0.06] px-4 md:hidden">
+      <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 bg-white dark:bg-gw-darkest border-b border-slate-200 dark:border-white/[0.06] px-4 md:hidden">
         <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-sm leading-none select-none">G</span>
         </div>
@@ -307,7 +307,7 @@ export function ProtectedLayout() {
 
       {/* Mobile bottom nav */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-gw-surface border-t border-white/[0.06] md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around h-16 bg-white dark:bg-gw-surface border-t border-slate-200 dark:border-white/[0.06] md:hidden"
         aria-label="Mobile navigation"
       >
         {STUDENT_NAV_ITEMS.map(({ to, label, icon }) => (
@@ -316,7 +316,7 @@ export function ProtectedLayout() {
             to={to}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 px-3 py-1 transition-colors duration-100 ${
-                isActive ? 'text-gw-blue' : 'text-slate-500'
+                isActive ? 'text-gw-blue' : 'text-slate-400 dark:text-slate-500'
               }`
             }
           >
@@ -327,7 +327,7 @@ export function ProtectedLayout() {
         <button
           type="button"
           onClick={signOut}
-          className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-500"
+          className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 dark:text-slate-500"
         >
           {navIcon('M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9')}
           <span className="text-[10px] font-medium">Sign out</span>

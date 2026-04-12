@@ -133,16 +133,16 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh] bg-black/60 animate-backdrop-in px-4"
+      className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh] bg-black/40 dark:bg-black/60 animate-backdrop-in px-4"
       onClick={() => setOpen(false)}
     >
       <div
-        className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl overflow-hidden animate-modal-in"
+        className="w-full max-w-lg bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl overflow-hidden animate-modal-in"
         onClick={e => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-          <svg className="w-5 h-5 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-white/[0.06]">
+          <svg className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -152,9 +152,9 @@ export function CommandPalette() {
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search pages, classes…"
-            className="flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-500 outline-none"
+            className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.08] text-[10px] font-medium text-slate-500">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/[0.08] text-[10px] font-medium text-slate-500 dark:text-slate-500">
             ESC
           </kbd>
         </div>
@@ -162,7 +162,7 @@ export function CommandPalette() {
         {/* Results */}
         <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
           {filtered.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-slate-500 text-center">No results found</p>
+            <p className="px-4 py-6 text-sm text-slate-400 dark:text-slate-500 text-center">No results found</p>
           ) : (
             filtered.map((item, i) => (
               <button
@@ -171,20 +171,20 @@ export function CommandPalette() {
                 onClick={() => selectItem(item)}
                 onMouseEnter={() => setSelectedIndex(i)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-75 ${
-                  i === selectedIndex ? 'bg-gw-blue/10 text-slate-100' : 'text-slate-300 hover:bg-white/[0.03]'
+                  i === selectedIndex ? 'bg-gw-blue/10 text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03]'
                 }`}
               >
-                <svg className="w-4 h-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <svg className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
                 </svg>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium">{item.label}</span>
                   {item.description && (
-                    <span className="ml-2 text-xs text-slate-500">{item.description}</span>
+                    <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{item.description}</span>
                   )}
                 </div>
                 {i === selectedIndex && (
-                  <span className="text-[10px] text-slate-500 shrink-0">Enter ↵</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">Enter ↵</span>
                 )}
               </button>
             ))
@@ -192,7 +192,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-4 text-[10px] text-slate-600">
+        <div className="px-4 py-2 border-t border-slate-200 dark:border-white/[0.06] flex items-center gap-4 text-[10px] text-slate-600">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span>esc close</span>

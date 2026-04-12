@@ -61,21 +61,21 @@ export function RoleSelectionPage() {
 
   if (pending) {
     return (
-      <div className="min-h-screen bg-gw-darkest flex items-center justify-center px-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-gw-darkest flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
               <path d="M12 8v4M12 16h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-slate-100 mb-2">Pending Approval</h2>
-          <p className="text-sm text-slate-400 mb-6">
-            Your request to become a <span className="text-slate-200 font-medium">{selected === 'trainer' ? 'Trainer' : 'Coordinator'}</span> has been submitted. A coordinator will review your request shortly.
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">Pending Approval</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+            Your request to become a <span className="text-slate-800 dark:text-slate-200 font-medium">{selected === 'trainer' ? 'Trainer' : 'Coordinator'}</span> has been submitted. A coordinator will review your request shortly.
           </p>
           <button
             type="button"
             onClick={signOut}
-            className="rounded-[10px] border border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/[0.04] transition-colors"
+            className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
           >
             Sign out
           </button>
@@ -85,21 +85,21 @@ export function RoleSelectionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gw-darkest flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-gw-darkest flex items-center justify-center px-4">
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg leading-none select-none">G</span>
           </div>
-          <h1 className="text-2xl font-semibold text-slate-100 mb-1">Welcome to Gateway Training Tool</h1>
-          <p className="text-sm text-slate-400">Complete your profile to get started.</p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-1">Welcome to Gateway Training Tool</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Complete your profile to get started.</p>
         </div>
 
         {/* Profile fields */}
         <div className="flex flex-col gap-3 mb-6">
           <div className="flex gap-3">
             <div className="flex flex-col gap-1.5 flex-1">
-              <label htmlFor="firstName" className="text-xs font-medium text-slate-400">
+              <label htmlFor="firstName" className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 First Name <span className="text-rose-400">*</span>
               </label>
               <input
@@ -108,11 +108,11 @@ export function RoleSelectionPage() {
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
                 placeholder="John"
-                className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+                className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-gw-surface px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
               />
             </div>
             <div className="flex flex-col gap-1.5 flex-1">
-              <label htmlFor="lastName" className="text-xs font-medium text-slate-400">
+              <label htmlFor="lastName" className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Last Name <span className="text-rose-400">*</span>
               </label>
               <input
@@ -121,13 +121,13 @@ export function RoleSelectionPage() {
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
                 placeholder="Doe"
-                className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+                className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-gw-surface px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
               />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="phone" className="text-xs font-medium text-slate-400">
-              Phone Number <span className="text-slate-600">(optional)</span>
+            <label htmlFor="phone" className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Phone Number <span className="text-slate-400 dark:text-slate-600">(optional)</span>
             </label>
             <input
               id="phone"
@@ -135,13 +135,13 @@ export function RoleSelectionPage() {
               value={phone}
               onChange={e => setPhone(formatPhone(e.target.value))}
               placeholder="(604) 555-1234"
-              className="rounded-[10px] border border-white/[0.08] bg-gw-surface px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+              className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-gw-surface px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
             />
           </div>
         </div>
 
         {/* Role selection */}
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Select your role</p>
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Select your role</p>
         <div className="flex flex-col gap-3 mb-6">
           {ROLES.map(r => (
             <button
@@ -151,26 +151,26 @@ export function RoleSelectionPage() {
               className={`flex items-start gap-4 p-4 rounded-[10px] border text-left transition-colors ${
                 selected === r.value
                   ? 'bg-gw-blue/10 border-gw-blue/40'
-                  : 'bg-gw-surface border-white/[0.08] hover:border-white/[0.15]'
+                  : 'bg-white dark:bg-gw-surface border-slate-200 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15]'
               }`}
             >
               <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${
-                selected === r.value ? 'bg-gw-blue/20' : 'bg-white/[0.04]'
+                selected === r.value ? 'bg-gw-blue/20' : 'bg-slate-100 dark:bg-white/[0.04]'
               }`}>
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={selected === r.value ? 'text-gw-blue' : 'text-slate-400'}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={selected === r.value ? 'text-gw-blue' : 'text-slate-500 dark:text-slate-400'}>
                   <path d={roleIcons[r.value]} />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-100">{r.label}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{r.label}</span>
                   {r.requiresApproval && (
                     <span className="text-[10px] font-medium text-amber-400/80 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       Requires approval
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{r.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{r.description}</p>
               </div>
             </button>
           ))}

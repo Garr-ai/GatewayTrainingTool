@@ -98,29 +98,29 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
   }
 
   const inputClass =
-    'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+    'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-backdrop-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/40 dark:bg-black/60 p-4 animate-backdrop-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-class-title"
     >
-      <div className="w-full max-w-md bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl animate-modal-in overflow-hidden">
-        <div className="border-b border-white/[0.06] px-6 py-4 flex items-start justify-between gap-3">
+      <div className="w-full max-w-md bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl animate-modal-in overflow-hidden">
+        <div className="border-b border-slate-200 dark:border-white/[0.06] px-6 py-4 flex items-start justify-between gap-3">
           <div>
-            <h2 id="create-class-title" className="text-base font-bold text-slate-100">
+            <h2 id="create-class-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
               Create class
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
               Add a new training class. Required fields are marked.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
+            className="w-7 h-7 rounded-md bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
             aria-label="Close"
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -129,7 +129,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-6 py-5">
           <div>
-            <label htmlFor="class-name" className="block text-xs font-medium text-slate-400 mb-1.5">
+            <label htmlFor="class-name" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
               Class name <span className="text-rose-400">*</span>
             </label>
             <input
@@ -145,7 +145,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-site" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="class-site" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 Site <span className="text-rose-400">*</span>
               </label>
               <input
@@ -158,7 +158,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-province" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="class-province" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 Province <span className="text-rose-400">*</span>
               </label>
               <select
@@ -177,7 +177,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-game" className="block text-xs font-medium text-slate-400 mb-1.5">
+            <label htmlFor="class-game" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
               Game type
             </label>
             <input
@@ -192,7 +192,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="class-start" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="class-start" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 Start date <span className="text-rose-400">*</span>
               </label>
               <input
@@ -205,7 +205,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
               />
             </div>
             <div>
-              <label htmlFor="class-end" className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="class-end" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 End date <span className="text-rose-400">*</span>
               </label>
               <input
@@ -220,7 +220,7 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
           </div>
 
           <div>
-            <label htmlFor="class-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
+            <label htmlFor="class-desc" className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
               Description
             </label>
             <textarea
@@ -239,11 +239,11 @@ export function CreateClassModal({ onClose, onSuccess }: CreateClassModalProps) 
             </p>
           )}
 
-          <div className="flex gap-2 justify-end border-t border-white/[0.06] pt-4">
+          <div className="flex gap-2 justify-end border-t border-slate-200 dark:border-white/[0.06] pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-gw-elevated transition-colors duration-150"
+              className="rounded-md bg-white dark:bg-gw-surface text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors duration-150"
             >
               Cancel
             </button>

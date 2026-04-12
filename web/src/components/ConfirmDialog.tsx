@@ -26,20 +26,20 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-backdrop-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4 animate-backdrop-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
     >
-      <div className="w-full max-w-sm bg-gw-surface border border-white/[0.08] rounded-[14px] p-6 shadow-2xl animate-modal-in">
+      <div className="w-full max-w-sm bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] p-6 shadow-2xl animate-modal-in">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h2 id="confirm-dialog-title" className="text-base font-bold text-slate-100">
+          <h2 id="confirm-dialog-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
           <button
             type="button"
             onClick={onCancel}
-            className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
+            className="w-7 h-7 rounded-md bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex items-center justify-center shrink-0 transition-colors"
             aria-label="Close"
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -47,12 +47,12 @@ export function ConfirmDialog({
             </svg>
           </button>
         </div>
-        <p className="text-sm text-slate-300 mb-5">{message}</p>
+        <p className="text-sm text-slate-700 dark:text-slate-300 mb-5">{message}</p>
         <div className="flex gap-2 justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-gw-elevated transition-colors duration-150"
+            className="rounded-md bg-white dark:bg-gw-surface text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-4 py-2 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors duration-150"
           >
             Cancel
           </button>

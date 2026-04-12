@@ -219,19 +219,19 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     })
   }
 
-  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+  const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
-    <section className="bg-gw-surface rounded-[10px] p-4">
+    <section className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Students</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Students</h3>
           <p className="mt-0.5 text-xs text-slate-500">
             View and manage students enrolled in this class, including competency groups.
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
-          <button type="button" onClick={() => { setCsvOpen(true); setCsvRows([]); setCsvResult(null) }} className="rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
+          <button type="button" onClick={() => { setCsvOpen(true); setCsvRows([]); setCsvResult(null) }} className="rounded-md bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium px-3 py-1.5 text-xs hover:bg-white/[0.08] transition-colors">
             Import CSV
           </button>
           <button type="button" onClick={() => { setEnrollOpen(true); searchProfiles('') }} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150">
@@ -248,24 +248,24 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {csvOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-100">Import students from CSV</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Import students from CSV</h4>
                 <p className="mt-0.5 text-[11px] text-slate-500">Upload a CSV with columns: email, group (optional). One student per line.</p>
               </div>
-              <button type="button" onClick={() => setCsvOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+              <button type="button" onClick={() => setCsvOpen(false)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
 
-            <input type="file" accept=".csv,text/csv" onChange={handleCsvFile} className="mb-3 block w-full text-xs text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-gw-elevated file:px-3 file:py-1.5 file:text-xs file:text-slate-200 file:cursor-pointer" />
+            <input type="file" accept=".csv,text/csv" onChange={handleCsvFile} className="mb-3 block w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 dark:bg-gw-elevated file:px-3 file:py-1.5 file:text-xs file:text-slate-700 dark:text-slate-200 file:cursor-pointer" />
 
             {csvRows.length > 0 && (
-              <div className="max-h-48 overflow-auto rounded-md bg-gw-elevated border border-white/[0.06] mb-3">
+              <div className="max-h-48 overflow-auto rounded-md bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/[0.06] mb-3">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                    <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                       <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Email</th>
                       <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Group</th>
                       <th className="px-3 py-1.5 text-left text-[11px] font-semibold text-slate-500">Status</th>
@@ -273,9 +273,9 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                   </thead>
                   <tbody>
                     {csvRows.map((r, i) => (
-                      <tr key={i} className="border-b border-white/[0.03]">
-                        <td className="px-3 py-1.5 text-slate-200">{r.email}</td>
-                        <td className="px-3 py-1.5 text-slate-400">{r.group_label || '—'}</td>
+                      <tr key={i} className="border-b border-slate-100 dark:border-white/[0.03]">
+                        <td className="px-3 py-1.5 text-slate-700 dark:text-slate-200">{r.email}</td>
+                        <td className="px-3 py-1.5 text-slate-500 dark:text-slate-400">{r.group_label || '—'}</td>
                         <td className="px-3 py-1.5">
                           {r.valid
                             ? <span className="text-emerald-400 text-[10px]">Valid</span>
@@ -298,7 +298,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
             )}
 
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setCsvOpen(false)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Close</button>
+              <button type="button" onClick={() => setCsvOpen(false)} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Close</button>
               <button type="button" onClick={handleCsvImport} disabled={csvSaving || csvRows.filter(r => r.valid).length === 0} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all disabled:opacity-60">
                 {csvSaving ? 'Importing…' : `Import ${csvRows.filter(r => r.valid).length} student${csvRows.filter(r => r.valid).length !== 1 ? 's' : ''}`}
               </button>
@@ -309,13 +309,13 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {enrollOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+          <div className="w-full max-w-md mx-2 max-h-[80vh] overflow-y-auto bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-100">Enroll student</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Enroll student</h4>
                 <p className="mt-0.5 text-[11px] text-slate-500">Search existing trainee profiles and add them to this class.</p>
               </div>
-              <button type="button" onClick={() => { setEnrollOpen(false); setSearchTerm(''); setSearchResults([]); setGroupLabel(''); setStatus('enrolled') }} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+              <button type="button" onClick={() => { setEnrollOpen(false); setSearchTerm(''); setSearchResults([]); setGroupLabel(''); setStatus('enrolled') }} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
@@ -330,17 +330,17 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               <input type="text" value={groupLabel} onChange={e => setGroupLabel(e.target.value)} placeholder="Group" className={`w-20 ${fieldClass}`} />
             </div>
 
-            <div className="max-h-64 overflow-auto rounded-[10px] bg-gw-elevated border border-white/[0.06]">
+            <div className="max-h-64 overflow-auto rounded-[10px] bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/[0.06]">
               {searchLoading ? (
                 <p className="px-3 py-2 text-[11px] text-slate-500">Searching…</p>
               ) : searchResults.length === 0 ? (
                 <p className="px-3 py-2 text-[11px] text-slate-500">No students found.</p>
               ) : (
-                <ul className="divide-y divide-white/[0.04] text-xs">
+                <ul className="divide-y divide-slate-200 dark:divide-white/[0.04] text-xs">
                   {searchResults.map(p => (
-                    <li key={p.id} className="flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-gw-surface transition-colors" onClick={() => handleEnrollStudent(p)}>
+                    <li key={p.id} className="flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-white dark:bg-gw-surface transition-colors" onClick={() => handleEnrollStudent(p)}>
                       <div>
-                        <p className="font-medium text-slate-200">{p.full_name ?? p.email}</p>
+                        <p className="font-medium text-slate-700 dark:text-slate-200">{p.full_name ?? p.email}</p>
                         <p className="text-[11px] text-slate-500">{p.email}</p>
                       </div>
                       <span className="text-[11px] text-gw-blue">Enroll</span>
@@ -357,25 +357,25 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
 
       {editingEnrollment && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md mx-2 bg-gw-surface border border-white/[0.08] rounded-[14px] shadow-2xl p-4">
+          <div className="w-full max-w-md mx-2 bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[14px] shadow-2xl p-4">
             <header className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h4 className="text-sm font-bold text-slate-100">Edit student</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Edit student</h4>
                 <p className="mt-0.5 text-[11px] text-slate-500">Update this student&apos;s enrollment status and competency group.</p>
               </div>
-              <button type="button" onClick={() => setEditingEnrollment(null)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
+              <button type="button" onClick={() => setEditingEnrollment(null)} className="w-7 h-7 rounded-md bg-white/[0.06] text-slate-500 hover:text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors" aria-label="Close">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </header>
 
             <div className="mb-3 text-xs">
-              <p className="font-medium text-slate-200">{editingEnrollment.student_name}</p>
+              <p className="font-medium text-slate-700 dark:text-slate-200">{editingEnrollment.student_name}</p>
               <p className="text-[11px] text-slate-500">{editingEnrollment.student_email}</p>
             </div>
 
             <form onSubmit={handleSaveEdit} className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Status
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status
                   <select value={editStatus} onChange={e => setEditStatus(e.target.value as EnrollmentStatus)} className={fieldClass}>
                     <option value="enrolled">Enrolled</option>
                     <option value="waitlist">Waitlist</option>
@@ -384,12 +384,12 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                 </label>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Group (A/B/C)
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Group (A/B/C)
                   <input type="text" value={editGroupLabel} onChange={e => setEditGroupLabel(e.target.value)} className={fieldClass} placeholder="e.g. A" />
                 </label>
               </div>
               <div className="md:col-span-3 flex justify-end items-end gap-2">
-                <button type="button" onClick={() => setEditingEnrollment(null)} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+                <button type="button" onClick={() => setEditingEnrollment(null)} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-[11px] font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Cancel</button>
                 <button type="submit" className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-[11px] font-semibold hover:brightness-110 transition-all">Save changes</button>
               </div>
             </form>
@@ -400,7 +400,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
       {loading ? (
         <SkeletonTable rows={3} cols={5} />
       ) : students.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px]">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
           <EmptyState
             title="No students enrolled yet"
             description={`Enroll students in ${className} to start tracking their progress.`}
@@ -408,11 +408,11 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
           />
         </div>
       ) : (
-        <div className="bg-gw-elevated rounded-[10px] overflow-hidden">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
                   <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
@@ -422,11 +422,11 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               </thead>
               <tbody>
                 {students.map(s => (
-                  <tr key={s.id} className="border-b border-white/[0.03] hover:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditStudent(s)}>
-                    <td className="px-3 py-2 text-slate-200">{s.student_name}</td>
-                    <td className="hidden sm:table-cell px-3 py-2 text-slate-400">{s.student_email}</td>
-                    <td className="px-3 py-2 text-slate-400 capitalize">{s.status}</td>
-                    <td className="px-3 py-2 text-slate-400">{s.group_label ?? '—'}</td>
+                  <tr key={s.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-white dark:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditStudent(s)}>
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{s.student_name}</td>
+                    <td className="hidden sm:table-cell px-3 py-2 text-slate-500 dark:text-slate-400">{s.student_email}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 capitalize">{s.status}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{s.group_label ?? '—'}</td>
                     <td className="px-3 py-2 text-right">
                       <button type="button" onClick={e => { e.stopPropagation(); handleRemove(s.id, s.student_name) }} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2 py-1 text-[11px] font-medium hover:bg-rose-500/20 transition-colors">Remove</button>
                     </td>

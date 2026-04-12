@@ -43,8 +43,8 @@ interface ReportEditFormProps {
   onDelete?: () => void
 }
 
-const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
-const inlineFieldClass = 'bg-gw-elevated border border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
+const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+const inlineFieldClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
 const RATINGS: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
 
 export function ReportEditForm({
@@ -187,43 +187,43 @@ export function ReportEditForm({
   }
 
   return (
-    <div className="mb-4 bg-gw-elevated rounded-[10px] border border-white/[0.06] p-3 space-y-4 text-xs">
+    <div className="mb-4 bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3 space-y-4 text-xs">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="block text-xs font-medium text-slate-400">Date
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Date
             <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className={fieldClass} required />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Group
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Group
             <input type="text" value={reportGroup} onChange={e => setReportGroup(e.target.value)} className={fieldClass} placeholder="e.g. A" />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Game
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Game
             <input type="text" value={reportGame} onChange={e => setReportGame(e.target.value)} className={fieldClass} placeholder="e.g. Blackjack" />
           </label>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="block text-xs font-medium text-slate-400">Session
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Session
             <input type="text" value={reportSessionLabel} onChange={e => setReportSessionLabel(e.target.value)} className={fieldClass} placeholder="e.g. Day 4 PM" />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Class start time
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Class start time
             <input type="time" value={reportStartTime} onChange={e => setReportStartTime(e.target.value)} className={fieldClass} />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Class end time
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Class end time
             <input type="time" value={reportEndTime} onChange={e => setReportEndTime(e.target.value)} className={fieldClass} />
           </label>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <label className="block text-xs font-medium text-slate-400">M&amp;G confirmed
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">M&amp;G confirmed
             <input type="number" min="0" value={mgConfirmed} onChange={e => setMgConfirmed(e.target.value)} className={fieldClass} />
           </label>
-          <label className="block text-xs font-medium text-slate-400">M&amp;G attended
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">M&amp;G attended
             <input type="number" min="0" value={mgAttended} onChange={e => setMgAttended(e.target.value)} className={fieldClass} />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Current trainees
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Current trainees
             <input type="number" min="0" value={currentTrainees} onChange={e => setCurrentTrainees(e.target.value)} className={fieldClass} />
           </label>
-          <label className="block text-xs font-medium text-slate-400">Licenses received
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Licenses received
             <input type="number" min="0" value={licensesReceived} onChange={e => setLicensesReceived(e.target.value)} className={fieldClass} />
           </label>
         </div>
@@ -239,7 +239,7 @@ export function ReportEditForm({
               trainers.map(t => {
                 const checked = selectedTrainerIds.includes(t.id)
                 return (
-                  <label key={t.id} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] cursor-pointer ${checked ? 'border-gw-blue/40 bg-gw-blue/15 text-gw-blue' : 'border-white/10 bg-white/[0.04] text-slate-400 hover:text-slate-300'}`}>
+                  <label key={t.id} className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] cursor-pointer ${checked ? 'border-gw-blue/40 bg-gw-blue/15 text-gw-blue' : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-700 dark:text-slate-300'}`}>
                     <input type="checkbox" checked={checked} onChange={e => { setSelectedTrainerIds(prev => e.target.checked ? [...prev, t.id] : prev.filter(id => id !== t.id)) }} className="accent-gw-blue" />
                     {t.trainer_name}
                   </label>
@@ -253,9 +253,9 @@ export function ReportEditForm({
 
         {/* Hours totals */}
         <CollapsibleSection label="Hours totals">
-        <div className="bg-gw-surface rounded-[10px] border border-white/[0.06] p-3">
-          <p className="text-[11px] font-semibold text-slate-400">Hours totals</p>
-          <p className="mt-0.5 text-[11px] text-slate-500">Calculated from logged hours up to this report date; override fields take precedence.</p>
+        <div className="bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3">
+          <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Hours totals</p>
+          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">Calculated from logged hours up to this report date; override fields take precedence.</p>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
             {(() => {
               const totals = computedTotalsForDate(reportDate)
@@ -264,27 +264,27 @@ export function ReportEditForm({
               const liveDisplay = overrideLiveHours.trim() !== '' ? Number(overrideLiveHours) : totals.live
               return (
                 <>
-                  <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                    <div className="text-[10px] text-slate-500">Training hours to date</div>
-                    <div className="text-sm font-semibold text-slate-100">{Number.isNaN(hoursToDateDisplay) ? '—' : hoursToDateDisplay.toFixed(2)}</div>
-                    <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.hoursToDate.toFixed(2)}</div>
-                    <label className="mt-2 block text-[10px] text-slate-400">Override
+                  <div className="bg-slate-100 dark:bg-gw-elevated rounded-md border border-slate-200 dark:border-white/[0.06] p-2">
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500">Training hours to date</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{Number.isNaN(hoursToDateDisplay) ? '—' : hoursToDateDisplay.toFixed(2)}</div>
+                    <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Calculated: {totals.hoursToDate.toFixed(2)}</div>
+                    <label className="mt-2 block text-[10px] text-slate-500 dark:text-slate-400">Override
                       <input type="number" step="0.25" min="0" value={overrideHoursToDate} onChange={e => setOverrideHoursToDate(e.target.value)} className={`${fieldClass} mt-1`} />
                     </label>
                   </div>
-                  <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                    <div className="text-[10px] text-slate-500">Total paid hours</div>
-                    <div className="text-sm font-semibold text-slate-100">{Number.isNaN(paidDisplay) ? '—' : paidDisplay.toFixed(2)}</div>
-                    <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.paid.toFixed(2)}</div>
-                    <label className="mt-2 block text-[10px] text-slate-400">Override
+                  <div className="bg-slate-100 dark:bg-gw-elevated rounded-md border border-slate-200 dark:border-white/[0.06] p-2">
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500">Total paid hours</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{Number.isNaN(paidDisplay) ? '—' : paidDisplay.toFixed(2)}</div>
+                    <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Calculated: {totals.paid.toFixed(2)}</div>
+                    <label className="mt-2 block text-[10px] text-slate-500 dark:text-slate-400">Override
                       <input type="number" step="0.25" min="0" value={overridePaidHours} onChange={e => setOverridePaidHours(e.target.value)} className={`${fieldClass} mt-1`} />
                     </label>
                   </div>
-                  <div className="bg-gw-elevated rounded-md border border-white/[0.06] p-2">
-                    <div className="text-[10px] text-slate-500">Total live training hours</div>
-                    <div className="text-sm font-semibold text-slate-100">{Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}</div>
-                    <div className="mt-1 text-[10px] text-slate-500">Calculated: {totals.live.toFixed(2)}</div>
-                    <label className="mt-2 block text-[10px] text-slate-400">Override
+                  <div className="bg-slate-100 dark:bg-gw-elevated rounded-md border border-slate-200 dark:border-white/[0.06] p-2">
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500">Total live training hours</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{Number.isNaN(liveDisplay) ? '—' : liveDisplay.toFixed(2)}</div>
+                    <div className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Calculated: {totals.live.toFixed(2)}</div>
+                    <label className="mt-2 block text-[10px] text-slate-500 dark:text-slate-400">Override
                       <input type="number" step="0.25" min="0" value={overrideLiveHours} onChange={e => setOverrideLiveHours(e.target.value)} className={`${fieldClass} mt-1`} />
                     </label>
                   </div>
@@ -301,34 +301,34 @@ export function ReportEditForm({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Daily training timeline / trainee progress</p>
-            <button type="button" onClick={() => setTimelineItems(prev => [...prev, { id: crypto.randomUUID(), report_id: report?.id ?? 'new', start_time: '', end_time: '', activity: '', homework_handouts_tests: '', category: '', position: prev.length, created_at: new Date().toISOString() }])} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
+            <button type="button" onClick={() => setTimelineItems(prev => [...prev, { id: crypto.randomUUID(), report_id: report?.id ?? 'new', start_time: '', end_time: '', activity: '', homework_handouts_tests: '', category: '', position: prev.length, created_at: new Date().toISOString() }])} className="rounded-md bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
               + Add time block
             </button>
           </div>
 
           {timelineItems.length === 0 ? (
-            <p className="text-[11px] text-slate-500">No timeline rows yet. Add blocks like in the spreadsheet.</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">No timeline rows yet. Add blocks like in the spreadsheet.</p>
           ) : (
-            <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
+            <div className="overflow-auto bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06]">
               <table className="min-w-full text-[11px]">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <tr className="bg-slate-50 dark:bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                     <th className="px-2 py-1 w-6" />
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Start–end</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Activity</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Homework / handouts / tests</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Category</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Start–end</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Activity</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Homework / handouts / tests</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Category</th>
                     <th className="px-2 py-1" />
                   </tr>
                 </thead>
                 <tbody>
                   {timelineItems.map((item, index) => (
-                    <tr key={item.id} draggable onDragStart={() => { dragIndexRef.current = index }} onDragOver={e => e.preventDefault()} onDrop={() => { const from = dragIndexRef.current; if (from === null || from === index) return; setTimelineItems(prev => { const next = [...prev]; const [moved] = next.splice(from, 1); next.splice(index, 0, moved); return next }); dragIndexRef.current = null }} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                      <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-500 select-none">⠿</td>
+                    <tr key={item.id} draggable onDragStart={() => { dragIndexRef.current = index }} onDragOver={e => e.preventDefault()} onDrop={() => { const from = dragIndexRef.current; if (from === null || from === index) return; setTimelineItems(prev => { const next = [...prev]; const [moved] = next.splice(from, 1); next.splice(index, 0, moved); return next }); dragIndexRef.current = null }} className="border-b border-slate-100 dark:border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
+                      <td className="px-2 py-1 cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 select-none">⠿</td>
                       <td className="px-2 py-1">
                         <div className="flex gap-1">
                           <input type="time" value={item.start_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, start_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
-                          <span className="self-center text-slate-500">–</span>
+                          <span className="self-center text-slate-400 dark:text-slate-500">–</span>
                           <input type="time" value={item.end_time ?? ''} onChange={e => setTimelineItems(prev => prev.map((row, i) => i === index ? { ...row, end_time: e.target.value } : row))} className={`w-20 ${inlineFieldClass}`} />
                         </div>
                       </td>
@@ -359,25 +359,25 @@ export function ReportEditForm({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Per-trainee progress</p>
-            <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, late: progressRows.find(p => p.enrollment_id === enr.id)?.late ?? false, created_at: new Date().toISOString() }))) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
+            <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, late: progressRows.find(p => p.enrollment_id === enr.id)?.late ?? false, created_at: new Date().toISOString() }))) }} className="rounded-md bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
               Load current trainees
             </button>
           </div>
 
           {progressRows.length === 0 ? (
-            <p className="text-[11px] text-slate-500">No progress rows yet. Click &quot;Load current trainees&quot; to start.</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">No progress rows yet. Click &quot;Load current trainees&quot; to start.</p>
           ) : (
-            <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
+            <div className="overflow-auto bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06]">
               <table className="min-w-full text-[11px]">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Trainee</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Progress notes</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Ratings (GK / Dex / HoM)</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Attended?</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Late?</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">Coming back?</th>
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">HW done?</th>
+                  <tr className="bg-slate-50 dark:bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Trainee</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Progress notes</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Ratings (GK / Dex / HoM)</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Attended?</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Late?</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Coming back?</th>
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">HW done?</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -385,10 +385,10 @@ export function ReportEditForm({
                     const enrollment = enrollments.find(e => e.id === row.enrollment_id)
                     const updateRow = (patch: Partial<ClassDailyReportTraineeProgress>) => { setProgressRows(prev => prev.map((r, i) => (i === index ? { ...r, ...patch } : r))) }
                     return (
-                      <tr key={row.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
+                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
                         <td className="px-2 py-1 align-top">
-                          <div className="text-slate-200">{enrollment?.student_name ?? 'Unknown'}</div>
-                          <div className="text-[10px] text-slate-500">{enrollment?.student_email}</div>
+                          <div className="text-slate-800 dark:text-slate-200">{enrollment?.student_name ?? 'Unknown'}</div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{enrollment?.student_email}</div>
                         </td>
                         <td className="px-2 py-1 align-top">
                           <textarea value={row.progress_text ?? ''} onChange={e => updateRow({ progress_text: e.target.value })} rows={3} className={`w-full ${inlineFieldClass}`} />
@@ -397,7 +397,7 @@ export function ReportEditForm({
                           <div className="flex flex-col gap-1">
                             {(['gk_rating', 'dex_rating', 'hom_rating'] as const).map(field => (
                               <label key={field} className="flex items-center gap-1">
-                                <span className="w-8 text-slate-500">{field === 'gk_rating' ? 'GK' : field === 'dex_rating' ? 'Dex' : 'HoM'}</span>
+                                <span className="w-8 text-slate-400 dark:text-slate-500">{field === 'gk_rating' ? 'GK' : field === 'dex_rating' ? 'Dex' : 'HoM'}</span>
                                 <select value={row[field] ?? ''} onChange={e => updateRow({ [field]: (e.target.value || null) as DailyRating | null })} className={`flex-1 ${inlineFieldClass}`}>
                                   <option value="">—</option>
                                   {RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -407,19 +407,19 @@ export function ReportEditForm({
                           </div>
                         </td>
                         <td className="px-2 py-1 align-top">
-                          <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                          <label className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer">
                             <input type="checkbox" checked={row.attendance ?? true} onChange={e => updateRow({ attendance: e.target.checked, ...(e.target.checked ? {} : { late: false }) })} className="accent-gw-blue" />
                             <span>Yes</span>
                           </label>
                         </td>
                         <td className="px-2 py-1 align-top">
-                          <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                          <label className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer">
                             <input type="checkbox" checked={row.late ?? false} disabled={!(row.attendance ?? true)} onChange={e => updateRow({ late: e.target.checked })} className="accent-amber-400 disabled:opacity-30" />
                             <span>Yes</span>
                           </label>
                         </td>
                         <td className="px-2 py-1 align-top">
-                          <label className="inline-flex items-center gap-1.5 text-slate-400 cursor-pointer">
+                          <label className="inline-flex items-center gap-1.5 text-slate-500 dark:text-slate-400 cursor-pointer">
                             <input type="checkbox" checked={row.coming_back_next_day ?? true} onChange={e => updateRow({ coming_back_next_day: e.target.checked })} className="accent-gw-blue" />
                             <span>Yes</span>
                           </label>
@@ -447,7 +447,7 @@ export function ReportEditForm({
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Drill &amp; test times</p>
             {drills.filter(d => d.active).length > 0 && enrollments.length > 0 && (
-              <button type="button" onClick={() => { const activeDrills = drills.filter(d => d.active); setDrillTimeRows(prev => { const rows: ClassDailyReportDrillTime[] = []; for (const enr of enrollments) { for (const drill of activeDrills) { const existing = prev.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id); rows.push(existing ?? { id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, drill_id: drill.id, time_seconds: null, score: null, created_at: new Date().toISOString() }) } } return rows }) }} className="rounded-md bg-white/[0.06] border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:bg-white/10 transition-colors">
+              <button type="button" onClick={() => { const activeDrills = drills.filter(d => d.active); setDrillTimeRows(prev => { const rows: ClassDailyReportDrillTime[] = []; for (const enr of enrollments) { for (const drill of activeDrills) { const existing = prev.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id); rows.push(existing ?? { id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, drill_id: drill.id, time_seconds: null, score: null, created_at: new Date().toISOString() }) } } return rows }) }} className="rounded-md bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-white/10 transition-colors">
                 Load drills for trainees
               </button>
             )}
@@ -458,11 +458,11 @@ export function ReportEditForm({
           ) : drillTimeRows.length === 0 ? (
             <p className="text-[11px] text-slate-500">Click &quot;Load drills for trainees&quot; to populate the grid.</p>
           ) : (
-            <div className="overflow-auto bg-gw-surface rounded-[10px] border border-white/[0.06]">
+            <div className="overflow-auto bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06]">
               <table className="min-w-full text-[11px]">
                 <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500 sticky left-0 bg-gw-surface">Trainee</th>
+                  <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                    <th className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500 sticky left-0 bg-white dark:bg-gw-surface">Trainee</th>
                     {drills.filter(d => d.active).map(drill => (
                       <th key={drill.id} className="px-2 py-1 text-left font-semibold uppercase tracking-wide text-slate-500">
                         <div>{drill.name}</div>
@@ -473,8 +473,8 @@ export function ReportEditForm({
                 </thead>
                 <tbody>
                   {enrollments.map(enr => (
-                    <tr key={enr.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                      <td className="px-2 py-1 text-slate-200 whitespace-nowrap sticky left-0 bg-gw-surface">{enr.student_name}</td>
+                    <tr key={enr.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
+                      <td className="px-2 py-1 text-slate-800 dark:text-slate-200 whitespace-nowrap sticky left-0 bg-white dark:bg-gw-surface">{enr.student_name}</td>
                       {drills.filter(d => d.active).map(drill => {
                         const row = drillTimeRows.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id)
                         if (!row) return <td key={drill.id} className="px-2 py-1 text-slate-500">—</td>
@@ -500,7 +500,7 @@ export function ReportEditForm({
                                     ? row.score >= drill.target_score
                                       ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                                       : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                                    : 'border-white/10 bg-gw-elevated text-slate-200'
+                                    : 'border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-gw-elevated text-slate-800 dark:text-slate-200'
                               }`}
                               placeholder={drill.type === 'drill' ? 'sec' : 'score'}
                             />
@@ -527,7 +527,7 @@ export function ReportEditForm({
               Delete report
             </button>
           )}
-          <button type="button" onClick={onCancel} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors">Cancel</button>
+          <button type="button" onClick={onCancel} className="rounded-md bg-white dark:bg-gw-surface text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors">Cancel</button>
           <button type="submit" disabled={saving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-60">
             {saving ? 'Saving…' : report ? 'Save changes' : 'Add report'}
           </button>

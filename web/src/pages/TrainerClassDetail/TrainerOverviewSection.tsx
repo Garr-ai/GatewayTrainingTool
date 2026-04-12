@@ -22,20 +22,20 @@ export function TrainerOverviewSection() {
   return (
     <section className="space-y-4">
       {/* Progress bar */}
-      <div className="bg-gw-surface rounded-[10px] p-4">
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-400">Class progress</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Class progress</span>
           <span className="text-xs text-slate-500">Day {Math.min(elapsedDays, totalDays)} of {totalDays} ({completionPct}%)</span>
         </div>
-        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+        <div className="h-2 bg-slate-200 dark:bg-white/[0.06] rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-gw-blue to-gw-teal rounded-full transition-all duration-300" style={{ width: `${completionPct}%` }} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Class details */}
-        <div className="bg-gw-surface rounded-[10px] p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Class details</h3>
+        <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Class details</h3>
           {loading ? (
             <div className="space-y-2"><SkeletonText className="w-1/2" /><SkeletonText className="w-3/4" /></div>
           ) : (
@@ -51,7 +51,7 @@ export function TrainerOverviewSection() {
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between gap-2">
                   <dt className="text-xs text-slate-500">{label}</dt>
-                  <dd className="text-xs text-slate-200 font-medium text-right">{value}</dd>
+                  <dd className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -59,8 +59,8 @@ export function TrainerOverviewSection() {
         </div>
 
         {/* Stats */}
-        <div className="bg-gw-surface rounded-[10px] p-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Class stats</h3>
+        <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Class stats</h3>
           {loading ? (
             <div className="space-y-2"><SkeletonText className="w-1/2" /><SkeletonText className="w-3/4" /></div>
           ) : (
@@ -74,7 +74,7 @@ export function TrainerOverviewSection() {
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between gap-2">
                   <dt className="text-xs text-slate-500">{label}</dt>
-                  <dd className="text-xs text-slate-200 font-medium text-right">{value}</dd>
+                  <dd className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right">{value}</dd>
                 </div>
               ))}
             </dl>

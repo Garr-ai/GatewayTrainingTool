@@ -84,16 +84,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`pointer-events-auto animate-toast-in flex items-start gap-3 bg-gw-surface border border-white/[0.08] rounded-[10px] px-4 py-3 shadow-xl ${TOAST_ACCENT[t.type]}`}
+            className={`pointer-events-auto animate-toast-in flex items-start gap-3 bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] rounded-[10px] px-4 py-3 shadow-xl ${TOAST_ACCENT[t.type]}`}
           >
             <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${TOAST_ICON_BG[t.type]}`}>
               <ToastIcon type={t.type} />
             </div>
-            <span className="flex-1 text-sm font-semibold text-slate-100">{t.message}</span>
+            <span className="flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{t.message}</span>
             <button
               type="button"
               onClick={() => removeToast(t.id)}
-              className="ml-1 shrink-0 rounded p-0.5 opacity-50 hover:opacity-100 text-slate-400 transition-opacity"
+              className="ml-1 shrink-0 rounded p-0.5 opacity-50 hover:opacity-100 text-slate-500 dark:text-slate-400 transition-opacity"
               aria-label="Dismiss"
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">

@@ -50,13 +50,13 @@ export function TrainerHoursPage() {
     setPage(0)
   }
 
-  const inputClass = 'h-8 bg-gw-surface border border-white/10 rounded px-2.5 text-xs text-slate-200 outline-none focus:border-gw-blue/40'
+  const inputClass = 'h-8 bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/10 rounded px-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-gw-blue/40'
 
   return (
     <div className="flex flex-col gap-4">
       <header>
-        <h2 className="text-xl font-bold text-slate-100">My Hours</h2>
-        <p className="mt-0.5 text-sm text-slate-400">Your logged training hours across all classes</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">My Hours</h2>
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Your logged training hours across all classes</p>
       </header>
 
       {/* Summary stat cards */}
@@ -66,9 +66,9 @@ export function TrainerHoursPage() {
           { label: 'Paid hours', value: `${summary.paid_hours}h`, accent: true },
           { label: 'Unpaid hours', value: `${summary.unpaid_hours}h` },
         ].map(({ label, value, accent }) => (
-          <div key={label} className="bg-gw-surface rounded-[10px] border border-white/[0.06] p-3 text-center">
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className={`text-xl font-bold ${accent ? 'text-gw-blue' : 'text-slate-200'}`}>{value}</p>
+          <div key={label} className="bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3 text-center">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">{label}</p>
+            <p className={`text-xl font-bold ${accent ? 'text-gw-blue' : 'text-slate-800 dark:text-slate-200'}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -82,43 +82,43 @@ export function TrainerHoursPage() {
         <input type="date" value={filterFrom} onChange={e => { setFilterFrom(e.target.value); setPage(0) }} className={inputClass} title="From date" />
         <input type="date" value={filterTo} onChange={e => { setFilterTo(e.target.value); setPage(0) }} className={inputClass} title="To date" />
         {(filterClass || filterFrom || filterTo) && (
-          <button type="button" onClick={reset} className="h-8 px-3 rounded text-xs text-slate-400 border border-white/10 hover:text-slate-200 hover:border-white/20 transition-colors">Reset</button>
+          <button type="button" onClick={reset} className="h-8 px-3 rounded text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10 hover:text-slate-800 dark:hover:text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-white/20 transition-colors">Reset</button>
         )}
       </div>
 
       {loading ? (
         <SkeletonTable rows={5} cols={5} />
       ) : rows.length === 0 ? (
-        <div className="bg-gw-surface rounded-[10px]">
+        <div className="bg-white dark:bg-gw-surface rounded-[10px]">
           <EmptyState title="No hours found" description="No hours entries match your filters." variant="neutral" action={{ label: 'Reset filters', onClick: reset }} />
         </div>
       ) : (
         <>
-          <div className="bg-gw-surface rounded-[10px] overflow-x-auto">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-x-auto">
             <table className="min-w-full text-xs">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Class</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Hours</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Paid</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Live</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden md:table-cell">Notes</th>
+                <tr className="bg-slate-50 dark:bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Date</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Class</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Hours</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden sm:table-cell">Paid</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden sm:table-cell">Live</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden md:table-cell">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map(h => (
-                  <tr key={h.id} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                    <td className="px-3 py-2 text-slate-200 font-medium">{h.log_date}</td>
-                    <td className="px-3 py-2 text-slate-300">{h.classes.name}</td>
-                    <td className="px-3 py-2 text-slate-200 font-semibold">{h.hours}h</td>
+                  <tr key={h.id} className="border-b border-slate-100 dark:border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
+                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200 font-medium">{h.log_date}</td>
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{h.classes.name}</td>
+                    <td className="px-3 py-2 text-slate-800 dark:text-slate-200 font-semibold">{h.hours}h</td>
                     <td className="px-3 py-2 hidden sm:table-cell">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${h.paid ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/[0.06] text-slate-500'}`}>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${h.paid ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500'}`}>
                         {h.paid ? 'Paid' : 'Unpaid'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{h.live_training ? 'Yes' : 'No'}</td>
-                    <td className="px-3 py-2 text-slate-500 hidden md:table-cell">{h.notes ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{h.live_training ? 'Yes' : 'No'}</td>
+                    <td className="px-3 py-2 text-slate-400 dark:text-slate-500 hidden md:table-cell">{h.notes ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

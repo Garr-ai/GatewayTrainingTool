@@ -9,7 +9,7 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action, variant = 'primary' }: EmptyStateProps) {
   const iconBox = variant === 'primary'
     ? 'bg-gw-blue/15 border border-gw-blue/25'
-    : 'bg-white/[0.04] border border-white/[0.08]'
+    : 'bg-slate-50 dark:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08]'
 
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center px-4">
@@ -18,8 +18,8 @@ export function EmptyState({ icon, title, description, action, variant = 'primar
           <div className="text-gw-blue w-6 h-6">{icon}</div>
         </div>
       )}
-      <p className="text-base font-semibold text-slate-200">{title}</p>
-      {description && <p className="mt-1.5 text-sm text-slate-500 max-w-xs">{description}</p>}
+      <p className="text-base font-semibold text-slate-800 dark:text-slate-200">{title}</p>
+      {description && <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500 max-w-xs">{description}</p>}
       {action && (
         <button
           type="button"

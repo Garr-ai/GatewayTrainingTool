@@ -65,20 +65,20 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
     }
   }
 
-  const inputClass = 'bg-gw-elevated border border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
+  const inputClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
 
   return (
     <section className="flex flex-col gap-4">
       {/* Sub-view toggle */}
       <div className="flex items-center gap-3">
-        <div className="inline-flex rounded-md bg-gw-elevated border border-white/[0.08] p-0.5">
+        <div className="inline-flex rounded-md bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/[0.08] p-0.5">
           <button
             type="button"
             onClick={() => setView('summary')}
             className={`px-3 py-1.5 text-xs font-medium rounded-[5px] transition-colors ${
               view === 'summary'
                 ? 'bg-gw-blue/20 text-gw-blue border border-gw-blue/30'
-                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 border border-transparent'
             }`}
           >
             Summary
@@ -89,7 +89,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
             className={`px-3 py-1.5 text-xs font-medium rounded-[5px] transition-colors ${
               view === 'log'
                 ? 'bg-gw-blue/20 text-gw-blue border border-gw-blue/30'
-                : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200 border border-transparent'
             }`}
           >
             Log hours
@@ -102,11 +102,11 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
           {/* Date range filter */}
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-400">From</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">From</span>
               <input type="date" className={inputClass} value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-400">To</span>
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">To</span>
               <input type="date" className={inputClass} value={dateTo} onChange={e => setDateTo(e.target.value)} />
             </label>
             {(dateFrom || dateTo) && (
@@ -127,7 +127,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
               {/* Trainer Hours */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Trainer Hours
                     {trainerRows.length > 0 && <span className="ml-1.5 text-[11px] font-normal text-slate-500">({trainerRows.length})</span>}
                   </h3>
@@ -135,7 +135,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
                     <button
                       type="button"
                       onClick={() => handleExportCsv('trainer')}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 px-2.5 py-1 text-[11px] font-medium hover:bg-white/[0.08] transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 px-2.5 py-1 text-[11px] font-medium hover:bg-white/[0.08] transition-colors"
                     >
                       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
                       Export CSV
@@ -143,7 +143,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
                   )}
                 </div>
                 {trainerRows.length === 0 ? (
-                  <div className="bg-gw-surface rounded-[10px]">
+                  <div className="bg-white dark:bg-gw-surface rounded-[10px]">
                     <EmptyState title="No trainer hours" description="Hours appear here once logged for trainers in this class." variant="neutral" />
                   </div>
                 ) : (
@@ -154,7 +154,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
               {/* Student Hours */}
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     Student Hours
                     {studentRows.length > 0 && <span className="ml-1.5 text-[11px] font-normal text-slate-500">({studentRows.length})</span>}
                   </h3>
@@ -162,7 +162,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
                     <button
                       type="button"
                       onClick={() => handleExportCsv('student')}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 px-2.5 py-1 text-[11px] font-medium hover:bg-white/[0.08] transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 px-2.5 py-1 text-[11px] font-medium hover:bg-white/[0.08] transition-colors"
                     >
                       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
                       Export CSV
@@ -170,7 +170,7 @@ export function ClassPayrollSection({ classId, className }: ClassPayrollSectionP
                   )}
                 </div>
                 {studentRows.length === 0 ? (
-                  <div className="bg-gw-surface rounded-[10px]">
+                  <div className="bg-white dark:bg-gw-surface rounded-[10px]">
                     <EmptyState title="No student hours" description="Hours appear here once logged for students in this class." variant="neutral" />
                   </div>
                 ) : (

@@ -79,26 +79,26 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
       <nav className="mb-2 text-xs text-slate-500" aria-label="Breadcrumb">
         <Link to="/classes" className="hover:text-gw-blue transition-colors">Classes</Link>
         <span className="mx-1.5">/</span>
-        <span className="text-slate-300 font-medium">{classData.name}</span>
+        <span className="text-slate-700 dark:text-slate-300 font-medium">{classData.name}</span>
       </nav>
 
       {/* Class header */}
       <header className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">{classData.name}</h2>
-          <p className="mt-0.5 text-sm text-slate-400">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{classData.name}</h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
             {classData.site} · {classData.province} · {classData.game_type ?? 'No game type'} ·{' '}
             {classData.start_date} – {classData.end_date}
           </p>
           {classData.description && (
-            <p className="mt-1 text-xs text-slate-500 max-w-xl">{classData.description}</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 max-w-xl">{classData.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setEditOpen(true)}
-            className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors duration-150"
+            className="rounded-md bg-white dark:bg-gw-surface text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors duration-150"
           >
             Edit class
           </button>
@@ -106,7 +106,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
       </header>
 
       {/* Tab bar */}
-      <div className="flex-shrink-0 border-b border-white/[0.06] mb-3 overflow-x-auto">
+      <div className="flex-shrink-0 border-b border-slate-200 dark:border-white/[0.06] mb-3 overflow-x-auto">
         <nav className="flex gap-0 whitespace-nowrap min-w-max" aria-label="Class detail sections">
           {tabs.map(tab => (
             <button
@@ -115,8 +115,8 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`relative text-sm px-4 py-2.5 transition-colors duration-150 ${
                 activeTab === tab.id
-                  ? 'font-semibold text-slate-100'
-                  : 'text-slate-500 hover:text-slate-300'
+                  ? 'font-semibold text-slate-900 dark:text-slate-100'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
               {tab.label}

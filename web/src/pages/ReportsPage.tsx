@@ -70,8 +70,8 @@ export function ReportsPage() {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex-shrink-0 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100">Reports</h2>
-          <p className="mt-0.5 text-sm text-slate-300">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Reports</h2>
+          <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">
             Daily reports across all {filters.archived ? '' : 'active '}classes
           </p>
         </div>
@@ -90,7 +90,7 @@ export function ReportsPage() {
         {loading ? (
           <SkeletonTable rows={5} cols={5} />
         ) : reports.length === 0 ? (
-          <div className="bg-gw-surface rounded-[10px]">
+          <div className="bg-white dark:bg-gw-surface rounded-[10px]">
             {hasActiveFilters ? (
               <EmptyState
                 title="No reports match your filters"
@@ -115,7 +115,7 @@ export function ReportsPage() {
               onReportClick={handleReportClick}
             />
             {loadingReport && (
-              <div className="text-center text-xs text-slate-500">Loading report…</div>
+              <div className="text-center text-xs text-slate-400 dark:text-slate-500">Loading report…</div>
             )}
             <Pagination page={page} limit={limit} total={total} onPageChange={setPage} itemLabel="report" />
           </>

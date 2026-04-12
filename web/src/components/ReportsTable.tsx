@@ -55,7 +55,7 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
   }
 
   return (
-    <div className="bg-gw-surface rounded-[10px] overflow-hidden">
+    <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm table-fixed">
           <colgroup>
@@ -68,11 +68,11 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
             <col className="hidden md:table-column w-[8%]" />
           </colgroup>
           <thead>
-            <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+            <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
               {COLUMNS.map(col => (
                 <th
                   key={col.key}
-                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 ${hiddenClass(col)} ${col.sortable ? 'cursor-pointer select-none group hover:text-slate-300 transition-colors' : ''}`}
+                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 ${hiddenClass(col)} ${col.sortable ? 'cursor-pointer select-none group hover:text-slate-700 dark:hover:text-slate-300 transition-colors' : ''}`}
                   onClick={col.sortable ? () => onSort(col.key) : undefined}
                 >
                   {col.label}
@@ -87,11 +87,11 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
               return (
                 <tr
                   key={r.id}
-                  className="border-b border-white/[0.03] hover:bg-gw-elevated cursor-pointer transition-colors duration-100"
+                  className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-gw-elevated cursor-pointer transition-colors duration-100"
                   onClick={() => onReportClick(r)}
                 >
-                  <td className="px-4 py-3 font-medium text-slate-200 truncate">{r.classes.name}</td>
-                  <td className="px-4 py-3 text-slate-400 truncate">
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200 truncate">{r.classes.name}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 truncate">
                     {r.classes.site}
                     {province && (
                       <span className={`ml-1.5 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full ${PROVINCE_BADGE[province] ?? ''}`}>
@@ -99,11 +99,11 @@ export function ReportsTable({ reports, sort, onSort, onReportClick }: ReportsTa
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{r.report_date}</td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-slate-400">{r.group_label ?? '—'}</td>
-                  <td className="hidden sm:table-cell px-4 py-3 text-slate-400 truncate">{r.game ?? '—'}</td>
-                  <td className="hidden md:table-cell px-4 py-3 text-slate-400 truncate">{r.session_label ?? '—'}</td>
-                  <td className="hidden md:table-cell px-4 py-3 text-slate-400">{r.current_trainees ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{r.report_date}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-slate-500 dark:text-slate-400">{r.group_label ?? '—'}</td>
+                  <td className="hidden sm:table-cell px-4 py-3 text-slate-500 dark:text-slate-400 truncate">{r.game ?? '—'}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-slate-500 dark:text-slate-400 truncate">{r.session_label ?? '—'}</td>
+                  <td className="hidden md:table-cell px-4 py-3 text-slate-500 dark:text-slate-400">{r.current_trainees ?? '—'}</td>
                 </tr>
               )
             })}

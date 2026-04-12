@@ -26,7 +26,7 @@ export function ClassDetailView() {
 
   // Wait for auth to resolve before making routing decisions
   if (loading || role === null) {
-    return <div className="text-sm text-slate-500">Loading…</div>
+    return <div className="text-sm text-slate-400 dark:text-slate-500">Loading…</div>
   }
 
   // Only coordinators can view class details

@@ -9,8 +9,8 @@ interface ScheduleFilterBarProps {
   classes: Class[]
 }
 
-const selectClass = 'bg-gw-elevated border border-white/10 rounded-md text-sm pl-3 pr-8 py-1.5 text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 appearance-none cursor-pointer [color-scheme:dark]'
-const inputClass  = 'bg-gw-elevated border border-white/10 rounded-md text-sm px-3 py-1.5 text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 [color-scheme:dark]'
+const selectClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md text-sm pl-3 pr-8 py-1.5 text-slate-800 dark:text-slate-200 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15 appearance-none cursor-pointer'
+const inputClass  = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md text-sm px-3 py-1.5 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
 export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }: ScheduleFilterBarProps) {
   // Derive unique sites from classes, filtered by selected province
@@ -48,7 +48,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
     filters.archived !== false
 
   return (
-    <div className="bg-gw-surface rounded-[10px] p-3 flex flex-col gap-2">
+    <div className="bg-white dark:bg-gw-surface rounded-[10px] p-3 flex flex-col gap-2">
       {/* Row 1: Main filters */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Province */}
@@ -128,7 +128,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
 
         {/* Search */}
         <div className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -152,7 +152,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
         )}
       </div>
 
-      <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer w-fit">
+      <label className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 cursor-pointer w-fit">
         <input
           type="checkbox"
           checked={filters.archived}
@@ -160,7 +160,7 @@ export function ScheduleFilterBar({ filters, setFilter, resetFilters, classes }:
             setFilter('archived', e.target.checked)
             setFilter('class_id', '')
           }}
-          className="rounded border-white/20 bg-gw-elevated text-gw-blue focus:ring-gw-blue/30"
+          className="rounded border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30"
         />
         Include archived classes
       </label>

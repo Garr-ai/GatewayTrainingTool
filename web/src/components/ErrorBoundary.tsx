@@ -38,15 +38,15 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gw-darkest flex items-center justify-center px-4">
+        <div className="min-h-screen bg-slate-50 dark:bg-gw-darkest flex items-center justify-center px-4">
           <div className="w-full max-w-md text-center">
             {/* Logo */}
             <div className="w-14 h-14 rounded-[14px] bg-gradient-to-br from-gw-blue to-gw-teal flex items-center justify-center mx-auto mb-6">
               <span className="text-white font-bold text-xl leading-none select-none">G</span>
             </div>
 
-            <h1 className="text-xl font-bold text-slate-100 mb-2">Something went wrong</h1>
-            <p className="text-sm text-slate-400 mb-6">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Something went wrong</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
               An unexpected error occurred. You can try reloading the page or going back.
             </p>
 
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="rounded-[10px] border border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/[0.04] transition-colors"
+                className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] transition-colors"
               >
                 Try again
               </button>
@@ -69,8 +69,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Collapsible error details */}
             {this.state.error && (
-              <details className="text-left bg-gw-surface rounded-[10px] border border-white/[0.06] p-4">
-                <summary className="text-xs font-medium text-slate-500 cursor-pointer hover:text-slate-400 transition-colors">
+              <details className="text-left bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-4">
+                <summary className="text-xs font-medium text-slate-500 cursor-pointer hover:text-slate-400 dark:hover:text-slate-400 transition-colors">
                   Error details
                 </summary>
                 <pre className="mt-3 text-[11px] leading-relaxed text-rose-400/80 whitespace-pre-wrap break-words font-mono">

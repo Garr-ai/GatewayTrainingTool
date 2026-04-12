@@ -100,13 +100,13 @@ export function TrainerDrillsSection() {
     }
   }
 
-  const fieldClass = 'mt-1 w-full bg-gw-elevated border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
+  const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
-    <section className="bg-gw-surface rounded-[10px] p-4">
+    <section className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Drills & tests
             {!loading && drills.length > 0 && (
               <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-500">({drills.length})</span>
@@ -126,18 +126,18 @@ export function TrainerDrillsSection() {
       </header>
 
       {formOpen && (
-        <form onSubmit={handleSave} className="mb-4 rounded-[10px] border border-white/[0.06] bg-gw-elevated p-3">
-          <p className="text-xs font-medium text-slate-400 mb-2">
+        <form onSubmit={handleSave} className="mb-4 rounded-[10px] border border-slate-200 dark:border-white/[0.06] bg-slate-100 dark:bg-gw-elevated p-3">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
             {editingDrill ? `Editing: ${editingDrill.name}` : 'New drill / test'}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-400 mb-1">Name
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Name
                 <input type="text" value={formName} onChange={e => setFormName(e.target.value)} className={fieldClass} placeholder="e.g. 60s chip pull" required />
               </label>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Type
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Type
                 <select value={formType} onChange={e => setFormType(e.target.value as DrillType)} className={fieldClass}>
                   <option value="drill">Drill</option>
                   <option value="test">Test</option>
@@ -145,15 +145,15 @@ export function TrainerDrillsSection() {
               </label>
             </div>
             <div className="flex gap-2">
-              <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Par time (sec)
+              <label className="flex-1 block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Par time (sec)
                 <input type="number" min={0} value={formParTime} onChange={e => setFormParTime(e.target.value)} className={fieldClass} placeholder="e.g. 60" />
               </label>
-              <label className="flex-1 block text-xs font-medium text-slate-400 mb-1">Target score
+              <label className="flex-1 block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Target score
                 <input type="number" min={0} value={formTargetScore} onChange={e => setFormTargetScore(e.target.value)} className={fieldClass} placeholder="e.g. 80" />
               </label>
             </div>
             <div className="md:col-span-4 flex justify-end items-end gap-2">
-              <button type="button" onClick={resetForm} className="rounded-md bg-gw-surface text-slate-200 border border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-gw-elevated transition-colors duration-150">Cancel</button>
+              <button type="button" onClick={resetForm} className="rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:bg-gw-elevated transition-colors duration-150">Cancel</button>
               <button type="submit" disabled={saving} className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-3 py-1.5 text-xs font-semibold hover:brightness-110 transition-all duration-150 disabled:opacity-50">
                 {saving ? 'Saving…' : editingDrill ? 'Update drill' : 'Save drill'}
               </button>
@@ -165,14 +165,14 @@ export function TrainerDrillsSection() {
       {loading ? (
         <SkeletonTable rows={3} cols={6} />
       ) : drills.length === 0 ? (
-        <div className="bg-gw-elevated rounded-[10px]">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px]">
           <EmptyState title="No drills or tests yet" description="Add drills and tests to track student performance." variant="neutral" />
         </div>
       ) : (
-        <div className="bg-gw-elevated rounded-[10px] overflow-x-auto">
+        <div className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] overflow-x-auto">
           <table className="min-w-full text-xs">
             <thead>
-              <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+              <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Type</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Par time (sec)</th>
@@ -183,11 +183,11 @@ export function TrainerDrillsSection() {
             </thead>
             <tbody>
               {drills.map(drill => (
-                <tr key={drill.id} className="border-b border-white/[0.03] hover:bg-gw-surface transition-colors duration-100">
-                  <td className="px-3 py-2 text-slate-200">{drill.name}</td>
-                  <td className="px-3 py-2 text-slate-400 capitalize">{drill.type}</td>
-                  <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{drill.par_time_seconds ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-400 hidden sm:table-cell">{drill.target_score ?? '—'}</td>
+                <tr key={drill.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface transition-colors duration-100">
+                  <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{drill.name}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 capitalize">{drill.type}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{drill.par_time_seconds ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{drill.target_score ?? '—'}</td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
@@ -196,7 +196,7 @@ export function TrainerDrillsSection() {
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
                         drill.active
                           ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
-                          : 'bg-white/[0.06] text-slate-500 hover:bg-white/10'
+                          : 'bg-white/[0.06] text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10'
                       }`}
                     >
                       {drill.active ? 'Active' : 'Inactive'}

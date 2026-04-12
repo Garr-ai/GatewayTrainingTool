@@ -19,7 +19,7 @@ const SPARKLINE_DOT: Record<DailyRating, string> = {
 }
 
 function RatingBadge({ rating }: { rating: DailyRating | null }) {
-  if (!rating) return <span className="text-slate-500">—</span>
+  if (!rating) return <span className="text-slate-400 dark:text-slate-500">—</span>
   return (
     <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${RATING_COLOR[rating]}`}>
       {rating}
@@ -33,7 +33,7 @@ function RatingSparkline({ ratings }: { ratings: (DailyRating | null)[] }) {
       {ratings.map((r, i) => (
         <div
           key={i}
-          className={`w-2 h-2 rounded-full ${r ? SPARKLINE_DOT[r] : 'bg-slate-600'}`}
+          className={`w-2 h-2 rounded-full ${r ? SPARKLINE_DOT[r] : 'bg-slate-300 dark:bg-slate-600'}`}
           title={r ?? 'No data'}
         />
       ))}
@@ -79,8 +79,8 @@ export function StudentProgressPage() {
 
   if (error || !data) {
     return (
-      <div className="bg-gw-surface rounded-[10px] p-10 text-center">
-        <p className="text-sm text-slate-300">{error ?? 'Student not found.'}</p>
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-10 text-center">
+        <p className="text-sm text-slate-700 dark:text-slate-300">{error ?? 'Student not found.'}</p>
         <Link to="/students" className="mt-2 inline-block text-xs text-gw-blue hover:text-blue-300 transition-colors">Back to Students</Link>
       </div>
     )
@@ -97,26 +97,26 @@ export function StudentProgressPage() {
     <div className="flex flex-col h-full min-h-0">
       <header className="flex-shrink-0">
         <Link to="/students" className="text-xs text-gw-blue hover:text-blue-300 transition-colors">&larr; Back to Students</Link>
-        <h2 className="mt-1 text-lg font-semibold text-slate-100">{data.student_name}</h2>
-        <p className="mt-0.5 text-xs text-slate-500">{data.student_email}</p>
+        <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.student_name}</h2>
+        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{data.student_email}</p>
       </header>
 
       <div className="mt-4 flex-1 min-h-0 overflow-auto flex flex-col gap-6">
         {/* Enrolled Classes */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Enrolled Classes</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Enrolled Classes</h3>
           <div className="flex flex-wrap gap-2">
             {data.classes.map(c => (
-              <div key={c.enrollment_id} className="rounded-[10px] bg-gw-surface border border-white/[0.06] px-3 py-2 text-sm">
-                <span className="font-medium text-slate-200">{c.class_name}</span>
+              <div key={c.enrollment_id} className="rounded-[10px] bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.06] px-3 py-2 text-sm">
+                <span className="font-medium text-slate-800 dark:text-slate-200">{c.class_name}</span>
                 <span className={`ml-2 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${
                   c.status === 'enrolled' ? 'bg-emerald-500/15 text-emerald-400' :
                   c.status === 'waitlist' ? 'bg-amber-500/15 text-amber-400' :
-                  'bg-white/10 text-slate-400'
+                  'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
                 }`}>
                   {c.status}
                 </span>
-                {c.group_label && <span className="ml-1.5 text-xs text-slate-500">Group {c.group_label}</span>}
+                {c.group_label && <span className="ml-1.5 text-xs text-slate-400 dark:text-slate-500">Group {c.group_label}</span>}
               </div>
             ))}
           </div>
@@ -125,21 +125,21 @@ export function StudentProgressPage() {
         {/* Rating Trends sparklines */}
         {sparklines && (
           <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Rating Trends</h3>
-            <div className="bg-gw-surface rounded-[10px] p-4 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Rating Trends</h3>
+            <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400 w-10">GK</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 w-10">GK</span>
                 <RatingSparkline ratings={sparklines.gk} />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400 w-10">DEX</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 w-10">DEX</span>
                 <RatingSparkline ratings={sparklines.dex} />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400 w-10">HOM</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 w-10">HOM</span>
                 <RatingSparkline ratings={sparklines.hom} />
               </div>
-              <div className="flex items-center gap-3 text-[10px] text-slate-500">
+              <div className="flex items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500">
                 <span className="w-10" />
                 {Object.entries(SPARKLINE_DOT).map(([rating, color]) => (
                   <span key={rating} className="flex items-center gap-1">
@@ -148,7 +148,7 @@ export function StudentProgressPage() {
                   </span>
                 ))}
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-slate-600" />
+                  <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" />
                   None
                 </span>
               </div>
@@ -158,39 +158,39 @@ export function StudentProgressPage() {
 
         {/* Progress Ratings */}
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
             Progress Ratings
-            {data.progress.length > 0 && <span className="ml-1.5 text-[11px] font-normal text-slate-500">({data.progress.length} reports)</span>}
+            {data.progress.length > 0 && <span className="ml-1.5 text-[11px] font-normal text-slate-400 dark:text-slate-500">({data.progress.length} reports)</span>}
           </h3>
           {data.progress.length === 0 ? (
-            <p className="text-xs text-slate-500">No progress data recorded yet.</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">No progress data recorded yet.</p>
           ) : (
-            <div className="bg-gw-surface rounded-[10px] overflow-hidden">
+            <div className="bg-white dark:bg-gw-surface rounded-[10px] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hidden sm:table-cell">Class</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hidden md:table-cell">Session</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">GK</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">DEX</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center">HOM</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 hidden lg:table-cell">Notes</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center hidden md:table-cell">Attended</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 text-center hidden md:table-cell">HW</th>
+                    <tr className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Date</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden sm:table-cell">Class</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden md:table-cell">Session</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 text-center">GK</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 text-center">DEX</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 text-center">HOM</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 hidden lg:table-cell">Notes</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 text-center hidden md:table-cell">Attended</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 text-center hidden md:table-cell">HW</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.progress.map((p, i) => (
-                      <tr key={i} className="border-b border-white/[0.03] hover:bg-gw-elevated transition-colors">
-                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{p.report_date}</td>
-                        <td className="px-4 py-3 text-slate-400 truncate hidden sm:table-cell">{p.class_name}</td>
-                        <td className="px-4 py-3 text-slate-400 truncate hidden md:table-cell">{p.session_label ?? '—'}</td>
+                      <tr key={i} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-gw-elevated transition-colors">
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{p.report_date}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 truncate hidden sm:table-cell">{p.class_name}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 truncate hidden md:table-cell">{p.session_label ?? '—'}</td>
                         <td className="px-4 py-3 text-center"><RatingBadge rating={p.gk_rating} /></td>
                         <td className="px-4 py-3 text-center"><RatingBadge rating={p.dex_rating} /></td>
                         <td className="px-4 py-3 text-center"><RatingBadge rating={p.hom_rating} /></td>
-                        <td className="px-4 py-3 text-slate-500 text-xs truncate max-w-[200px] hidden lg:table-cell">{p.progress_text ?? '—'}</td>
+                        <td className="px-4 py-3 text-slate-400 dark:text-slate-500 text-xs truncate max-w-[200px] hidden lg:table-cell">{p.progress_text ?? '—'}</td>
                         <td className="px-4 py-3 text-center hidden md:table-cell">
                           {p.attendance ? (
                             p.late ? (
@@ -210,7 +210,7 @@ export function StudentProgressPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           ) : (
-                            <span className="text-slate-500">—</span>
+                            <span className="text-slate-400 dark:text-slate-500">—</span>
                           )}
                         </td>
                       </tr>
@@ -225,29 +225,29 @@ export function StudentProgressPage() {
         {/* Drill Times */}
         {drillGroups.size > 0 && (
           <section>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Drill & Test Results</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Drill & Test Results</h3>
             <div className="flex flex-col gap-3">
               {[...drillGroups.entries()].map(([drillName, times]) => {
                 const first = times[0]
                 const isDrill = first.drill_type === 'drill'
                 return (
-                  <div key={drillName} className="bg-gw-surface rounded-[10px] p-4">
+                  <div key={drillName} className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-sm text-slate-200">{drillName}</span>
+                      <span className="font-medium text-sm text-slate-800 dark:text-slate-200">{drillName}</span>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isDrill ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>
                         {first.drill_type}
                       </span>
                       {isDrill && first.par_time_seconds && (
-                        <span className="text-xs text-slate-500">Par: {first.par_time_seconds}s</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">Par: {first.par_time_seconds}s</span>
                       )}
                       {!isDrill && first.target_score && (
-                        <span className="text-xs text-slate-500">Target: {first.target_score}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">Target: {first.target_score}</span>
                       )}
                     </div>
                     <div className="overflow-x-auto">
                       <table className="text-sm">
                         <thead>
-                          <tr className="text-xs text-slate-500">
+                          <tr className="text-xs text-slate-400 dark:text-slate-500">
                             <th className="pr-4 py-1 text-left font-medium">Date</th>
                             <th className="pr-4 py-1 text-left font-medium">Class</th>
                             <th className="pr-4 py-1 text-right font-medium">{isDrill ? 'Time (s)' : 'Score'}</th>
@@ -262,13 +262,13 @@ export function StudentProgressPage() {
                               ? (isDrill ? value <= target : value >= target)
                               : null
                             return (
-                              <tr key={i} className="border-t border-white/[0.03]">
-                                <td className="pr-4 py-1.5 text-slate-400 whitespace-nowrap">{t.report_date}</td>
-                                <td className="pr-4 py-1.5 text-slate-400">{t.class_name}</td>
-                                <td className="pr-4 py-1.5 text-right text-slate-200 font-medium">{value ?? '—'}</td>
+                              <tr key={i} className="border-t border-slate-100 dark:border-white/[0.03]">
+                                <td className="pr-4 py-1.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">{t.report_date}</td>
+                                <td className="pr-4 py-1.5 text-slate-500 dark:text-slate-400">{t.class_name}</td>
+                                <td className="pr-4 py-1.5 text-right text-slate-800 dark:text-slate-200 font-medium">{value ?? '—'}</td>
                                 <td className="pr-4 py-1.5 text-center">
                                   {met === null ? (
-                                    <span className="text-slate-500">—</span>
+                                    <span className="text-slate-400 dark:text-slate-500">—</span>
                                   ) : met ? (
                                     <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">Pass</span>
                                   ) : (

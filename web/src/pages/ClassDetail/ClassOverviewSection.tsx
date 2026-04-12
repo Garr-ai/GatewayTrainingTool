@@ -37,20 +37,20 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
   return (
     <section className="space-y-4">
       {/* Completion progress */}
-      <div className="bg-gw-surface rounded-[10px] p-4">
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-400">Class progress</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Class progress</span>
           <span className="text-xs text-slate-500">Day {Math.min(elapsedDays, totalDays)} of {totalDays} ({completionPct}%)</span>
         </div>
-        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+        <div className="h-2 bg-slate-200 dark:bg-white/[0.06] rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-gw-blue to-gw-teal rounded-full transition-all duration-300" style={{ width: `${completionPct}%` }} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Class details card */}
-      <div className="bg-gw-surface rounded-[10px] p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Class details</h3>
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Class details</h3>
         <dl className="space-y-2 text-sm">
           {[
             { label: 'Name',      value: classData.name },
@@ -61,15 +61,15 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between gap-2">
               <dt className="text-xs text-slate-500">{label}</dt>
-              <dd className="text-xs text-slate-200 font-medium text-right">{value}</dd>
+              <dd className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right">{value}</dd>
             </div>
           ))}
         </dl>
       </div>
 
       {/* Trainers card */}
-      <div className="bg-gw-surface rounded-[10px] p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Trainers</h3>
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Trainers</h3>
         {loading ? (
           <div className="space-y-2">
             <SkeletonText className="w-1/2" />
@@ -86,13 +86,13 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
             <ul className="space-y-1.5">
               {trainers.map((t) => (
                 <li key={t.id} className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-200">{t.trainer_name}</span>
+                  <span className="text-slate-700 dark:text-slate-200">{t.trainer_name}</span>
                   <span
                     className={
                       'inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium ' +
                       (t.role === 'primary'
                         ? 'bg-gw-blue/20 text-blue-300'
-                        : 'bg-white/[0.06] text-slate-400')
+                        : 'bg-white/[0.06] text-slate-500 dark:text-slate-400')
                     }
                   >
                     {t.role}
@@ -105,8 +105,8 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
       </div>
 
       {/* Students & schedule card */}
-      <div className="bg-gw-surface rounded-[10px] p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Students & schedule</h3>
+      <div className="bg-white dark:bg-gw-surface rounded-[10px] p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Students & schedule</h3>
         {loading ? (
           <div className="space-y-2">
             <SkeletonText className="w-1/2" />
@@ -128,7 +128,7 @@ export function ClassOverviewSection({ classData }: ClassOverviewSectionProps) {
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between gap-2">
                 <dt className="text-xs text-slate-500">{label}</dt>
-                <dd className="text-xs text-slate-200 font-medium text-right">{value}</dd>
+                <dd className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right">{value}</dd>
               </div>
             ))}
           </dl>

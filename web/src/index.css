@@ -45,9 +45,13 @@
   100% { background-position: -200% 0; }
 }
 .animate-shimmer {
-  background: linear-gradient(90deg, #152639 25%, #1f3a52 50%, #152639 75%);
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+}
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, #152639 25%, #1f3a52 50%, #152639 75%);
+  background-size: 200% 100%;
 }
 
 /* Branded loader pulse */

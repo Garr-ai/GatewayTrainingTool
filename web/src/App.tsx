@@ -1,35 +1,28 @@
 /**
  * App.tsx — Root application component
  *
- * Defines the entire client-side routing tree using React Router v6.
- * All routes are wrapped with `AuthProvider` so every descendant can
- * access the current session, role, and sign-out function via `useAuth()`.
- *
  * Route structure:
- *   /login                  — Public login page (redirects to /dashboard if already signed in)
- *   /                       — Protected shell (redirects unauthenticated users to /login)
- *     /dashboard            — Role-aware dashboard (coordinator, trainer, or trainee view)
- *     /classes              — Class management list (coordinator only)
- *     /classes/:className   — Class detail with tabbed sub-sections (coordinator only)
+ *   /login                  — Public login page
+ *   /                       — Protected shell
+ *     /dashboard            — Role-aware dashboard
+ *     /classes              — Class management (coordinator only)
+ *     /classes/:className   — Class detail (coordinator only)
  *     /students             — Trainee roster (coordinator only)
  *     /trainers             — Trainer roster (coordinator only)
- *     /reports              — Cross-class daily reports (coordinator or trainer, role-aware)
- *     /schedule             — Upcoming schedule across all classes (coordinator or trainer, role-aware)
- *     /settings             — App/account settings (coordinator or trainee)
- *     /my-classes           — Trainer's assigned classes list (trainer only)
- *     /my-classes/:classId  — Tabbed class detail page (trainer only)
- *     /hours                — Personal hours overview (trainer only)
- *   *                       — Catch-all redirects unknown paths to /
- *
- * `CoordinatorRoute` enforces coordinator-only access (redirects to /dashboard).
- * `TrainerRoute` enforces trainer-only access (redirects to /dashboard).
- * `RoleAwareRoute` renders different content for coordinator vs trainer on shared paths.
+ *     /reports              — Reports (coordinator or trainer, role-aware)
+ *     /schedule             — Schedule (coordinator or trainer, role-aware)
+ *     /settings             — Settings (all roles — role-aware content)
+ *     /my-classes           — Trainer's assigned classes (trainer only)
+ *     /my-classes/:classId  — Trainer class detail (trainer only)
+ *     /hours                — Personal hours (trainer only)
+ *     /my-class/:classId    — Student class detail (student only)
  */
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { ClassesProvider } from './contexts/ClassesContext'
 import { CoordinatorRoute } from './layouts/CoordinatorRoute'
 import { TrainerRoute } from './layouts/TrainerRoute'
@@ -53,7 +46,6 @@ import { TrainerSchedulePage } from './pages/TrainerSchedulePage'
 import { TrainerHoursPage } from './pages/TrainerHoursPage'
 import { StudentRoute } from './layouts/StudentRoute'
 import { StudentClassDetailPage } from './pages/StudentClassDetailPage'
-import { StudentSettingsPage } from './pages/StudentSettingsPage'
 
 /** Renders role-specific content for shared paths (/reports, /schedule). */
 function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode; trainer: React.ReactNode }) {
@@ -66,6 +58,7 @@ function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode
 function App() {
   return (
     <ErrorBoundary>
+    <ThemeProvider>
     <AuthProvider>
       <ToastProvider>
       <BrowserRouter>
@@ -87,6 +80,8 @@ function App() {
             <Route path="students/progress/:email" element={<CoordinatorRoute><StudentProgressPage /></CoordinatorRoute>} />
             <Route path="students" element={<CoordinatorRoute><RosterPage role="trainee" title="Students" subtitle="All registered trainees" /></CoordinatorRoute>} />
             <Route path="trainers" element={<CoordinatorRoute><RosterPage role="trainer" title="Trainers" subtitle="All registered trainers" /></CoordinatorRoute>} />
+
+            {/* Settings — all roles (content is role-aware inside SettingsContent) */}
             <Route path="settings" element={<SettingsContent />} />
 
             {/* Shared paths — role-aware (coordinator vs trainer) */}
@@ -110,7 +105,9 @@ function App() {
 
             {/* Student-only routes */}
             <Route path="my-class/:classId" element={<StudentRoute><StudentClassDetailPage /></StudentRoute>} />
-            <Route path="my-settings" element={<StudentRoute><StudentSettingsPage /></StudentRoute>} />
+
+            {/* Legacy redirect — old student settings path */}
+            <Route path="my-settings" element={<Navigate to="/settings" replace />} />
           </Route>
 
           {/* Catch-all */}
@@ -119,6 +116,7 @@ function App() {
       </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
+    </ThemeProvider>
     </ErrorBoundary>
   )
 }

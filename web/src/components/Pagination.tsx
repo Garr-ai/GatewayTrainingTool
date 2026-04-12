@@ -28,13 +28,13 @@ export function Pagination({ page, limit, total, onPageChange, itemLabel = 'resu
   }
 
   const btnBase = 'px-2.5 py-1 rounded-md text-xs font-medium border transition-colors duration-100'
-  const btnDefault = `${btnBase} border-white/10 text-slate-400 hover:bg-gw-elevated hover:text-slate-200`
+  const btnDefault = `${btnBase} border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-gw-elevated hover:text-slate-800 dark:hover:text-slate-200`
   const btnActive = `${btnBase} border-gw-blue/35 bg-gw-blue/20 text-gw-blue`
-  const btnDisabled = `${btnBase} border-white/[0.05] text-slate-600 cursor-not-allowed`
+  const btnDisabled = `${btnBase} border-slate-200/50 dark:border-white/[0.05] text-slate-400 dark:text-slate-600 cursor-not-allowed`
 
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
-      <span className="text-xs text-slate-500">
+      <span className="text-xs text-slate-400 dark:text-slate-500">
         Showing {from}–{to} of {total} {itemLabel}{total !== 1 ? 's' : ''}
       </span>
 
@@ -50,7 +50,7 @@ export function Pagination({ page, limit, total, onPageChange, itemLabel = 'resu
 
         {pages.map((p, i) =>
           p === 'ellipsis' ? (
-            <span key={`e${i}`} className="px-1 text-xs text-slate-600">...</span>
+            <span key={`e${i}`} className="px-1 text-xs text-slate-400 dark:text-slate-600">...</span>
           ) : (
             <button
               key={p}

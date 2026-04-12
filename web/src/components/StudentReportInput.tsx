@@ -151,7 +151,7 @@ export function StudentReportInput({
   }
 
   return (
-    <div className="flex flex-col gap-4 pt-3 border-t border-white/[0.06]">
+    <div className="flex flex-col gap-4 pt-3 border-t border-slate-200 dark:border-white/[0.06]">
       {/* Attendance sign-in */}
       <div>
         {isSignedIn ? (
@@ -188,7 +188,7 @@ export function StudentReportInput({
         </p>
         {([['Game Knowledge (GK)', gk, setGk], ['Dexterity (DEX)', dex, setDex], ['Hands on Mechanics (HOM)', hom, setHom]] as const).map(([label, value, setter]) => (
           <div key={label} className="flex items-center gap-3">
-            <span className="text-sm text-slate-300 w-44 shrink-0">{label}</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300 w-44 shrink-0">{label}</span>
             <div className="flex gap-1.5">
               {RATINGS.map(r => (
                 <button
@@ -215,9 +215,9 @@ export function StudentReportInput({
           {drillInputs.map((d, idx) => {
             const isDrill = d.drill_type === 'drill'
             return (
-              <div key={d.drill_id} className="flex items-center gap-3 bg-gw-elevated rounded-[10px] px-3 py-2">
+              <div key={d.drill_id} className="flex items-center gap-3 bg-slate-100 dark:bg-gw-elevated rounded-[10px] px-3 py-2">
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm text-slate-200 font-medium">{d.drill_name}</span>
+                  <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{d.drill_name}</span>
                   <span className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded ${isDrill ? 'bg-blue-500/15 text-blue-400' : 'bg-purple-500/15 text-purple-400'}`}>
                     {d.drill_type}
                   </span>
@@ -230,7 +230,7 @@ export function StudentReportInput({
                 </div>
                 <div className="shrink-0">
                   {readOnly ? (
-                    <span className="text-sm text-slate-300">
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
                       {isDrill ? (d.time_seconds != null ? `${d.time_seconds}s` : '—') : (d.score != null ? d.score : '—')}
                     </span>
                   ) : (
@@ -241,7 +241,7 @@ export function StudentReportInput({
                       value={isDrill ? (d.time_seconds ?? '') : (d.score ?? '')}
                       onChange={e => updateDrill(idx, isDrill ? 'time_seconds' : 'score', e.target.value)}
                       placeholder={isDrill ? 'Time (s)' : 'Score'}
-                      className="w-24 rounded-md bg-gw-surface border border-white/[0.08] px-2 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
+                      className="w-24 rounded-md bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/[0.08] px-2 py-1.5 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:border-gw-blue/40 focus:outline-none"
                     />
                   )}
                 </div>
