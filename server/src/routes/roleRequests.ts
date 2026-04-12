@@ -32,7 +32,7 @@ roleRequestsRouter.get('/role-requests', async (req: Request, res: Response, nex
 
     let query = supabase
       .from('role_requests')
-      .select('*, profiles!role_requests_user_id_fkey(full_name, email)', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -43,9 +43,24 @@ roleRequestsRouter.get('/role-requests', async (req: Request, res: Response, nex
     const { data, error, count } = await query
     if (error) throw error
 
-    // Flatten the joined profile data for convenience
+    // Fetch profile data for the returned users.
+    // The role_requests FK points to auth.users (not profiles), so PostgREST
+    // cannot traverse the join directly — we do a separate lookup instead.
+    const userIds = (data ?? []).map((r: Record<string, unknown>) => r.user_id as string)
+    const profileMap: Record<string, { full_name: string | null; email: string }> = {}
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+      for (const p of profiles ?? []) {
+        const prof = p as { id: string; full_name: string | null; email: string }
+        profileMap[prof.id] = { full_name: prof.full_name, email: prof.email }
+      }
+    }
+
     const rows = (data ?? []).map((row: Record<string, unknown>) => {
-      const profile = row.profiles as { full_name: string | null; email: string } | null
+      const profile = profileMap[row.user_id as string]
       return {
         id: row.id,
         user_id: row.user_id,
