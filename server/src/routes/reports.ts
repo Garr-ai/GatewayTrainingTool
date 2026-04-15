@@ -39,6 +39,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { writeLimiter } from '../middleware/rateLimiter'
 
 export const reportsRouter = Router()
 
@@ -240,7 +241,7 @@ reportsRouter.get('/reports/:id', async (req: Request, res: Response, next: Next
  * The operation is audit-logged (CREATE) with the class_id and report_date in metadata.
  * Returns 201 with the created report record (without nested data).
  */
-reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       report_date,
@@ -367,7 +368,7 @@ reportsRouter.post('/classes/:classId/reports', async (req: Request, res: Respon
  * The operation is audit-logged (UPDATE). Returns 404 if the report/classId
  * combination doesn't match (PGRST116 = "no rows found").
  */
-reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
+reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       report_date,
@@ -502,7 +503,7 @@ reportsRouter.put('/classes/:classId/reports/:id', async (req: Request, res: Res
  * at the time of logging. Pre-fetches using both id and class_id to return a proper
  * 404 and to enforce IDOR protection. Returns 204 No Content on success.
  */
-reportsRouter.delete('/classes/:classId/reports/:id', async (req: Request, res: Response, next: NextFunction) => {
+reportsRouter.delete('/classes/:classId/reports/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_daily_reports')

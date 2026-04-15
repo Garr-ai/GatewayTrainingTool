@@ -29,6 +29,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { writeLimiter } from '../middleware/rateLimiter'
 
 export const hoursRouter = Router()
 
@@ -61,7 +62,7 @@ hoursRouter.get('/classes/:classId/hours', async (req: Request, res: Response, n
  * `hours` is validated server-side (0–24) before inserting to protect payroll accuracy.
  * The operation is audit-logged (CREATE). Returns 201 with the created record.
  */
-hoursRouter.post('/classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
+hoursRouter.post('/classes/:classId/hours', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
       req.body
@@ -112,7 +113,7 @@ hoursRouter.post('/classes/:classId/hours', async (req: Request, res: Response, 
  * either doesn't match. The operation is audit-logged (UPDATE).
  * Supabase error code PGRST116 = "no rows found".
  */
-hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
+hoursRouter.put('/classes/:classId/hours/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
       req.body
@@ -170,7 +171,7 @@ hoursRouter.put('/classes/:classId/hours/:id', async (req: Request, res: Respons
  * using both id and class_id to return a proper 404 and enforce IDOR protection.
  * Returns 204 No Content on success.
  */
-hoursRouter.delete('/classes/:classId/hours/:id', async (req: Request, res: Response, next: NextFunction) => {
+hoursRouter.delete('/classes/:classId/hours/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_logged_hours')

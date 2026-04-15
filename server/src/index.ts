@@ -22,9 +22,9 @@
  *   - In production (Vercel): Vercel's serverless adapter handles listening;
  *     the `app.listen()` block is skipped via the NODE_ENV check.
  *
- * The exported `writeLimiter` is used by route files that perform
- * write operations on sensitive data (e.g. reports, hours) to apply
- * a stricter 30 requests/15min limit on those endpoints.
+ * `writeLimiter` lives in middleware/rateLimiter.ts and is imported
+ * directly by route files that perform write operations on sensitive data
+ * (reports, hours) to apply a stricter 100 req/15min limit on those endpoints.
  *
  * Required environment variables (server/.env):
  *   SUPABASE_URL              — Supabase project URL
@@ -38,9 +38,9 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import { rateLimit } from 'express-rate-limit'
 import { router } from './routes'
 import { errorHandler } from './middleware/error'
+import { globalLimiter } from './middleware/rateLimiter'
 
 const app = express()
 
@@ -63,27 +63,8 @@ app.use(
 
 // Rate limiting — applied globally. Adjust windowMs/limit per-route for sensitive endpoints.
 // 500 requests per 15 min per IP — generous for an internal tool but still protects against abuse.
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 500,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-})
+// writeLimiter is applied per-route in route files for POST/PUT/DELETE on sensitive data.
 app.use(globalLimiter)
-
-/**
- * Stricter rate limiter for write operations on sensitive data (reports, hours).
- * Exported so individual route files can apply it to their POST/PUT/DELETE handlers.
- * 30 requests per 15 min per IP — tighter than the global limit.
- */
-export const writeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many write requests, please try again later.' },
-})
 
 // Explicit body size limit — prevents request body attacks; adjust if you need larger payloads
 app.use(express.json({ limit: '50kb' }))

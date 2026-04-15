@@ -44,10 +44,15 @@ interface HoursRecord {
 
 // ─── Shared helpers ─────────────────────────────────────────────────────────
 
+/** Matches YYYY-MM-DD exactly */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
 function parseFilters(query: Record<string, string | undefined>) {
+  const date_from = query.date_from && DATE_RE.test(query.date_from) ? query.date_from : undefined
+  const date_to   = query.date_to   && DATE_RE.test(query.date_to)   ? query.date_to   : undefined
   return {
-    date_from: query.date_from,
-    date_to: query.date_to,
+    date_from,
+    date_to,
     province: query.province,
     site: query.site,
     class_id: query.class_id,

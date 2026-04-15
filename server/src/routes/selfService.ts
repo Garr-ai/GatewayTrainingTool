@@ -19,6 +19,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { writeLimiter } from '../middleware/rateLimiter'
 
 export const selfServiceRouter = Router()
 
@@ -560,7 +561,7 @@ selfServiceRouter.get('/me/my-classes/:classId/students/:enrollmentId/progress',
 
 // ─── Report Write Endpoints ───────────────────────────────────────────────────
 
-selfServiceRouter.post('/me/my-classes/:classId/reports', async (req: Request, res: Response, next: NextFunction) => {
+selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
     const classId = req.params.classId as string
@@ -672,7 +673,7 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', async (req: Request, r
   }
 })
 
-selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', async (req: Request, res: Response, next: NextFunction) => {
+selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
     const classId = req.params.classId as string
@@ -1536,31 +1537,54 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
 
     const reportId = req.params.reportId
 
-    // Verify the report belongs to this class — also fetch class_start_time and report_date for late check
+    // Verify the report belongs to this class — also fetch class_start_time, report_date, and province for late check
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
-      .select('id, class_start_time, report_date')
+      .select('id, class_start_time, report_date, classes!class_daily_reports_class_id_fkey(province)')
       .eq('id', reportId)
-      .eq('class_id', req.params.classId)
+      .eq('class_id', req.params.classId as string)
       .single()
     if (reportError || !report) {
       res.status(404).json({ error: 'Report not found in this class.' })
       return
     }
 
-    // Determine if the student is late: compare current time to class_start_time
+    // Determine if the student is late: compare current time in the class's
+    // province timezone to the scheduled class_start_time.
+    // Province → IANA timezone mapping:
+    //   BC → America/Vancouver (Pacific)
+    //   AB → America/Edmonton (Mountain)
+    //   ON → America/Toronto (Eastern)
+    const PROVINCE_TZ: Record<string, string> = {
+      BC: 'America/Vancouver',
+      AB: 'America/Edmonton',
+      ON: 'America/Toronto',
+    }
+
     let isLate = false
-    const classStartTime = (report as Record<string, unknown>).class_start_time as string | null
-    const reportDate = (report as Record<string, unknown>).report_date as string | null
+    const reportRow = report as Record<string, unknown>
+    const classStartTime = reportRow.class_start_time as string | null
+    const reportDate = reportRow.report_date as string | null
+    const classInfo = reportRow.classes as { province: string } | null
+    const province = classInfo?.province ?? null
+
     if (classStartTime && reportDate) {
       try {
-        // Parse scheduled start: "HH:MM" on the report date
-        const [hours, minutes] = classStartTime.split(':').map(Number)
-        const scheduledStart = new Date(`${reportDate}T00:00:00`)
-        scheduledStart.setHours(hours, minutes, 0, 0)
-        isLate = new Date() > scheduledStart
+        const tz = (province && PROVINCE_TZ[province]) || 'America/Vancouver'
+        // Get current time in the class's timezone as HH:MM
+        const nowInTz = new Date().toLocaleTimeString('en-CA', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' })
+        // Also check the date in that timezone to handle midnight edge cases
+        const todayInTz = new Date().toLocaleDateString('en-CA', { timeZone: tz })
+        // Only mark late if the report is for today in the class's timezone
+        if (todayInTz === reportDate) {
+          isLate = nowInTz > classStartTime
+        }
+        // If the report date is in the past, the student is definitely late
+        if (todayInTz > reportDate) {
+          isLate = true
+        }
       } catch {
-        // If parsing fails, don't mark as late
+        // If timezone calculation fails, don't mark as late
       }
     }
 

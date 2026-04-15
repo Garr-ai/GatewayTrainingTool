@@ -4,23 +4,7 @@ import { api } from '../lib/apiClient'
 import { SkeletonCard, SkeletonTable } from '../components/Skeleton'
 import { EmptyState } from '../components/EmptyState'
 import { StudentReportInput } from '../components/StudentReportInput'
-import type { StudentClassDetailResponse, StudentReportView, DailyRating } from '../types'
-
-const RATING_COLOR: Record<DailyRating, string> = {
-  EE: 'bg-emerald-500/15 text-emerald-400',
-  ME: 'bg-blue-500/15 text-blue-400',
-  AD: 'bg-amber-500/15 text-amber-400',
-  NI: 'bg-rose-500/15 text-rose-400',
-}
-
-function RatingBadge({ rating }: { rating: DailyRating | null }) {
-  if (!rating) return <span className="text-slate-500">—</span>
-  return (
-    <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${RATING_COLOR[rating]}`}>
-      {rating}
-    </span>
-  )
-}
+import type { StudentClassDetailResponse, StudentReportView } from '../types'
 
 export function StudentClassDetailPage() {
   const { classId } = useParams<{ classId: string }>()
@@ -28,7 +12,6 @@ export function StudentClassDetailPage() {
   const [reports, setReports] = useState<StudentReportView[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedReport, setExpandedReport] = useState<string | null>(null)
 
   useEffect(() => {
     if (!classId) return
@@ -38,11 +21,8 @@ export function StudentClassDetailPage() {
     ])
       .then(([detail, rpts]) => {
         setClassInfo(detail)
-        const sorted = rpts.sort((a, b) => b.report_date.localeCompare(a.report_date))
-        setReports(sorted)
-        // Auto-expand today's report
-        const todayReport = sorted.find(r => r.is_today)
-        if (todayReport) setExpandedReport(todayReport.report_id)
+        // Only keep today's reports — students should not see past daily reports
+        setReports(rpts.filter(r => r.is_today))
       })
       .catch(err => setError((err as Error).message))
       .finally(() => setLoading(false))
@@ -70,9 +50,6 @@ export function StudentClassDetailPage() {
   const handleReportUpdate = (updated: StudentReportView) => {
     setReports(prev => prev.map(r => r.report_id === updated.report_id ? updated : r))
   }
-
-  const todayReports = reports.filter(r => r.is_today)
-  const pastReports = reports.filter(r => !r.is_today)
 
   return (
     <div className="flex flex-col gap-6">
@@ -129,13 +106,13 @@ export function StudentClassDetailPage() {
         <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">
           Today's Session
         </h3>
-        {todayReports.length === 0 ? (
+        {reports.length === 0 ? (
           <div className="bg-white dark:bg-gw-surface rounded-[10px]">
             <EmptyState title="No session today" description="There is no daily report for today. Check your upcoming schedule." variant="neutral" />
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {todayReports.map(report => {
+            {reports.map(report => {
               const prog = report.my_progress
               return (
                 <div
@@ -178,86 +155,6 @@ export function StudentClassDetailPage() {
         )}
       </section>
 
-      {/* Past reports — read-only, collapsible */}
-      {pastReports.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">
-            Past Reports
-            <span className="ml-1.5 text-xs font-normal text-slate-400 dark:text-slate-500">({pastReports.length})</span>
-          </h3>
-          <div className="flex flex-col gap-2">
-            {pastReports.map(report => {
-              const isExpanded = expandedReport === report.report_id
-              const prog = report.my_progress
-              return (
-                <div
-                  key={report.report_id}
-                  className="rounded-[10px] border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-gw-surface overflow-hidden"
-                >
-                  {/* Collapsible header */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedReport(isExpanded ? null : report.report_id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-50 dark:bg-white/[0.02] transition-colors"
-                  >
-                    <svg
-                      className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                    <div className="flex-1 min-w-0 flex items-center gap-3">
-                      <span className="text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">{report.report_date}</span>
-                      {report.session_label && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{report.session_label}</span>
-                      )}
-                      {report.game && (
-                        <span className="text-xs text-slate-400 dark:text-slate-500">{report.game}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {prog?.attendance ? (
-                        <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                          {prog.late && (
-                            <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-amber-500/15 text-amber-400">Late</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Not signed in</span>
-                      )}
-                      <div className="flex gap-1">
-                        <RatingBadge rating={prog?.gk_rating ?? null} />
-                        <RatingBadge rating={prog?.dex_rating ?? null} />
-                        <RatingBadge rating={prog?.hom_rating ?? null} />
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Expanded content — read only */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4">
-                      {report.class_start_time && report.class_end_time && (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
-                          Class time: {report.class_start_time} – {report.class_end_time}
-                        </p>
-                      )}
-                      <StudentReportInput
-                        report={report}
-                        classId={classId!}
-                        onUpdate={handleReportUpdate}
-                        readOnly={true}
-                      />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }
