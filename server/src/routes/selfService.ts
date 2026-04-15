@@ -1383,6 +1383,42 @@ selfServiceRouter.put('/me/my-classes/:classId/schedule/:slotId', writeLimiter, 
   }
 })
 
+selfServiceRouter.delete('/me/my-classes/:classId/schedule/:slotId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const slotId = req.params.slotId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify schedule slots for archived classes' }); return }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('class_schedule_slots')
+      .select('id')
+      .eq('id', slotId)
+      .eq('class_id', classId)
+      .single()
+    if (fetchError || !existing) { res.status(404).json({ error: 'Schedule slot not found' }); return }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_schedule_slots',
+      recordId: slotId,
+      metadata: { class_id: classId, deleted_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    const { error } = await supabase.from('class_schedule_slots').delete().eq('id', slotId)
+    if (error) throw error
+    res.status(204).send()
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
 // ─── Role request status ────────────────────────────────────────────────────
 
 /**
