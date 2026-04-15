@@ -594,6 +594,14 @@ export const api = {
     deleteDrill: (classId: string, drillId: string) =>
       req<{ deactivated: true; drill: ClassDrill } | void>(`/me/my-classes/${classId}/drills/${drillId}`, { method: 'DELETE' }),
 
+    // Class-scoped writes — schedule slots
+    createScheduleSlot: (classId: string, body: { slot_date: string; start_time: string; end_time: string; notes?: string | null; group_label?: string | null }) =>
+      req<ClassScheduleSlot>(`/me/my-classes/${classId}/schedule`, { method: 'POST', body: JSON.stringify(body) }),
+    updateScheduleSlot: (classId: string, slotId: string, body: { slot_date: string; start_time: string; end_time: string; notes?: string | null; group_label?: string | null }) =>
+      req<ClassScheduleSlot>(`/me/my-classes/${classId}/schedule/${slotId}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteScheduleSlot: (classId: string, slotId: string) =>
+      req<void>(`/me/my-classes/${classId}/schedule/${slotId}`, { method: 'DELETE' }),
+
     // Cross-class reads
     allReports: (params?: { class_id?: string; date_from?: string; date_to?: string; status?: string; page?: number; limit?: number }) => {
       const entries: Record<string, string> = {}
