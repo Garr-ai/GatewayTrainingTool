@@ -31,6 +31,7 @@ interface TrainerClassDetailContextValue {
   setTrainerHours: React.Dispatch<React.SetStateAction<ClassLoggedHours[]>>
   setStudentHours: React.Dispatch<React.SetStateAction<ClassLoggedHours[]>>
   setDrills: React.Dispatch<React.SetStateAction<ClassDrill[]>>
+  setSchedule: React.Dispatch<React.SetStateAction<ClassScheduleSlot[]>>
 }
 
 const TrainerClassDetailContext = createContext<TrainerClassDetailContextValue | null>(null)
@@ -109,7 +110,7 @@ export function TrainerClassDetailProvider({ classId, children }: { classId: str
       trainers,
       trainerHours, studentHours, drills, loading,
       refreshReports, refreshHours, refreshDrills, refreshSchedule, refreshEnrollments,
-      setReports, setTrainerHours, setStudentHours, setDrills,
+      setReports, setTrainerHours, setStudentHours, setDrills, setSchedule,
     }}>
       {children}
     </TrainerClassDetailContext.Provider>
