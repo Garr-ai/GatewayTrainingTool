@@ -1295,6 +1295,51 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
   }
 })
 
+// ─── Schedule Write Endpoints ─────────────────────────────────────────────────
+
+selfServiceRouter.post('/me/my-classes/:classId/schedule', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot add schedule slots for archived classes' }); return }
+
+    const { slot_date, start_time, end_time, notes, group_label } = req.body
+    if (!slot_date || !start_time || !end_time) {
+      res.status(400).json({ error: 'slot_date, start_time, and end_time are required' })
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('class_schedule_slots')
+      .insert({
+        class_id: classId,
+        slot_date,
+        start_time,
+        end_time,
+        notes: notes ?? null,
+        group_label: group_label ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_schedule_slots',
+      recordId: (data as { id: string }).id,
+      metadata: { class_id: classId, slot_date, created_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+    res.status(201).json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
 // ─── Role request status ────────────────────────────────────────────────────
 
 /**
