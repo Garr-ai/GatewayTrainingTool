@@ -1340,6 +1340,49 @@ selfServiceRouter.post('/me/my-classes/:classId/schedule', writeLimiter, async (
   }
 })
 
+selfServiceRouter.put('/me/my-classes/:classId/schedule/:slotId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const slotId = req.params.slotId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify schedule slots for archived classes' }); return }
+
+    const { slot_date, start_time, end_time, notes, group_label } = req.body
+    const { data, error } = await supabase
+      .from('class_schedule_slots')
+      .update({
+        slot_date,
+        start_time,
+        end_time,
+        notes: notes ?? null,
+        group_label: group_label ?? null,
+      })
+      .eq('id', slotId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Schedule slot not found' }); return }
+      throw error
+    }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_schedule_slots',
+      recordId: slotId,
+      metadata: { class_id: classId, slot_date, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+    res.json(data)
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
 // ─── Role request status ────────────────────────────────────────────────────
 
 /**
