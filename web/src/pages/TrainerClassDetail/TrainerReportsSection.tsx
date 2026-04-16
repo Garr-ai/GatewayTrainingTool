@@ -65,6 +65,7 @@ export function TrainerReportsSection() {
           override_hours_to_date: body.override_hours_to_date ?? null,
           override_paid_hours_total: body.override_paid_hours_total ?? null,
           override_live_hours_total: body.override_live_hours_total ?? null,
+          coordinator_notes: body.coordinator_notes ?? null,
           created_at: new Date().toISOString(),
         }
         setReports(prev => [tempReport, ...prev])
