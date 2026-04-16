@@ -88,7 +88,7 @@ export interface ClassTrainer {
 }
 
 /** Whether a student is actively in the class, on the waitlist, or has dropped. */
-export type EnrollmentStatus = 'enrolled' | 'waitlist' | 'dropped'
+export type EnrollmentStatus = 'enrolled' | 'dropped' | 'failed'
 
 /**
  * A single time block in a class's schedule.
@@ -152,6 +152,7 @@ export interface ClassDailyReport {
   override_hours_to_date: number | null     // Manual override for cumulative training hours
   override_paid_hours_total: number | null  // Manual override for paid hours total
   override_live_hours_total: number | null  // Manual override for live floor hours total
+  coordinator_notes: string | null           // Feedback left by coordinator (trainer sees read-only)
   created_at: string
 }
 

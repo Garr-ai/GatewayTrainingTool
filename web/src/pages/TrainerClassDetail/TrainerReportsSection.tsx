@@ -199,6 +199,7 @@ export function TrainerReportsSection() {
         onSave={handleSaveFromForm}
         onCancel={() => { setMode('list'); setEditingReport(null) }}
         canDelete={false}
+        canEditCoordinatorNotes={false}
       />
     </section>
   )

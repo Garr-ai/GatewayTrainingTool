@@ -34,9 +34,10 @@ import type { ClassEnrollment, EnrollmentStatus, Profile } from '../../types'
 interface ClassStudentsSectionProps {
   classId: string   // UUID of the class
   className: string // Display name — used in the empty-state message
+  archived?: boolean
 }
 
-export function ClassStudentsSection({ classId, className }: ClassStudentsSectionProps) {
+export function ClassStudentsSection({ classId, className, archived = false }: ClassStudentsSectionProps) {
   const { toast } = useToast()
   const { enrollments: students, loading, refreshEnrollments, setEnrollments } = useClassDetail()
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +59,8 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
   // Edit form field state
   const [editStatus, setEditStatus] = useState<EnrollmentStatus>('enrolled')
   const [editGroupLabel, setEditGroupLabel] = useState('')
+  // Loading state for fail/unfail action
+  const [failActionLoading, setFailActionLoading] = useState<string | null>(null)
 
   // CSV import state
   const [csvOpen, setCsvOpen] = useState(false)
@@ -219,6 +222,28 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
     })
   }
 
+  async function handleToggleFail(enrollment: ClassEnrollment) {
+    if (failActionLoading) return
+    const newStatus: EnrollmentStatus = enrollment.status === 'failed' ? 'enrolled' : 'failed'
+    const prev = students
+    setEnrollments(s => s.map(e => e.id === enrollment.id ? { ...e, status: newStatus } : e))
+    toast(newStatus === 'failed' ? 'Student marked as failed' : 'Student reinstated', 'success')
+    setFailActionLoading(enrollment.id)
+    try {
+      await api.enrollments.update(classId, enrollment.id, {
+        status: newStatus,
+        group_label: enrollment.group_label,
+      })
+      refreshEnrollments()
+    } catch (err) {
+      console.error('toggleFail error:', (err as Error).message)
+      toast((err as Error).message, 'error')
+      setEnrollments(prev)
+    } finally {
+      setFailActionLoading(null)
+    }
+  }
+
   const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 
   return (
@@ -324,7 +349,6 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
               <input type="search" value={searchTerm} onChange={e => { const val = e.target.value; setSearchTerm(val); searchProfiles(val) }} placeholder="Search students by name…" className={`flex-1 ${fieldClass}`} />
               <select value={status} onChange={e => setStatus(e.target.value as EnrollmentStatus)} className={`w-28 ${fieldClass}`}>
                 <option value="enrolled">Enrolled</option>
-                <option value="waitlist">Waitlist</option>
                 <option value="dropped">Dropped</option>
               </select>
               <input type="text" value={groupLabel} onChange={e => setGroupLabel(e.target.value)} placeholder="Group" className={`w-20 ${fieldClass}`} />
@@ -378,7 +402,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status
                   <select value={editStatus} onChange={e => setEditStatus(e.target.value as EnrollmentStatus)} className={fieldClass}>
                     <option value="enrolled">Enrolled</option>
-                    <option value="waitlist">Waitlist</option>
+                    <option value="failed">Failed</option>
                     <option value="dropped">Dropped</option>
                   </select>
                 </label>
@@ -417,7 +441,7 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                   <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
                   <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Group</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+                  {!archived && <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -425,11 +449,37 @@ export function ClassStudentsSection({ classId, className }: ClassStudentsSectio
                   <tr key={s.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-white dark:bg-gw-surface cursor-pointer transition-colors duration-100" onClick={() => openEditStudent(s)}>
                     <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{s.student_name}</td>
                     <td className="hidden sm:table-cell px-3 py-2 text-slate-500 dark:text-slate-400">{s.student_email}</td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400 capitalize">{s.status}</td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{s.group_label ?? '—'}</td>
-                    <td className="px-3 py-2 text-right">
-                      <button type="button" onClick={e => { e.stopPropagation(); handleRemove(s.id, s.student_name) }} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2 py-1 text-[11px] font-medium hover:bg-rose-500/20 transition-colors">Remove</button>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        s.status === 'enrolled' ? 'bg-emerald-500/15 text-emerald-300' :
+                        s.status === 'failed'   ? 'bg-rose-500/15 text-rose-400' :
+                        'bg-slate-500/15 text-slate-400'
+                      }`}>
+                        {s.status}
+                      </span>
                     </td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{s.group_label ?? '—'}</td>
+                    {!archived && (
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {(s.status === 'enrolled' || s.status === 'failed') && (
+                            <button
+                              type="button"
+                              disabled={failActionLoading === s.id}
+                              onClick={e => { e.stopPropagation(); handleToggleFail(s) }}
+                              className={`rounded px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                s.status === 'failed'
+                                  ? 'text-emerald-400 hover:bg-emerald-500/10'
+                                  : 'text-rose-400 hover:bg-rose-500/10'
+                              }`}
+                            >
+                              {s.status === 'failed' ? 'Unfail' : 'Fail'}
+                            </button>
+                          )}
+                          <button type="button" onClick={e => { e.stopPropagation(); handleRemove(s.id, s.student_name) }} className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-2 py-1 text-[11px] font-medium hover:bg-rose-500/20 transition-colors">Remove</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

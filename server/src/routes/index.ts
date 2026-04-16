@@ -40,6 +40,7 @@ import { selfServiceRouter } from './selfService'
 import { roleRequestsRouter } from './roleRequests'
 import { profilesRouter } from './profiles'
 import { dashboardRouter } from './dashboard'
+import { searchRouter } from './search'
 
 export const router = Router()
 
@@ -51,6 +52,7 @@ router.use(profilesRouter)
 
 // Self-service routes are accessible to all authenticated users (trainers and trainees)
 router.use(selfServiceRouter)
+router.use(searchRouter)
 
 // Everything below this line requires coordinator role
 router.use(requireCoordinator as Router)

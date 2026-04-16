@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useClasses } from '../contexts/ClassesContext'
 import { classSlug } from '../lib/utils'
+import { api } from '../lib/apiClient'
+import type { SearchResults } from '../lib/apiClient'
 
 interface PaletteItem {
   id: string
@@ -39,6 +41,8 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [searchResults, setSearchResults] = useState<SearchResults>({ students: [], trainers: [], reports: [] })
+  const [searchLoading, setSearchLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -101,14 +105,52 @@ export function CommandPalette() {
     if (open) {
       setQuery('')
       setSelectedIndex(0)
+      setSearchResults({ students: [], trainers: [], reports: [] })
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
+
+  // Debounced API search — fires 300ms after query changes when query >= 2 chars
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setSearchResults({ students: [], trainers: [], reports: [] })
+      return
+    }
+    setSearchLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const results = await api.search.query(query.trim())
+        setSearchResults(results)
+      } catch {
+        setSearchResults({ students: [], trainers: [], reports: [] })
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
 
   const selectItem = useCallback((item: PaletteItem) => {
     setOpen(false)
     navigate(item.path)
   }, [navigate])
+
+  const navigateToResult = useCallback((type: 'student' | 'trainer' | 'report', item: Record<string, string>) => {
+    setOpen(false)
+    if (type === 'student') {
+      const path = role === 'coordinator'
+        ? `/classes/${classSlug(item.className)}`
+        : `/my-classes/${item.classId}`
+      navigate(path)
+    } else if (type === 'trainer') {
+      navigate('/trainers')
+    } else if (type === 'report') {
+      const path = role === 'coordinator'
+        ? `/reports?class_id=${item.classId}`
+        : `/my-classes/${item.classId}`
+      navigate(path)
+    }
+  }, [navigate, role])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -151,7 +193,7 @@ export function CommandPalette() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search pages, classes…"
+            placeholder="Search pages, classes, students…"
             className="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
           />
           <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/[0.08] text-[10px] font-medium text-slate-500 dark:text-slate-500">
@@ -160,8 +202,9 @@ export function CommandPalette() {
         </div>
 
         {/* Results */}
-        <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
-          {filtered.length === 0 ? (
+        <div ref={listRef} className="max-h-[400px] overflow-y-auto py-2">
+          {/* Local page/class shortcuts */}
+          {filtered.length === 0 && query.trim().length < 2 ? (
             <p className="px-4 py-6 text-sm text-slate-400 dark:text-slate-500 text-center">No results found</p>
           ) : (
             filtered.map((item, i) => (
@@ -188,6 +231,60 @@ export function CommandPalette() {
                 )}
               </button>
             ))
+          )}
+
+          {/* API search results — shown when query >= 2 chars */}
+          {query.trim().length >= 2 && (
+            <>
+              {searchLoading && (
+                <p className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500">Searching…</p>
+              )}
+
+              {!searchLoading && searchResults.students.length > 0 && (
+                <div className="mt-1">
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Students</p>
+                  {searchResults.students.map(s => (
+                    <button key={`student-${s.id}-${s.classId}`} type="button" onClick={() => navigateToResult('student', s)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{s.name}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{s.className}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!searchLoading && searchResults.trainers.length > 0 && (
+                <div className="mt-1">
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trainers</p>
+                  {searchResults.trainers.map(t => (
+                    <button key={`trainer-${t.id}`} type="button" onClick={() => navigateToResult('trainer', t)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{t.name}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{t.email}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!searchLoading && searchResults.reports.length > 0 && (
+                <div className="mt-1">
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Reports</p>
+                  {searchResults.reports.map(r => (
+                    <button key={`report-${r.id}`} type="button" onClick={() => navigateToResult('report', r)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{r.className}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{r.reportDate}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

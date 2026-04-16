@@ -172,6 +172,7 @@ export interface ReportBody {
   override_hours_to_date?: number | null
   override_paid_hours_total?: number | null
   override_live_hours_total?: number | null
+  coordinator_notes?: string | null
   trainer_ids: string[]
   timeline: TimelineItemInput[]
   progress: ProgressRowInput[]
@@ -292,6 +293,12 @@ function payrollQs(params?: PayrollListParams): string {
     if (v !== undefined && v !== '') entries[k] = String(v)
   }
   return new URLSearchParams(entries).toString()
+}
+
+export interface SearchResults {
+  students: Array<{ id: string; name: string; email: string; classId: string; className: string }>
+  trainers: Array<{ id: string; name: string; email: string }>
+  reports: Array<{ id: string; classId: string; className: string; reportDate: string }>
 }
 
 // ─── API client ─────────────────────────────────────────────────────────────
@@ -602,6 +609,10 @@ export const api = {
     deleteScheduleSlot: (classId: string, slotId: string) =>
       req<void>(`/me/my-classes/${classId}/schedule/${slotId}`, { method: 'DELETE' }),
 
+    // Class-scoped writes — enrollments (trainer manual fail/unfail)
+    updateEnrollmentStatus: (classId: string, enrollmentId: string, body: { status: 'enrolled' | 'failed' }) =>
+      req<ClassEnrollment>(`/me/my-classes/${classId}/enrollments/${enrollmentId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
     // Cross-class reads
     allReports: (params?: { class_id?: string; date_from?: string; date_to?: string; status?: string; page?: number; limit?: number }) => {
       const entries: Record<string, string> = {}
@@ -636,6 +647,10 @@ export const api = {
     }) => req<{ progress: unknown; drill_times: unknown }>(`/me/my-class/${classId}/reports/${reportId}/my-progress`, {
       method: 'PATCH', body: JSON.stringify(body),
     }),
+  },
+
+  search: {
+    query: (q: string) => req<SearchResults>(`/search?q=${encodeURIComponent(q)}`),
   },
 
   roleRequests: {

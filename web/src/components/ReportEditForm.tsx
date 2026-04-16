@@ -41,6 +41,7 @@ interface ReportEditFormProps {
   onCancel: () => void
   canDelete: boolean
   onDelete?: () => void
+  canEditCoordinatorNotes: boolean
 }
 
 const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
@@ -49,7 +50,7 @@ const RATINGS: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
 
 export function ReportEditForm({
   report, trainers, enrollments, drills, hours, defaultGame = '',
-  onSave, onCancel, canDelete, onDelete,
+  onSave, onCancel, canDelete, onDelete, canEditCoordinatorNotes,
 }: ReportEditFormProps) {
   // Header fields — stored as strings; converted to numbers on save
   const [reportDate, setReportDate] = useState('')
@@ -71,6 +72,7 @@ export function ReportEditForm({
   const [timelineItems, setTimelineItems] = useState<ClassDailyReportTimelineItem[]>([])
   const [progressRows, setProgressRows] = useState<ClassDailyReportTraineeProgress[]>([])
   const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
+  const [coordinatorNotes, setCoordinatorNotes] = useState(report?.coordinator_notes ?? '')
   const [saving, setSaving] = useState(false)
   const dragIndexRef = useRef<number | null>(null)
 
@@ -94,6 +96,7 @@ export function ReportEditForm({
       setTimelineItems(report.timeline)
       setProgressRows(report.progress)
       setDrillTimeRows(report.drill_times)
+      setCoordinatorNotes(report?.coordinator_notes ?? '')
     } else {
       setReportDate(new Date().toISOString().slice(0, 10))
       setReportGroup('')
@@ -112,6 +115,7 @@ export function ReportEditForm({
       setTimelineItems([])
       setProgressRows([])
       setDrillTimeRows([])
+      setCoordinatorNotes('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report])
@@ -172,6 +176,7 @@ export function ReportEditForm({
         time_seconds: row.time_seconds,
         score: row.score,
       })),
+      coordinator_notes: canEditCoordinatorNotes ? (coordinatorNotes.trim() || null) : undefined,
     }
   }
 
@@ -516,6 +521,25 @@ export function ReportEditForm({
         </div>
 
         </CollapsibleSection>
+
+        {/* Coordinator feedback — editable by coordinator, read-only for trainer */}
+        {(canEditCoordinatorNotes || report?.coordinator_notes) && (
+          <CollapsibleSection label="Coordinator feedback" defaultOpen={!!(report?.coordinator_notes)}>
+            {canEditCoordinatorNotes ? (
+              <textarea
+                value={coordinatorNotes}
+                onChange={e => setCoordinatorNotes(e.target.value)}
+                rows={3}
+                placeholder="Leave feedback for the trainer…"
+                className={fieldClass}
+              />
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400 italic border-l-2 border-slate-300 dark:border-white/20 pl-3">
+                {report?.coordinator_notes}
+              </p>
+            )}
+          </CollapsibleSection>
+        )}
 
         <div className="flex gap-2">
           {canDelete && onDelete && (

@@ -365,6 +365,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
               onCancel={() => { setReportFormOpen(false); setEditingReportFull(null) }}
               canDelete={!!editingReportFull}
               onDelete={editingReportFull ? () => handleRemoveReport(editingReportFull.id) : undefined}
+              canEditCoordinatorNotes={true}
             />
           )}
 

@@ -19,6 +19,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { autoFailNotComingBack } from '../lib/autoFail'
 import { writeLimiter } from '../middleware/rateLimiter'
 
 export const selfServiceRouter = Router()
@@ -657,6 +658,9 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
       if (dtError) throw dtError
     }
 
+    // Auto-fail students who are not coming back
+    await autoFailNotComingBack(classId, reportId, req.userId!, req.ip)
+
     await logAudit({
       userId: req.userId!,
       action: 'CREATE',
@@ -774,6 +778,9 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
       )
       if (dtError) throw dtError
     }
+
+    // Auto-fail students who are not coming back
+    await autoFailNotComingBack(classId, reportId, req.userId!, req.ip)
 
     await logAudit({
       userId: req.userId!,
@@ -993,6 +1000,52 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
     const { error } = await supabase.from('class_logged_hours').delete().eq('id', hourId)
     if (error) throw error
     res.status(204).send()
+  } catch (err) {
+    if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
+    next(err)
+  }
+})
+
+// ─── Enrollment Write Endpoints ──────────────────────────────────────────────
+
+selfServiceRouter.patch('/me/my-classes/:classId/enrollments/:enrollmentId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const classId = req.params.classId as string
+    const enrollmentId = req.params.enrollmentId as string
+    await validateTrainerAccess(req.userEmail, classId)
+
+    const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
+    if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
+
+    const { status } = req.body as { status?: string }
+    if (!status || !['enrolled', 'failed'].includes(status)) {
+      res.status(400).json({ error: 'status must be "enrolled" or "failed"' })
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('class_enrollments')
+      .update({ status })
+      .eq('id', enrollmentId)
+      .eq('class_id', classId)
+      .select()
+      .single()
+    if (error) {
+      if (error.code === 'PGRST116') { res.status(404).json({ error: 'Enrollment not found' }); return }
+      throw error
+    }
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_enrollments',
+      recordId: enrollmentId,
+      metadata: { class_id: classId, status, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
+
+    res.json(data)
   } catch (err) {
     if ((err as Error & { status?: number }).status === 403) { res.status(403).json({ error: (err as Error).message }); return }
     next(err)

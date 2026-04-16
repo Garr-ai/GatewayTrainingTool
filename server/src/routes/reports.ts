@@ -39,6 +39,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { autoFailNotComingBack } from '../lib/autoFail'
 import { writeLimiter } from '../middleware/rateLimiter'
 
 export const reportsRouter = Router()
@@ -337,6 +338,9 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
       if (dtError) throw dtError
     }
 
+    // Auto-fail students who are not coming back
+    await autoFailNotComingBack(req.params.classId as string, reportId, req.userId!, req.ip)
+
     await logAudit({
       userId: req.userId!,
       action: 'CREATE',
@@ -384,6 +388,7 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
       override_hours_to_date,
       override_paid_hours_total,
       override_live_hours_total,
+      coordinator_notes,
       trainer_ids = [],
       timeline = [],
       progress = [],
@@ -408,6 +413,7 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
         override_hours_to_date: override_hours_to_date ?? null,
         override_paid_hours_total: override_paid_hours_total ?? null,
         override_live_hours_total: override_live_hours_total ?? null,
+        coordinator_notes: coordinator_notes ?? null,
       })
       .eq('id', reportId)
       .eq('class_id', req.params.classId)
@@ -479,6 +485,9 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
       )
       if (dtError) throw dtError
     }
+
+    // Auto-fail students who are not coming back
+    await autoFailNotComingBack(req.params.classId as string, reportId, req.userId!, req.ip)
 
     await logAudit({
       userId: req.userId!,
