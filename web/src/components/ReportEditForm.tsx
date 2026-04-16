@@ -385,7 +385,7 @@ export function ReportEditForm({
                     const enrollment = enrollments.find(e => e.id === row.enrollment_id)
                     const updateRow = (patch: Partial<ClassDailyReportTraineeProgress>) => { setProgressRows(prev => prev.map((r, i) => (i === index ? { ...r, ...patch } : r))) }
                     return (
-                      <tr key={row.id} className="border-b border-slate-100 dark:border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
+                      <tr key={row.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-white/[0.04] dark:bg-gw-elevated transition-colors">
                         <td className="px-2 py-1 align-top">
                           <div className="text-slate-800 dark:text-slate-200">{enrollment?.student_name ?? 'Unknown'}</div>
                           <div className="text-[10px] text-slate-400 dark:text-slate-500">{enrollment?.student_email}</div>
@@ -473,7 +473,7 @@ export function ReportEditForm({
                 </thead>
                 <tbody>
                   {enrollments.map(enr => (
-                    <tr key={enr.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-100 dark:bg-gw-elevated transition-colors">
+                    <tr key={enr.id} className="border-b border-slate-100 dark:border-white/[0.03] hover:bg-slate-50 dark:hover:bg-white/[0.04] dark:bg-gw-elevated transition-colors">
                       <td className="px-2 py-1 text-slate-800 dark:text-slate-200 whitespace-nowrap sticky left-0 bg-white dark:bg-gw-surface">{enr.student_name}</td>
                       {drills.filter(d => d.active).map(drill => {
                         const row = drillTimeRows.find(r => r.enrollment_id === enr.id && r.drill_id === drill.id)
