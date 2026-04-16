@@ -123,7 +123,10 @@ interface AuditEntry {
 ```
 
 - Backwards-compatible: existing 25 call sites type-check unchanged.
-- **Missing-snapshot guard:** if `SENSITIVE_TABLES.includes(tableName)` and the required snapshot is absent for the action, `logAudit` emits `console.error('[audit] missing snapshot', { tableName, action, recordId })` but **still writes the event row**. The event stream stays complete; the gap is surfaced in logs.
+- **Missing-snapshot guard:** if `SENSITIVE_TABLES.includes(tableName)`, `logAudit` enforces the following per-action snapshot expectations and emits `console.error('[audit] missing snapshot', { tableName, action, recordId })` on any violation, but **still writes the event row**. The event stream stays complete; the gap is surfaced in logs.
+  - `CREATE` — requires `after`; `before` must be null/absent
+  - `UPDATE` — requires both `before` and `after`
+  - `DELETE` — requires `before`; `after` must be null/absent
 - `logAudit` continues to never throw (existing contract per `AGENT_GUIDE.md`).
 
 ### 5.2 Close coverage gaps
