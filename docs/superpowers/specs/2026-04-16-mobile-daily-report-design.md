@@ -213,7 +213,7 @@ function useReportDraft(
 
 **Clear path:** `discardDraft()` removes the key from `localStorage`. Called by the "Discard" button and automatically after a successful `onSave`.
 
-**Error handling:** `localStorage` writes wrapped in `try/catch`; `QuotaExceededError` is caught and logged to console, not surfaced to the user. On restore, JSON parse failure or shape mismatch silently discards the draft (prevents stale data from a previous deploy breaking the form).
+**Error handling:** `localStorage` writes wrapped in `try/catch`; `QuotaExceededError` is caught and logged to console, not surfaced to the user. On restore, JSON parse failure or shape mismatch silently discards the draft (prevents stale data from a previous deploy breaking the form). A valid shape requires at minimum: `timelineItems`, `progressRows`, and `drillTimeRows` are arrays, and `reportDate` is a non-empty string — anything failing these checks is discarded.
 
 **Draft banner** (rendered by `ReportEditForm` when `hasDraft` is true on mount):
 
