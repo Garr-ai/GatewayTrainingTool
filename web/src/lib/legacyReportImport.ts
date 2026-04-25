@@ -244,7 +244,23 @@ function parseProgressEntries(rows: string[][]): Array<{ studentName: string; pr
       break
     }
   }
-  if (headerIdx < 0) return []
+  if (headerIdx < 0) {
+    // Fallback: detect rows that look like "<Name> ... <comment text>" without explicit headers.
+    const fallback: Array<{ studentName: string; progressText: string }> = []
+    for (const row of rows) {
+      const nameCandidate = normalizeText(row[0] ?? '')
+      if (!isLikelyPersonName(nameCandidate)) continue
+      const textCells = row
+        .slice(1)
+        .map(c => normalizeText(c))
+        .filter(Boolean)
+        .filter(c => !/^(ee|me|ad|ni|yes|no|y|n)$/i.test(c))
+      const progressText = textCells.join(' ').trim()
+      if (!progressText) continue
+      fallback.push({ studentName: nameCandidate, progressText })
+    }
+    return fallback
+  }
 
   const entries: Array<{ studentName: string; progressText: string }> = []
   let emptyStreak = 0
@@ -259,6 +275,7 @@ function parseProgressEntries(rows: string[][]): Array<{ studentName: string; pr
     }
     emptyStreak = 0
     if (!isLikelyPersonName(studentName)) continue
+    if (!progressText) continue
     entries.push({ studentName, progressText })
   }
   return entries

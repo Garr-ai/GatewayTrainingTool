@@ -501,7 +501,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
       try {
         const progress = parsed.progressEntries
           .map(entry => {
-            const enrollment = enrollmentByName.get(normalizeName(entry.studentName))
+            const enrollment = findEnrollmentByName(entry.studentName, enrollmentByName, enrollmentsAfterImport)
             if (!enrollment) return null
             return {
               enrollment_id: enrollment.id,
@@ -947,6 +947,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   )
 }
   const normalizeName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase()
+  const nameTokens = (value: string) => normalizeName(value).split(' ').filter(Boolean)
   const buildEnrollmentNameMap = (rows: ClassEnrollment[]) => {
     const map = new Map<string, ClassEnrollment>()
     for (const enr of rows) {
@@ -954,4 +955,30 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
       if (key && !map.has(key)) map.set(key, enr)
     }
     return map
+  }
+  const findEnrollmentByName = (
+    rawName: string,
+    map: Map<string, ClassEnrollment>,
+    rows: ClassEnrollment[],
+  ): ClassEnrollment | null => {
+    const normalized = normalizeName(rawName)
+    const exact = map.get(normalized)
+    if (exact) return exact
+
+    const tokens = nameTokens(rawName)
+    if (tokens.length >= 2) {
+      const first = tokens[0]
+      const last = tokens[tokens.length - 1]
+      for (const enr of rows) {
+        const enrTokens = nameTokens(enr.student_name)
+        if (enrTokens.length < 2) continue
+        if (first === enrTokens[0] && last === enrTokens[enrTokens.length - 1]) return enr
+      }
+    }
+
+    for (const enr of rows) {
+      const enrName = normalizeName(enr.student_name)
+      if (normalized.includes(enrName) || enrName.includes(normalized)) return enr
+    }
+    return null
   }
