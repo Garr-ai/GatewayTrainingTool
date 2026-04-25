@@ -24,7 +24,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
-import { randomUUID } from 'node:crypto'
 
 export const profilesRouter = Router()
 
@@ -258,8 +257,12 @@ profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Resp
 /**
  * POST /profiles/legacy-students
  * Auth: coordinator
- * Creates placeholder trainee profiles for legacy imports so students can
- * later claim records by matching name during signup.
+ * Returns legacy student identity mappings for import.
+ * - If a real profile exists by first+last name, return that email.
+ * - Otherwise return a deterministic placeholder email in LEGACY_EMAIL_DOMAIN.
+ *
+ * We intentionally do not insert placeholder rows into `profiles` because in
+ * production that table is commonly constrained to auth.users IDs.
  */
 profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -276,6 +279,7 @@ profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Respo
 
     const uniqueNames = [...new Set(students.map(normalizeName).filter(Boolean))]
     const results: Array<{ full_name: string; email: string; created: boolean }> = []
+    const usedGeneratedEmails = new Set<string>()
 
     for (const fullName of uniqueNames) {
       const split = splitName(fullName)
@@ -307,6 +311,7 @@ profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Respo
         continue
       }
 
+      // Generate a stable placeholder identity for class enrollment import.
       const slug = fullName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '.')
@@ -320,23 +325,11 @@ profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Respo
           .select('id')
           .eq('email', email)
           .maybeSingle()
-        if (!emailExists) break
+        if (!emailExists && !usedGeneratedEmails.has(email)) break
         attempt += 1
         email = `${baseEmail}.${attempt}@${LEGACY_EMAIL_DOMAIN}`
       }
-
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: randomUUID(),
-          email,
-          role: 'trainee',
-          role_selected: false,
-          full_name: fullName,
-          first_name: split.first,
-          last_name: split.last,
-        })
-      if (insertError) throw insertError
+      usedGeneratedEmails.add(email)
 
       results.push({ full_name: fullName, email, created: true })
     }
