@@ -10,6 +10,7 @@
  *   GET /me/trainer-dashboard  — Backwards-compat alias for /me/my-classes
  *   GET /me/trainee-progress   — Progress and drill times for this trainee across all classes
  *   GET /me/role-request       — Current user's most recent role request (if any)
+ *   POST /me/feedback          — Submit product feedback from Settings
  *   GET /me/my-class/:classId  — Student class detail (metadata, drills, schedule)
  *   GET /me/my-class/:classId/reports — Daily reports with student's own progress/drill data
  *   POST /me/my-class/:classId/reports/:reportId/sign-in — Student attendance sign-in
@@ -1490,6 +1491,70 @@ selfServiceRouter.get('/me/role-request', async (req: Request, res: Response, ne
       .maybeSingle()
     if (error) throw error
     res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /me/feedback
+ * Auth: any authenticated user
+ * Stores a feedback record for internal product triage.
+ */
+selfServiceRouter.post('/me/feedback', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.userId || !req.userEmail) {
+      res.status(401).json({ error: 'No user associated with this account' })
+      return
+    }
+
+    const categoryRaw = String((req.body as { category?: unknown })?.category ?? 'general').trim().toLowerCase()
+    const category = categoryRaw === 'bug' || categoryRaw === 'feature' || categoryRaw === 'general'
+      ? categoryRaw
+      : null
+    if (!category) {
+      res.status(400).json({ error: 'Category must be one of: bug, feature, general.' })
+      return
+    }
+
+    const message = String((req.body as { message?: unknown })?.message ?? '').trim()
+    if (message.length < 10) {
+      res.status(400).json({ error: 'Feedback message must be at least 10 characters.' })
+      return
+    }
+    if (message.length > 2000) {
+      res.status(400).json({ error: 'Feedback message cannot exceed 2000 characters.' })
+      return
+    }
+
+    const pageRaw = String((req.body as { page?: unknown })?.page ?? '').trim()
+    const page = pageRaw ? pageRaw.slice(0, 160) : null
+
+    const { data, error } = await supabase
+      .from('app_feedback')
+      .insert({
+        user_id: req.userId,
+        user_email: req.userEmail,
+        user_role: req.userRole ?? null,
+        category,
+        message,
+        page,
+        user_agent: req.get('user-agent')?.slice(0, 512) ?? null,
+      })
+      .select('id, created_at')
+      .single()
+    if (error) throw error
+
+    await logAudit({
+      userId: req.userId,
+      action: 'CREATE',
+      tableName: 'app_feedback',
+      recordId: data.id as string,
+      metadata: { category, page },
+      ipAddress: req.ip,
+    })
+
+    res.status(201).json(data)
   } catch (err) {
     next(err)
   }

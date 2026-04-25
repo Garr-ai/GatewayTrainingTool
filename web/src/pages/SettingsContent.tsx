@@ -30,6 +30,9 @@ export function SettingsContent() {
   const [editPhone, setEditPhone] = useState('')
   const [editProvince, setEditProvince] = useState('')
   const [saving, setSaving] = useState(false)
+  const [feedbackCategory, setFeedbackCategory] = useState<'bug' | 'feature' | 'general'>('general')
+  const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [sendingFeedback, setSendingFeedback] = useState(false)
 
   useEffect(() => {
     api.profiles.me()
@@ -69,6 +72,34 @@ export function SettingsContent() {
       toast((err as Error).message, 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleFeedbackSubmit() {
+    const message = feedbackMessage.trim()
+    if (message.length < 10) {
+      toast('Please include at least 10 characters of feedback.', 'error')
+      return
+    }
+    if (message.length > 2000) {
+      toast('Feedback must be 2000 characters or less.', 'error')
+      return
+    }
+
+    setSendingFeedback(true)
+    try {
+      await api.selfService.submitFeedback({
+        category: feedbackCategory,
+        message,
+        page: window.location.pathname,
+      })
+      setFeedbackMessage('')
+      setFeedbackCategory('general')
+      toast('Feedback submitted. Thank you.', 'success')
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setSendingFeedback(false)
     }
   }
 
@@ -235,6 +266,51 @@ export function SettingsContent() {
                   }`}
                 />
               </button>
+            </div>
+          </section>
+
+          {/* Feedback section — all roles */}
+          <section className={sectionClass}>
+            <h3 className={`${sectionHeading} mb-4`}>Feedback</h3>
+            <div className="space-y-4">
+              <div>
+                <span className={fieldLabel}>Type</span>
+                <select
+                  value={feedbackCategory}
+                  onChange={e => setFeedbackCategory(e.target.value as 'bug' | 'feature' | 'general')}
+                  className={inputClass}
+                >
+                  <option value="general">General</option>
+                  <option value="bug">Bug report</option>
+                  <option value="feature">Feature request</option>
+                </select>
+              </div>
+
+              <div>
+                <span className={fieldLabel}>Message</span>
+                <textarea
+                  value={feedbackMessage}
+                  onChange={e => setFeedbackMessage(e.target.value)}
+                  rows={5}
+                  maxLength={2000}
+                  placeholder="Describe what happened, what you expected, and any context that helps us reproduce it."
+                  className={`${inputClass} resize-y min-h-[120px]`}
+                />
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 text-right">
+                  {feedbackMessage.length}/2000
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleFeedbackSubmit}
+                  disabled={sendingFeedback}
+                  className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white px-4 py-2 text-sm font-semibold hover:brightness-110 transition-all duration-150 disabled:opacity-50"
+                >
+                  {sendingFeedback ? 'Sending…' : 'Send feedback'}
+                </button>
+              </div>
             </div>
           </section>
 

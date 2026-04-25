@@ -265,6 +265,12 @@ export interface PaginatedSchedule {
   limit: number
 }
 
+export interface FeedbackSubmissionBody {
+  category: 'bug' | 'feature' | 'general'
+  message: string
+  page?: string
+}
+
 // ─── Payroll types ─────────────────────────────────────────────────────────
 
 /** Query params accepted by api.payroll.trainers() and api.payroll.students(). */
@@ -557,6 +563,8 @@ export const api = {
   selfService: {
     trainerDashboard: () => req<TrainerDashboardResponse>('/me/trainer-dashboard'),
     traineeDashboard: () => req<TraineeDashboardResponse>('/me/trainee-progress'),
+    submitFeedback: (body: FeedbackSubmissionBody) =>
+      req<{ id: string; created_at: string }>('/me/feedback', { method: 'POST', body: JSON.stringify(body) }),
 
     // Trainer class management
     myClasses: () => req<TrainerMyClassesResponse>('/me/my-classes'),

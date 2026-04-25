@@ -146,7 +146,7 @@ export function CommandPalette() {
       navigate('/trainers')
     } else if (type === 'report') {
       const path = role === 'coordinator'
-        ? `/reports?class_id=${item.classId}`
+        ? `/classes/${classSlug(item.className)}`
         : `/my-classes/${item.classId}`
       navigate(path)
     }
