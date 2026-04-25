@@ -8,6 +8,24 @@ export interface ParsedLegacyReport {
   warnings: string[]
 }
 
+export interface ParsedPayrollRow {
+  sheetName: string
+  log_date: string
+  person_type: 'trainer'
+  trainer_id: string
+  hours: number
+  paid: boolean
+  live_training: boolean
+  notes: string | null
+}
+
+export interface LegacyWorkbookParseResult {
+  reports: ParsedLegacyReport[]
+  payrollRows: ParsedPayrollRow[]
+  excludedSheets: string[]
+  payrollWarnings: string[]
+}
+
 interface ParseLegacyWorkbookArgs {
   file: File
   trainers: ClassTrainer[]
@@ -19,6 +37,16 @@ const DAY_WORDS: Record<string, number> = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
 }
+
+const EXCLUDED_SHEET_KEYWORDS = [
+  'checklist',
+  'legend',
+  'formative',
+  'sample',
+  'tracking',
+  'lt & la',
+  'lt and la',
+]
 
 function normalizeText(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
@@ -87,6 +115,23 @@ function parseDateFromText(text: string): string | null {
 function parseGroupLabel(text: string): string | null {
   const m = text.match(/\bgroup\s*([a-z0-9]+)\b/i)
   return m ? m[1].toUpperCase() : null
+}
+
+function findTrainerByName(name: string, trainers: ClassTrainer[]): ClassTrainer | null {
+  const candidate = normalizeName(name)
+  if (!candidate) return null
+  for (const trainer of trainers) {
+    const trainerNorm = normalizeName(trainer.trainer_name)
+    const trainerLast = trainerNorm.split(' ').at(-1) ?? ''
+    if (
+      trainerNorm.includes(candidate) ||
+      candidate.includes(trainerNorm) ||
+      (trainerLast && candidate.includes(trainerLast))
+    ) {
+      return trainer
+    }
+  }
+  return null
 }
 
 function extractTrainerIds(textRows: string[], trainers: ClassTrainer[]): string[] {
@@ -201,21 +246,129 @@ function parseSessionAndTimes(textRows: string[]): { sessionLabel: string | null
   return { sessionLabel: null, startTime: null, endTime: null }
 }
 
+function isPayrollSheet(sheetName: string, textRows: string[]): boolean {
+  const lowerName = sheetName.toLowerCase()
+  if (lowerName.includes('payroll')) return true
+  return textRows.slice(0, 10).some(t => t.toLowerCase().includes('payroll'))
+}
+
+function isLikelyDailyReportSheet(sheetName: string, textRows: string[]): boolean {
+  const lowerName = sheetName.toLowerCase()
+  if (EXCLUDED_SHEET_KEYWORDS.some(k => lowerName.includes(k))) return false
+  if (isPayrollSheet(sheetName, textRows)) return false
+  const combined = textRows.slice(0, 60).join(' ').toLowerCase()
+  const hasDay = /\bday\s+(\d{1,2}|[a-z]+)\b/.test(combined) || /\bday\s+(\d{1,2}|[a-z]+)\b/.test(lowerName)
+  const hasTimelineHints = (combined.includes('time') && combined.includes('activity')) || combined.includes('drill')
+  return hasDay || hasTimelineHints
+}
+
+function parsePayrollRows(
+  sheetName: string,
+  rows: string[][],
+  trainers: ClassTrainer[],
+): { rows: ParsedPayrollRow[]; warnings: string[] } {
+  const warnings: string[] = []
+  if (trainers.length === 0) {
+    return { rows: [], warnings: ['No assigned trainers in class; payroll rows skipped.'] }
+  }
+
+  let headerIdx = -1
+  let dateCol = -1
+  let nameCol = -1
+  let hoursCol = -1
+  let paidCol = -1
+  let liveCol = -1
+  let notesCol = -1
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const cells = rows[i].map(c => c.toLowerCase())
+    const d = cells.findIndex(c => c.includes('date'))
+    const n = cells.findIndex(c => c.includes('trainer') || c.includes('name') || c.includes('person'))
+    const h = cells.findIndex(c => c.includes('hour'))
+    if (d >= 0 && n >= 0 && h >= 0) {
+      headerIdx = i
+      dateCol = d
+      nameCol = n
+      hoursCol = h
+      paidCol = cells.findIndex(c => c.includes('paid'))
+      liveCol = cells.findIndex(c => c.includes('live'))
+      notesCol = cells.findIndex(c => c.includes('note'))
+      break
+    }
+  }
+
+  if (headerIdx < 0) {
+    warnings.push('Payroll sheet did not have recognizable Date/Name/Hours columns.')
+    return { rows: [], warnings }
+  }
+
+  const parsed: ParsedPayrollRow[] = []
+  for (let i = headerIdx + 1; i < rows.length; i += 1) {
+    const row = rows[i]
+    const dateRaw = normalizeText(row[dateCol] ?? '')
+    const nameRaw = normalizeText(row[nameCol] ?? '')
+    const hoursRaw = normalizeText(row[hoursCol] ?? '')
+    if (!dateRaw && !nameRaw && !hoursRaw) continue
+
+    const date = parseDateFromText(dateRaw)
+    const hours = Number(hoursRaw)
+    const trainer = findTrainerByName(nameRaw, trainers)
+    if (!date || Number.isNaN(hours) || hours <= 0 || !trainer) continue
+
+    const paidRaw = paidCol >= 0 ? normalizeText(row[paidCol] ?? '') : ''
+    const liveRaw = liveCol >= 0 ? normalizeText(row[liveCol] ?? '') : ''
+    const notesRaw = notesCol >= 0 ? normalizeText(row[notesCol] ?? '') : ''
+    const paid = /^(yes|y|true|1|paid)$/i.test(paidRaw)
+    const live_training = /^(yes|y|true|1|live)$/i.test(liveRaw)
+
+    parsed.push({
+      sheetName,
+      log_date: date,
+      person_type: 'trainer',
+      trainer_id: trainer.id,
+      hours,
+      paid,
+      live_training,
+      notes: notesRaw || null,
+    })
+  }
+
+  if (parsed.length === 0) warnings.push('No valid payroll rows parsed.')
+  return { rows: parsed, warnings }
+}
+
 export async function parseLegacyWorkbook({
   file,
   trainers,
   defaultGame,
   classStartDate,
-}: ParseLegacyWorkbookArgs): Promise<ParsedLegacyReport[]> {
+}: ParseLegacyWorkbookArgs): Promise<LegacyWorkbookParseResult> {
   const buffer = await file.arrayBuffer()
   const workbook = XLSX.read(buffer, { type: 'array' })
   const fileGroupLabel = parseGroupLabel(file.name)
+  const reports: ParsedLegacyReport[] = []
+  const payrollRows: ParsedPayrollRow[] = []
+  const excludedSheets: string[] = []
+  const payrollWarnings: string[] = []
 
-  return workbook.SheetNames.map((sheetName, sheetIndex) => {
+  workbook.SheetNames.forEach((sheetName, sheetIndex) => {
     const worksheet = workbook.Sheets[sheetName]
     const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' }) as unknown[][]
     const rows = rawRows.map(row => row.map(normalizeText))
     const textRows = rows.map(row => normalizeText(row.join(' '))).filter(Boolean)
+
+    if (isPayrollSheet(sheetName, textRows)) {
+      const parsed = parsePayrollRows(sheetName, rows, trainers)
+      payrollRows.push(...parsed.rows)
+      for (const warning of parsed.warnings) payrollWarnings.push(`${sheetName}: ${warning}`)
+      return
+    }
+
+    if (!isLikelyDailyReportSheet(sheetName, textRows)) {
+      excludedSheets.push(sheetName)
+      return
+    }
+
     const warnings: string[] = []
 
     let reportDate: string | null = null
@@ -246,7 +399,7 @@ export async function parseLegacyWorkbook({
     const timeline = parseTimeline(rows)
     if (timeline.length === 0) warnings.push('No timeline rows parsed.')
 
-    return {
+    reports.push({
       sheetName,
       warnings,
       body: {
@@ -268,6 +421,8 @@ export async function parseLegacyWorkbook({
         progress: [],
         drill_times: [],
       },
-    }
+    })
   })
+
+  return { reports, payrollRows, excludedSheets, payrollWarnings }
 }
