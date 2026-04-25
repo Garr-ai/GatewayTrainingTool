@@ -452,9 +452,16 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     let studentEnrollmentsCreated = 0
     let studentEnrollmentsSkipped = 0
     let studentEnrollmentsFailed = 0
+    let progressUnmatched = 0
 
     const parsedStudentNames = [...new Set(
-      parsedLegacyReports.flatMap(r => r.studentNames).map(s => s.trim()).filter(Boolean),
+      parsedLegacyReports
+        .flatMap(r => [
+          ...r.studentNames,
+          ...r.progressEntries.map(p => p.studentName),
+        ])
+        .map(s => s.trim())
+        .filter(Boolean),
     )]
     if (parsedStudentNames.length > 0) {
       try {
@@ -502,7 +509,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         const progress = parsed.progressEntries
           .map(entry => {
             const enrollment = findEnrollmentByName(entry.studentName, enrollmentByName, enrollmentsAfterImport)
-            if (!enrollment) return null
+            if (!enrollment) {
+              progressUnmatched += 1
+              return null
+            }
             return {
               enrollment_id: enrollment.id,
               progress_text: entry.progressText || null,
@@ -556,12 +566,12 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
 
     if (failed > 0 || payrollFailed > 0 || studentEnrollmentsFailed > 0) {
       toast(
-        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}, skipped ${studentEnrollmentsSkipped}, failed ${studentEnrollmentsFailed}. Reports: imported ${created}, skipped ${skipped}, failed ${failed}. Payroll: imported ${payrollImported}, skipped ${payrollSkipped}, failed ${payrollFailed}.`,
+        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}, skipped ${studentEnrollmentsSkipped}, failed ${studentEnrollmentsFailed}. Reports: imported ${created}, skipped ${skipped}, failed ${failed}, unmatched progress ${progressUnmatched}. Payroll: imported ${payrollImported}, skipped ${payrollSkipped}, failed ${payrollFailed}.`,
         'error',
       )
     } else {
       toast(
-        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}${studentEnrollmentsSkipped ? ` (skipped ${studentEnrollmentsSkipped})` : ''}. Reports imported ${created}${skipped ? ` (skipped ${skipped})` : ''}. Payroll rows imported ${payrollImported}${payrollSkipped ? ` (skipped ${payrollSkipped})` : ''}.`,
+        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}${studentEnrollmentsSkipped ? ` (skipped ${studentEnrollmentsSkipped})` : ''}. Reports imported ${created}${skipped ? ` (skipped ${skipped})` : ''}${progressUnmatched ? `, unmatched progress ${progressUnmatched}` : ''}. Payroll rows imported ${payrollImported}${payrollSkipped ? ` (skipped ${payrollSkipped})` : ''}.`,
         'success',
       )
     }
