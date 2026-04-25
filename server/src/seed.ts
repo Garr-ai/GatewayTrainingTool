@@ -27,9 +27,9 @@ import { randomUUID } from 'node:crypto'
 import 'dotenv/config'
 
 const url = process.env.SUPABASE_URL!
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!
 if (!url || !key) {
-  console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in server/.env')
+  console.error('Set SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) in server/.env')
   process.exit(1)
 }
 

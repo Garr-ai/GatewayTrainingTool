@@ -109,8 +109,26 @@ async function doReq<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
   // 204 has no body; return undefined so callers can type the result as void
   if (res.status === 204) return undefined as T
-  const body = await res.json()
-  if (!res.ok) throw new Error((body as { error?: string }).error ?? `Request failed: ${res.status}`)
+  const text = await res.text()
+  const contentType = res.headers.get('content-type') ?? ''
+  const isJson = contentType.includes('application/json')
+  let body: unknown = null
+
+  if (text) {
+    try {
+      body = JSON.parse(text) as unknown
+    } catch {
+      body = isJson ? { error: text } : text
+    }
+  }
+
+  if (!res.ok) {
+    const jsonMessage = typeof body === 'object' && body !== null
+      ? (body as { error?: string }).error
+      : null
+    const textMessage = typeof body === 'string' ? body : null
+    throw new Error(jsonMessage ?? textMessage ?? `Request failed: ${res.status}`)
+  }
   return body as T
 }
 

@@ -24,11 +24,12 @@ import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
 
 const url = process.env.SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Support both legacy and new naming while teams migrate keys.
+const serviceKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // Fail fast on startup if the required env vars are missing
 if (!url || !serviceKey) {
-  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in api/.env')
+  throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) must be set.')
 }
 
 export const supabase = createClient(url, serviceKey, {
