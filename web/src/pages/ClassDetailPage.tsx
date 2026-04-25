@@ -135,7 +135,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
           <div className={activeTab === 'schedule'      ? '' : 'hidden'}><ClassScheduleSection classId={classData.id} className={classData.name} startDate={classData.start_date} endDate={classData.end_date} /></div>
           <div className={activeTab === 'trainers'      ? '' : 'hidden'}><ClassTrainersSection classId={classData.id} className={classData.name} /></div>
           <div className={activeTab === 'students'      ? '' : 'hidden'}><ClassStudentsSection classId={classData.id} className={classData.name} archived={classData.archived} /></div>
-          <div className={activeTab === 'dailyReports'  ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="reports" defaultGameType={classData.game_type} /></div>
+          <div className={activeTab === 'dailyReports'  ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="reports" defaultGameType={classData.game_type} classStartDate={classData.start_date} /></div>
           <div className={activeTab === 'payroll'       ? '' : 'hidden'}><ClassPayrollSection classId={classData.id} className={classData.name} /></div>
         </div>
       </ClassDetailProvider>

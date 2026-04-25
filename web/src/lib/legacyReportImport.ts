@@ -1,0 +1,273 @@
+import * as XLSX from 'xlsx'
+import type { ClassTrainer } from '../types'
+import type { ReportBody } from './apiClient'
+
+export interface ParsedLegacyReport {
+  sheetName: string
+  body: ReportBody
+  warnings: string[]
+}
+
+interface ParseLegacyWorkbookArgs {
+  file: File
+  trainers: ClassTrainer[]
+  defaultGame?: string | null
+  classStartDate?: string
+}
+
+const DAY_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function normalizeName(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function formatIsoDate(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function addDays(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00`)
+  d.setDate(d.getDate() + days)
+  return formatIsoDate(d)
+}
+
+function parseDayNumber(text: string): number | null {
+  const lower = text.toLowerCase()
+  const numberMatch = lower.match(/\bday\s+(\d{1,2})\b/)
+  if (numberMatch) return Number(numberMatch[1])
+  const wordMatch = lower.match(/\bday\s+([a-z]+)\b/)
+  if (!wordMatch) return null
+  return DAY_WORDS[wordMatch[1]] ?? null
+}
+
+function to24h(hourRaw: string, minuteRaw: string, ampmRaw: string | undefined): string {
+  let hour = Number(hourRaw)
+  const minute = Number(minuteRaw)
+  const ampm = (ampmRaw ?? '').toLowerCase()
+  if (ampm === 'pm' && hour < 12) hour += 12
+  if (ampm === 'am' && hour === 12) hour = 0
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+function parseTimeRange(text: string): { start: string; end: string } | null {
+  const match = text.match(/(\d{1,2})(?::|\.)(\d{2})\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::|\.)(\d{2})\s*(am|pm)?/i)
+  if (!match) return null
+  return {
+    start: to24h(match[1], match[2], match[3]),
+    end: to24h(match[4], match[5], match[6] ?? match[3]),
+  }
+}
+
+function parseDateFromText(text: string): string | null {
+  const cleaned = text.replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+  const patterns = [
+    /\b\d{4}-\d{2}-\d{2}\b/,
+    /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/,
+    /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/i,
+  ]
+  for (const pattern of patterns) {
+    const found = cleaned.match(pattern)?.[0]
+    if (!found) continue
+    const date = new Date(found)
+    if (!Number.isNaN(date.getTime())) return formatIsoDate(date)
+  }
+  return null
+}
+
+function parseGroupLabel(text: string): string | null {
+  const m = text.match(/\bgroup\s*([a-z0-9]+)\b/i)
+  return m ? m[1].toUpperCase() : null
+}
+
+function extractTrainerIds(textRows: string[], trainers: ClassTrainer[]): string[] {
+  if (trainers.length === 0) return []
+  const relevant = textRows.filter(row => /trainer|instructor|facilitator/i.test(row))
+  if (relevant.length === 0) return []
+  const candidateNames = new Set<string>()
+
+  for (const line of relevant) {
+    const afterColon = line.includes(':') ? line.split(':').slice(1).join(':') : line.replace(/trainers?|instructors?|facilitators?/ig, '')
+    const parts = afterColon.split(/[,/&]| and /i).map(normalizeText).filter(Boolean)
+    for (const p of parts) candidateNames.add(p)
+  }
+
+  const trainerIds: string[] = []
+  for (const trainer of trainers) {
+    const trainerNorm = normalizeName(trainer.trainer_name)
+    const trainerLastName = trainerNorm.split(' ').at(-1) ?? ''
+    for (const candidate of candidateNames) {
+      const candidateNorm = normalizeName(candidate)
+      if (!candidateNorm) continue
+      if (trainerNorm.includes(candidateNorm) || candidateNorm.includes(trainerNorm) || (trainerLastName && candidateNorm.includes(trainerLastName))) {
+        trainerIds.push(trainer.id)
+        break
+      }
+    }
+  }
+  return [...new Set(trainerIds)]
+}
+
+function inferTimelineCategory(activity: string, notes: string): string | null {
+  const combined = `${activity} ${notes}`.toLowerCase()
+  if (!combined.trim()) return null
+  if (combined.includes('drill') || combined.includes('test')) return 'Drill/Test'
+  if (combined.includes('handout') || combined.includes('homework')) return 'Homework/Handout'
+  if (combined.includes('break')) return 'Break'
+  if (combined.includes('game')) return 'Game simulation'
+  return 'Training block'
+}
+
+function parseTimeline(rows: string[][]): ReportBody['timeline'] {
+  let headerIdx = -1
+  let timeCol = -1
+  let activityCol = -1
+  let drillsCol = -1
+  let categoryCol = -1
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const cells = rows[i].map(c => c.toLowerCase())
+    const hasTime = cells.some(c => c.includes('time'))
+    const hasActivity = cells.some(c => c.includes('activity') || c.includes('breakdown'))
+    if (hasTime && hasActivity) {
+      headerIdx = i
+      timeCol = cells.findIndex(c => c.includes('time'))
+      activityCol = cells.findIndex(c => c.includes('activity') || c.includes('breakdown'))
+      drillsCol = cells.findIndex(c => c.includes('drill') || c.includes('handout') || c.includes('test') || c.includes('homework'))
+      categoryCol = cells.findIndex(c => c.includes('category'))
+      break
+    }
+  }
+
+  const result: ReportBody['timeline'] = []
+  let emptyStreak = 0
+
+  const startRow = headerIdx >= 0 ? headerIdx + 1 : 0
+  for (let i = startRow; i < rows.length; i += 1) {
+    const row = rows[i]
+    const timeRaw = timeCol >= 0 ? row[timeCol] : row[0] ?? ''
+    const activityRaw = activityCol >= 0 ? row[activityCol] : row[1] ?? ''
+    const notesRaw = drillsCol >= 0 ? row[drillsCol] : row[2] ?? ''
+    const categoryRaw = categoryCol >= 0 ? row[categoryCol] : ''
+    const rowJoined = row.join(' ')
+    const time = parseTimeRange(timeRaw || rowJoined)
+    const activity = normalizeText(activityRaw)
+    const notes = normalizeText(notesRaw)
+    const category = normalizeText(categoryRaw) || inferTimelineCategory(activity, notes)
+
+    if (!time && !activity && !notes) {
+      emptyStreak += 1
+      if (emptyStreak >= 4 && result.length > 0) break
+      continue
+    }
+    emptyStreak = 0
+
+    result.push({
+      start_time: time?.start ?? null,
+      end_time: time?.end ?? null,
+      activity: activity || null,
+      homework_handouts_tests: notes || null,
+      category,
+    })
+  }
+
+  return result
+}
+
+function parseSessionAndTimes(textRows: string[]): { sessionLabel: string | null; startTime: string | null; endTime: string | null } {
+  for (const row of textRows) {
+    const range = parseTimeRange(row)
+    if (!range) continue
+    const cleaned = normalizeText(row)
+    const label = cleaned
+      .replace(/(\d{1,2})(?::|\.)(\d{2})\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::|\.)(\d{2})\s*(am|pm)?/ig, '')
+      .replace(/(?:-|:|,)+$/, '')
+      .trim()
+    return {
+      sessionLabel: label || null,
+      startTime: range.start,
+      endTime: range.end,
+    }
+  }
+  return { sessionLabel: null, startTime: null, endTime: null }
+}
+
+export async function parseLegacyWorkbook({
+  file,
+  trainers,
+  defaultGame,
+  classStartDate,
+}: ParseLegacyWorkbookArgs): Promise<ParsedLegacyReport[]> {
+  const buffer = await file.arrayBuffer()
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const fileGroupLabel = parseGroupLabel(file.name)
+
+  return workbook.SheetNames.map((sheetName, sheetIndex) => {
+    const worksheet = workbook.Sheets[sheetName]
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' }) as unknown[][]
+    const rows = rawRows.map(row => row.map(normalizeText))
+    const textRows = rows.map(row => normalizeText(row.join(' '))).filter(Boolean)
+    const warnings: string[] = []
+
+    let reportDate: string | null = null
+    for (const line of textRows.slice(0, 35)) {
+      reportDate = parseDateFromText(line)
+      if (reportDate) break
+    }
+    if (!reportDate && classStartDate) {
+      const dayNumber = parseDayNumber(`${sheetName} ${textRows.slice(0, 10).join(' ')}`)
+      reportDate = dayNumber ? addDays(classStartDate, Math.max(dayNumber - 1, 0)) : addDays(classStartDate, sheetIndex)
+      warnings.push('Date inferred from class start date and sheet order/day number.')
+    }
+    if (!reportDate) {
+      reportDate = formatIsoDate(new Date())
+      warnings.push('Date not found; defaulted to today.')
+    }
+
+    const groupFromSheet = parseGroupLabel(`${sheetName} ${textRows.slice(0, 8).join(' ')}`)
+    const groupLabel = groupFromSheet ?? fileGroupLabel
+    if (!groupLabel) warnings.push('Group label not found.')
+
+    const session = parseSessionAndTimes(textRows.slice(0, 40))
+    if (!session.startTime || !session.endTime) warnings.push('Class time range not found.')
+
+    const trainerIds = extractTrainerIds(textRows.slice(0, 60), trainers)
+    if (trainerIds.length === 0 && trainers.length > 0) warnings.push('No trainer names matched assigned class trainers.')
+
+    const timeline = parseTimeline(rows)
+    if (timeline.length === 0) warnings.push('No timeline rows parsed.')
+
+    return {
+      sheetName,
+      warnings,
+      body: {
+        report_date: reportDate,
+        group_label: groupLabel ?? null,
+        game: defaultGame ?? null,
+        session_label: session.sessionLabel,
+        class_start_time: session.startTime,
+        class_end_time: session.endTime,
+        current_trainees: null,
+        mg_confirmed: null,
+        mg_attended: null,
+        licenses_received: null,
+        override_hours_to_date: null,
+        override_paid_hours_total: null,
+        override_live_hours_total: null,
+        trainer_ids: trainerIds,
+        timeline,
+        progress: [],
+        drill_times: [],
+      },
+    }
+  })
+}

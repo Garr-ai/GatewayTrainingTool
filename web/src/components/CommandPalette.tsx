@@ -272,7 +272,7 @@ export function CommandPalette() {
 
               {!searchLoading && searchResults.reports.length > 0 && (
                 <div className="mt-1">
-                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Reports</p>
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Classes</p>
                   {searchResults.reports.map(r => (
                     <button key={`report-${r.id}`} type="button" onClick={() => navigateToResult('report', r)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">

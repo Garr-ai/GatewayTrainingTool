@@ -33,6 +33,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { api, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
+import { parseLegacyWorkbook, type ParsedLegacyReport } from '../../lib/legacyReportImport'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
 import { ReportEditForm } from '../../components/ReportEditForm'
 import { useToast } from '../../contexts/ToastContext'
@@ -51,9 +52,10 @@ interface ClassReportsSectionProps {
   className: string            // Display name used in empty states and PDF generation
   mode: 'reports' | 'hours'   // Which tab this component is currently rendering
   defaultGameType?: string | null  // Class's game type, used as default when creating new reports
+  classStartDate?: string
 }
 
-export function ClassReportsSection({ classId, className, mode, defaultGameType }: ClassReportsSectionProps) {
+export function ClassReportsSection({ classId, className, mode, defaultGameType, classStartDate }: ClassReportsSectionProps) {
   const { toast } = useToast()
   const [confirmState, setConfirmState] = useState<{
     title: string
@@ -94,6 +96,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
   const [hoursValue, setHoursValue] = useState('')
   const [hoursNotes, setHoursNotes] = useState('')
   const [hoursSaving, setHoursSaving] = useState(false)
+  const [importParsing, setImportParsing] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [legacyFileName, setLegacyFileName] = useState('')
+  const [parsedLegacyReports, setParsedLegacyReports] = useState<ParsedLegacyReport[]>([])
 
 
   /** Resets the form and opens it in "add new report" mode. */
@@ -325,6 +331,64 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
   // Sum of all logged hours for the class, shown in the hours tab header
   const totalHours = hours.reduce((sum, h) => sum + h.hours, 0)
 
+  async function handleLegacyFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportParsing(true)
+    setLegacyFileName(file.name)
+    setParsedLegacyReports([])
+    try {
+      const parsed = await parseLegacyWorkbook({
+        file,
+        trainers,
+        defaultGame: defaultGameType,
+        classStartDate,
+      })
+      setParsedLegacyReports(parsed)
+      toast(`Parsed ${parsed.length} sheet${parsed.length === 1 ? '' : 's'}`, 'success')
+    } catch (err) {
+      toast(`Import parse failed: ${(err as Error).message}`, 'error')
+    } finally {
+      setImportParsing(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleImportParsedReports() {
+    if (parsedLegacyReports.length === 0) return
+    setImporting(true)
+    setError(null)
+
+    const existingKeys = new Set(
+      reports.map(r => `${r.report_date}|${r.group_label ?? ''}|${r.session_label ?? ''}`),
+    )
+
+    let created = 0
+    let skipped = 0
+    let failed = 0
+
+    for (const parsed of parsedLegacyReports) {
+      const key = `${parsed.body.report_date}|${parsed.body.group_label ?? ''}|${parsed.body.session_label ?? ''}`
+      if (existingKeys.has(key)) {
+        skipped += 1
+        continue
+      }
+      try {
+        await api.reports.create(classId, parsed.body)
+        existingKeys.add(key)
+        created += 1
+      } catch {
+        failed += 1
+      }
+    }
+
+    await refreshReports()
+    setImporting(false)
+
+    if (failed > 0) toast(`Imported ${created}, skipped ${skipped}, failed ${failed}.`, 'error')
+    else toast(`Imported ${created} report${created === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}` : ''}.`, 'success')
+  }
+
   if (loading) {
     return <SkeletonTable rows={4} cols={5} />
   }
@@ -353,6 +417,66 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType 
               + Add daily report
             </button>
           </header>
+
+          <section className="mb-4 rounded-[10px] border border-slate-200 dark:border-white/[0.06] bg-slate-50 dark:bg-gw-elevated p-3 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Import Legacy Reports</h4>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Upload an old Excel daily report workbook. Each sheet is imported as one daily report.</p>
+              </div>
+              <label className="inline-flex items-center rounded-md bg-white dark:bg-gw-surface text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/10 px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-slate-100 dark:hover:bg-gw-elevated transition-colors">
+                {importParsing ? 'Parsing…' : 'Upload .xlsx'}
+                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleLegacyFileSelected} disabled={importParsing || importing} />
+              </label>
+            </div>
+
+            {legacyFileName && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">File: {legacyFileName}</p>
+            )}
+
+            {parsedLegacyReports.length > 0 && (
+              <>
+                <div className="overflow-auto rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface">
+                  <table className="min-w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-white/[0.06]">
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Sheet</th>
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Date</th>
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Session / Time</th>
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Trainers</th>
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Timeline Rows</th>
+                        <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Warnings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedLegacyReports.map(parsed => (
+                        <tr key={parsed.sheetName} className="border-b border-slate-100 dark:border-white/[0.03]">
+                          <td className="px-2 py-1 text-slate-700 dark:text-slate-200">{parsed.sheetName}</td>
+                          <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.report_date}</td>
+                          <td className="px-2 py-1 text-slate-600 dark:text-slate-300">
+                            {(parsed.body.session_label ?? '—')} · {(parsed.body.class_start_time ?? '—')}–{(parsed.body.class_end_time ?? '—')}
+                          </td>
+                          <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.trainer_ids.length}</td>
+                          <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.timeline.length}</td>
+                          <td className="px-2 py-1 text-amber-500">{parsed.warnings.join(' ') || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleImportParsedReports}
+                    disabled={importing || importParsing}
+                    className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 disabled:opacity-60"
+                  >
+                    {importing ? 'Importing…' : `Import ${parsedLegacyReports.length} report${parsedLegacyReports.length === 1 ? '' : 's'}`}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
 
           {reportFormOpen && (
             <ReportEditForm
