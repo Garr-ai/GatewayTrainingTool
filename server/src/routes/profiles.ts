@@ -24,8 +24,64 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import { randomUUID } from 'node:crypto'
 
 export const profilesRouter = Router()
+
+const LEGACY_EMAIL_DOMAIN = 'gatewaytraining.local'
+
+function normalizeName(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+function splitName(fullName: string): { first: string; last: string } | null {
+  const normalized = normalizeName(fullName)
+  const parts = normalized.split(' ').filter(Boolean)
+  if (parts.length < 2) return null
+  return { first: parts[0], last: parts.slice(1).join(' ') }
+}
+
+async function claimLegacyStudentEnrollments(studentName: string, email: string): Promise<void> {
+  const normalized = normalizeName(studentName)
+  if (!normalized || !email) return
+
+  const { data: legacyEnrollments, error } = await supabase
+    .from('class_enrollments')
+    .select('id, class_id, student_email, student_name')
+    .eq('student_name', normalized)
+    .ilike('student_email', `%@${LEGACY_EMAIL_DOMAIN}`)
+  if (error) throw error
+  if (!legacyEnrollments || legacyEnrollments.length === 0) return
+
+  for (const enrollment of legacyEnrollments) {
+    const row = enrollment as { id: string; class_id: string; student_email: string; student_name: string }
+    const { data: existing, error: existingError } = await supabase
+      .from('class_enrollments')
+      .select('id')
+      .eq('class_id', row.class_id)
+      .eq('student_email', email)
+      .maybeSingle()
+    if (existingError) throw existingError
+
+    if (existing) {
+      const { error: deleteError } = await supabase
+        .from('class_enrollments')
+        .delete()
+        .eq('id', row.id)
+      if (deleteError) throw deleteError
+      continue
+    }
+
+    const { error: updateError } = await supabase
+      .from('class_enrollments')
+      .update({
+        student_email: email,
+        student_name: normalized,
+      })
+      .eq('id', row.id)
+    if (updateError) throw updateError
+  }
+}
 
 /**
  * GET /profiles/me
@@ -161,6 +217,7 @@ profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Resp
     if (updateError) throw updateError
 
     if (selected_role === 'trainee') {
+      await claimLegacyStudentEnrollments(profileUpdates.full_name as string, req.userEmail ?? '')
       // Students proceed immediately — role is already 'trainee' by default
       res.json({ status: 'active' })
       return
@@ -193,6 +250,98 @@ profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Resp
     })
 
     res.json({ status: 'pending' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /profiles/legacy-students
+ * Auth: coordinator
+ * Creates placeholder trainee profiles for legacy imports so students can
+ * later claim records by matching name during signup.
+ */
+profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.userRole !== 'coordinator') {
+      res.status(403).json({ error: 'Coordinator access required' })
+      return
+    }
+
+    const students = ((req.body as { students?: unknown })?.students ?? []) as string[]
+    if (!Array.isArray(students) || students.length === 0) {
+      res.status(400).json({ error: 'students array is required' })
+      return
+    }
+
+    const uniqueNames = [...new Set(students.map(normalizeName).filter(Boolean))]
+    const results: Array<{ full_name: string; email: string; created: boolean }> = []
+
+    for (const fullName of uniqueNames) {
+      const split = splitName(fullName)
+      if (!split) continue
+
+      // Prefer existing real profile for this name
+      const { data: existingReal } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('first_name', split.first)
+        .eq('last_name', split.last)
+        .not('email', 'ilike', `%@${LEGACY_EMAIL_DOMAIN}`)
+        .maybeSingle()
+      if (existingReal?.email) {
+        results.push({ full_name: fullName, email: existingReal.email, created: false })
+        continue
+      }
+
+      // Reuse existing placeholder if present
+      const { data: existingLegacy } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('first_name', split.first)
+        .eq('last_name', split.last)
+        .ilike('email', `%@${LEGACY_EMAIL_DOMAIN}`)
+        .maybeSingle()
+      if (existingLegacy?.email) {
+        results.push({ full_name: fullName, email: existingLegacy.email, created: false })
+        continue
+      }
+
+      const slug = fullName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '.')
+        .replace(/^\.+|\.+$/g, '')
+      const baseEmail = `legacy+${slug}`
+      let email = `${baseEmail}@${LEGACY_EMAIL_DOMAIN}`
+      let attempt = 0
+      while (attempt < 20) {
+        const { data: emailExists } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle()
+        if (!emailExists) break
+        attempt += 1
+        email = `${baseEmail}.${attempt}@${LEGACY_EMAIL_DOMAIN}`
+      }
+
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: randomUUID(),
+          email,
+          role: 'trainee',
+          role_selected: false,
+          full_name: fullName,
+          first_name: split.first,
+          last_name: split.last,
+        })
+      if (insertError) throw insertError
+
+      results.push({ full_name: fullName, email, created: true })
+    }
+
+    res.status(201).json({ data: results })
   } catch (err) {
     next(err)
   }

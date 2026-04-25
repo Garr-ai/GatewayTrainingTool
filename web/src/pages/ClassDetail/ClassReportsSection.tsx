@@ -30,7 +30,7 @@
  *   if the logged hours don't perfectly reflect reality (e.g. off-system hours).
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { parseLegacyWorkbook, type ParsedLegacyReport, type ParsedPayrollRow } from '../../lib/legacyReportImport'
@@ -45,6 +45,7 @@ import type {
   ClassDailyReport,
   ClassLoggedHours,
   LoggedHoursPersonType,
+  ClassEnrollment,
 } from '../../types'
 
 interface ClassReportsSectionProps {
@@ -68,7 +69,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   // Data comes from the shared ClassDetailContext cache
   const {
     trainers, enrollments: allEnrollments, reports, hours, drills,
-    loading, refreshReports, refreshHours, setReports, setHours,
+    loading, refreshReports, refreshHours, refreshEnrollments, setReports, setHours,
   } = useClassDetail()
   // Only enrolled students appear in daily progress (waitlisted/dropped are excluded)
   const enrollments = useMemo(
@@ -103,6 +104,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   const [parsedPayrollRows, setParsedPayrollRows] = useState<ParsedPayrollRow[]>([])
   const [excludedLegacySheets, setExcludedLegacySheets] = useState<string[]>([])
   const [payrollParseWarnings, setPayrollParseWarnings] = useState<string[]>([])
+  const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set())
 
 
   /** Resets the form and opens it in "add new report" mode. */
@@ -180,6 +182,11 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         setConfirmState(null)
         setReportFormOpen(false)
         setEditingReportFull(null)
+        setSelectedReportIds(prev => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
         const prev = reports
         setReports(r => r.filter(rep => rep.id !== id))
         toast('Report deleted successfully.', 'success')
@@ -188,6 +195,58 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         } catch (err) {
           toast((err as Error).message, 'error')
           setReports(prev)
+        }
+      },
+    })
+  }
+
+  function toggleSelectReport(id: string) {
+    setSelectedReportIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAllReports() {
+    if (selectedReportIds.size === reports.length) {
+      setSelectedReportIds(new Set())
+      return
+    }
+    setSelectedReportIds(new Set(reports.map(r => r.id)))
+  }
+
+  function handleBulkDeleteReports() {
+    if (selectedReportIds.size === 0) return
+    const ids = [...selectedReportIds]
+    setConfirmState({
+      title: 'Bulk delete reports',
+      message: `Permanently delete ${ids.length} report${ids.length !== 1 ? 's' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        setSelectedReportIds(new Set())
+        const prev = reports
+        const idSet = new Set(ids)
+        setReports(r => r.filter(rep => !idSet.has(rep.id)))
+
+        let failed = 0
+        for (const id of ids) {
+          try {
+            await api.reports.delete(classId, id)
+          } catch {
+            failed += 1
+          }
+        }
+
+        if (failed > 0) {
+          setReports(prev)
+          await refreshReports()
+          toast(`Deleted ${ids.length - failed}, failed ${failed}.`, 'error')
+        } else {
+          toast(`${ids.length} report${ids.length !== 1 ? 's' : ''} deleted.`, 'success')
         }
       },
     })
@@ -334,6 +393,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   // Sum of all logged hours for the class, shown in the hours tab header
   const totalHours = hours.reduce((sum, h) => sum + h.hours, 0)
 
+  useEffect(() => {
+    setSelectedReportIds(prev => {
+      const reportIds = new Set(reports.map(r => r.id))
+      const next = new Set([...prev].filter(id => reportIds.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [reports])
+
   async function handleLegacyFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -381,6 +448,49 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     let payrollImported = 0
     let payrollSkipped = 0
     let payrollFailed = 0
+    let studentProfilesCreated = 0
+    let studentEnrollmentsCreated = 0
+    let studentEnrollmentsSkipped = 0
+    let studentEnrollmentsFailed = 0
+
+    const parsedStudentNames = [...new Set(
+      parsedLegacyReports.flatMap(r => r.studentNames).map(s => s.trim()).filter(Boolean),
+    )]
+    if (parsedStudentNames.length > 0) {
+      try {
+        const profileResult = await api.profiles.createLegacyStudents({ students: parsedStudentNames })
+        studentProfilesCreated = profileResult.data.filter(s => s.created).length
+
+        const enrollmentKey = (studentName: string, studentEmail: string) => `${studentName.toLowerCase()}|${studentEmail.toLowerCase()}`
+        const existingEnrollmentKeys = new Set(
+          allEnrollments.map(e => enrollmentKey(e.student_name, e.student_email)),
+        )
+        for (const student of profileResult.data) {
+          const key = enrollmentKey(student.full_name, student.email)
+          if (existingEnrollmentKeys.has(key)) {
+            studentEnrollmentsSkipped += 1
+            continue
+          }
+          try {
+            await api.enrollments.create(classId, {
+              student_name: student.full_name,
+              student_email: student.email,
+              status: 'enrolled',
+              group_label: undefined,
+            })
+            existingEnrollmentKeys.add(key)
+            studentEnrollmentsCreated += 1
+          } catch {
+            studentEnrollmentsFailed += 1
+          }
+        }
+      } catch {
+        studentEnrollmentsFailed += parsedStudentNames.length
+      }
+    }
+
+    const enrollmentsAfterImport = await api.enrollments.list(classId)
+    const enrollmentByName = buildEnrollmentNameMap(enrollmentsAfterImport)
 
     for (const parsed of parsedLegacyReports) {
       const key = `${parsed.body.report_date}|${parsed.body.group_label ?? ''}|${parsed.body.session_label ?? ''}`
@@ -389,7 +499,31 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         continue
       }
       try {
-        await api.reports.create(classId, parsed.body)
+        const progress = parsed.progressEntries
+          .map(entry => {
+            const enrollment = enrollmentByName.get(normalizeName(entry.studentName))
+            if (!enrollment) return null
+            return {
+              enrollment_id: enrollment.id,
+              progress_text: entry.progressText || null,
+              gk_rating: null,
+              dex_rating: null,
+              hom_rating: null,
+              coming_back_next_day: true,
+              homework_completed: false,
+              attendance: true,
+              late: false,
+            }
+          })
+          .filter(Boolean) as ReportBody['progress']
+
+        const body: ReportBody = {
+          ...parsed.body,
+          current_trainees: parsed.body.current_trainees ?? (parsed.studentNames.length > 0 ? parsed.studentNames.length : null),
+          progress,
+        }
+
+        await api.reports.create(classId, body)
         existingKeys.add(key)
         created += 1
       } catch {
@@ -417,12 +551,19 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
 
     await refreshReports()
     await refreshHours()
+    await refreshEnrollments()
     setImporting(false)
 
-    if (failed > 0 || payrollFailed > 0) {
-      toast(`Reports: imported ${created}, skipped ${skipped}, failed ${failed}. Payroll: imported ${payrollImported}, skipped ${payrollSkipped}, failed ${payrollFailed}.`, 'error')
+    if (failed > 0 || payrollFailed > 0 || studentEnrollmentsFailed > 0) {
+      toast(
+        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}, skipped ${studentEnrollmentsSkipped}, failed ${studentEnrollmentsFailed}. Reports: imported ${created}, skipped ${skipped}, failed ${failed}. Payroll: imported ${payrollImported}, skipped ${payrollSkipped}, failed ${payrollFailed}.`,
+        'error',
+      )
     } else {
-      toast(`Reports imported ${created}${skipped ? ` (skipped ${skipped})` : ''}. Payroll rows imported ${payrollImported}${payrollSkipped ? ` (skipped ${payrollSkipped})` : ''}.`, 'success')
+      toast(
+        `Students: profiles created ${studentProfilesCreated}, enrollments imported ${studentEnrollmentsCreated}${studentEnrollmentsSkipped ? ` (skipped ${studentEnrollmentsSkipped})` : ''}. Reports imported ${created}${skipped ? ` (skipped ${skipped})` : ''}. Payroll rows imported ${payrollImported}${payrollSkipped ? ` (skipped ${payrollSkipped})` : ''}.`,
+        'success',
+      )
     }
   }
 
@@ -494,6 +635,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Date</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Session / Time</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Trainers</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Students</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Timeline Rows</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Warnings</th>
                         </tr>
@@ -507,6 +649,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                               {(parsed.body.session_label ?? '—')} · {(parsed.body.class_start_time ?? '—')}–{(parsed.body.class_end_time ?? '—')}
                             </td>
                             <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.trainer_ids.length}</td>
+                            <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.studentNames.length}</td>
                             <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.timeline.length}</td>
                             <td className="px-2 py-1 text-amber-500">{parsed.warnings.join(' ') || '—'}</td>
                           </tr>
@@ -563,6 +706,15 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
               {reports.map(r => (
                 <div key={r.id} className="bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
+                    <label className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={selectedReportIds.has(r.id)}
+                        onChange={() => toggleSelectReport(r.id)}
+                        className="rounded border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]"
+                      />
+                      Select
+                    </label>
                     <div className="text-xs">
                       <p className="font-medium text-slate-700 dark:text-slate-200">{r.report_date}</p>
                       <p className="text-slate-500 mt-0.5">{r.group_label ?? '—'} &middot; {r.session_label ?? '—'} &middot; {r.game ?? '—'}</p>
@@ -581,6 +733,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-white/[0.02] border-b border-slate-200 dark:border-white/[0.06]">
+                    <th className="w-10 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={reports.length > 0 && selectedReportIds.size === reports.length}
+                        onChange={toggleSelectAllReports}
+                        className="rounded border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]"
+                      />
+                    </th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Group</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Session</th>
@@ -591,6 +751,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                 <tbody>
                   {reports.map(r => (
                     <tr key={r.id} className="border-b border-white/[0.03] hover:bg-white dark:bg-gw-surface transition-colors duration-100">
+                      <td className="w-10 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedReportIds.has(r.id)}
+                          onChange={() => toggleSelectReport(r.id)}
+                          className="rounded border-white/20 bg-slate-100 dark:bg-gw-elevated text-gw-blue focus:ring-gw-blue/30 [color-scheme:dark]"
+                        />
+                      </td>
                       <td className="px-3 py-2 text-slate-700 dark:text-slate-200">{r.report_date}</td>
                       <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{r.group_label ?? '—'}</td>
                       <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{r.session_label ?? '—'}</td>
@@ -607,6 +775,27 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                 </tbody>
               </table>
             </div>
+            {selectedReportIds.size > 0 && (
+              <div className="sticky bottom-0 mt-2 flex items-center justify-between gap-3 bg-gw-dark border border-slate-200 dark:border-white/[0.08] rounded-[10px] px-3 py-2">
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{selectedReportIds.size} selected</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReportIds(new Set())}
+                    className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteReports}
+                    className="rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/25 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/20 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
             </>
           )}
         </div>
@@ -757,3 +946,12 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     </>
   )
 }
+  const normalizeName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase()
+  const buildEnrollmentNameMap = (rows: ClassEnrollment[]) => {
+    const map = new Map<string, ClassEnrollment>()
+    for (const enr of rows) {
+      const key = normalizeName(enr.student_name)
+      if (key && !map.has(key)) map.set(key, enr)
+    }
+    return map
+  }

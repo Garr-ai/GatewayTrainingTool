@@ -576,6 +576,9 @@ export const api = {
     /** Select a role during post-signup flow (also collects profile data). */
     selectRole: (body: { selected_role: 'trainee' | 'trainer' | 'coordinator'; first_name: string; last_name: string; phone?: string }) =>
       req<{ status: 'active' | 'pending' }>('/profiles/me/role-selection', { method: 'PUT', body: JSON.stringify(body) }),
+    /** Create placeholder trainee profiles for legacy-imported student names. Coordinator only. */
+    createLegacyStudents: (body: { students: string[] }) =>
+      req<{ data: Array<{ full_name: string; email: string; created: boolean }> }>('/profiles/legacy-students', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   selfService: {

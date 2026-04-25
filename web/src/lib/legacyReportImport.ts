@@ -6,6 +6,8 @@ export interface ParsedLegacyReport {
   sheetName: string
   body: ReportBody
   warnings: string[]
+  studentNames: string[]
+  progressEntries: Array<{ studentName: string; progressText: string }>
 }
 
 export interface ParsedPayrollRow {
@@ -172,6 +174,96 @@ function inferTimelineCategory(activity: string, notes: string): string | null {
   return 'Training block'
 }
 
+function isLikelyPersonName(text: string): boolean {
+  if (!text) return false
+  const normalized = normalizeText(text)
+  if (normalized.length < 5 || normalized.length > 80) return false
+  if (/\d/.test(normalized)) return false
+  const lower = normalized.toLowerCase()
+  if (/(trainee|student|trainer|date|time|activity|group|session|report|progress|rating|homework|legend|checklist)/.test(lower)) return false
+  const parts = normalized.split(' ').filter(Boolean)
+  if (parts.length < 2 || parts.length > 4) return false
+  return parts.every(p => /^[A-Za-z][A-Za-z'-.]*$/.test(p))
+}
+
+function parseStudentNames(rows: string[][]): string[] {
+  let headerIdx = -1
+  let nameCol = -1
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const cells = rows[i].map(c => c.toLowerCase())
+    const candidateIdx = cells.findIndex(c => c.includes('trainee') || c.includes('student') || c === 'name' || c.includes('trainee name') || c.includes('student name'))
+    if (candidateIdx >= 0) {
+      headerIdx = i
+      nameCol = candidateIdx
+      break
+    }
+  }
+
+  const names: string[] = []
+  if (headerIdx >= 0) {
+    let emptyStreak = 0
+    for (let i = headerIdx + 1; i < rows.length; i += 1) {
+      const raw = normalizeText(rows[i][nameCol] ?? '')
+      if (!raw) {
+        emptyStreak += 1
+        if (emptyStreak >= 3 && names.length > 0) break
+        continue
+      }
+      emptyStreak = 0
+      if (isLikelyPersonName(raw)) names.push(raw)
+    }
+  }
+
+  if (names.length === 0) {
+    // Fallback: scan first column-ish cells for isolated names in structured rows.
+    for (const row of rows) {
+      for (const cell of row.slice(0, 2)) {
+        const value = normalizeText(cell)
+        if (isLikelyPersonName(value)) names.push(value)
+      }
+    }
+  }
+
+  return [...new Set(names)]
+}
+
+function parseProgressEntries(rows: string[][]): Array<{ studentName: string; progressText: string }> {
+  let headerIdx = -1
+  let nameCol = -1
+  let progressCol = -1
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const cells = rows[i].map(c => c.toLowerCase())
+    const n = cells.findIndex(c => c.includes('trainee') || c.includes('student') || c === 'name' || c.includes('trainee name') || c.includes('student name'))
+    const p = cells.findIndex(c => c.includes('progress') || c.includes('comment') || c.includes('notes'))
+    if (n >= 0 && p >= 0) {
+      headerIdx = i
+      nameCol = n
+      progressCol = p
+      break
+    }
+  }
+  if (headerIdx < 0) return []
+
+  const entries: Array<{ studentName: string; progressText: string }> = []
+  let emptyStreak = 0
+  for (let i = headerIdx + 1; i < rows.length; i += 1) {
+    const row = rows[i]
+    const studentName = normalizeText(row[nameCol] ?? '')
+    const progressText = normalizeText(row[progressCol] ?? '')
+    if (!studentName && !progressText) {
+      emptyStreak += 1
+      if (emptyStreak >= 3 && entries.length > 0) break
+      continue
+    }
+    emptyStreak = 0
+    if (!isLikelyPersonName(studentName)) continue
+    entries.push({ studentName, progressText })
+  }
+  return entries
+}
+
 function parseTimeline(rows: string[][]): ReportBody['timeline'] {
   let headerIdx = -1
   let timeCol = -1
@@ -194,9 +286,10 @@ function parseTimeline(rows: string[][]): ReportBody['timeline'] {
   }
 
   const result: ReportBody['timeline'] = []
+  if (headerIdx < 0) return result
   let emptyStreak = 0
 
-  const startRow = headerIdx >= 0 ? headerIdx + 1 : 0
+  const startRow = headerIdx + 1
   for (let i = startRow; i < rows.length; i += 1) {
     const row = rows[i]
     const timeRaw = timeCol >= 0 ? row[timeCol] : row[0] ?? ''
@@ -215,6 +308,9 @@ function parseTimeline(rows: string[][]): ReportBody['timeline'] {
       continue
     }
     emptyStreak = 0
+
+    // Prevent trainee-comment rows from leaking into timeline
+    if (!time) continue
 
     result.push({
       start_time: time?.start ?? null,
@@ -399,9 +495,16 @@ export async function parseLegacyWorkbook({
     const timeline = parseTimeline(rows)
     if (timeline.length === 0) warnings.push('No timeline rows parsed.')
 
+    const studentNames = parseStudentNames(rows)
+    if (studentNames.length === 0) warnings.push('No student names parsed from this sheet.')
+    const progressEntries = parseProgressEntries(rows)
+    if (progressEntries.length === 0) warnings.push('No trainee progress comments parsed from this sheet.')
+
     reports.push({
       sheetName,
       warnings,
+      studentNames,
+      progressEntries,
       body: {
         report_date: reportDate,
         group_label: groupLabel ?? null,
