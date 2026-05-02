@@ -48,6 +48,32 @@ const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-s
 const inlineFieldClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
 const RATINGS: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
 
+function buildProgressRows(
+  enrollments: ClassEnrollment[],
+  existingRows: ClassDailyReportTraineeProgress[],
+  reportId: string,
+): ClassDailyReportTraineeProgress[] {
+  const existingByEnrollment = new Map(existingRows.map(row => [row.enrollment_id, row]))
+  return enrollments.map(enrollment => {
+    const existing = existingByEnrollment.get(enrollment.id)
+    if (existing) return existing
+    return {
+      id: crypto.randomUUID(),
+      report_id: reportId,
+      enrollment_id: enrollment.id,
+      progress_text: '',
+      gk_rating: null,
+      dex_rating: null,
+      hom_rating: null,
+      coming_back_next_day: true,
+      homework_completed: false,
+      attendance: true,
+      late: false,
+      created_at: new Date().toISOString(),
+    }
+  })
+}
+
 export function ReportEditForm({
   report, trainers, enrollments, drills, hours, defaultGame = '',
   onSave, onCancel, canDelete, onDelete, canEditCoordinatorNotes,
@@ -94,7 +120,7 @@ export function ReportEditForm({
       setOverrideLiveHours(report.override_live_hours_total != null ? String(report.override_live_hours_total) : '')
       setSelectedTrainerIds(report.trainer_ids)
       setTimelineItems(report.timeline)
-      setProgressRows(report.progress)
+      setProgressRows(buildProgressRows(enrollments, report.progress, report.id))
       setDrillTimeRows(report.drill_times)
       setCoordinatorNotes(report?.coordinator_notes ?? '')
     } else {
@@ -113,12 +139,16 @@ export function ReportEditForm({
       setOverrideLiveHours('')
       setSelectedTrainerIds([])
       setTimelineItems([])
-      setProgressRows([])
+      setProgressRows(buildProgressRows(enrollments, [], 'new'))
       setDrillTimeRows([])
       setCoordinatorNotes('')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report])
+
+  useEffect(() => {
+    setProgressRows(prev => buildProgressRows(enrollments, prev, report?.id ?? 'new'))
+  }, [enrollments, report?.id])
 
   /** Sums hours in the `hours` prop up to and including `date`. */
   function computedTotalsForDate(date: string) {
@@ -364,13 +394,13 @@ export function ReportEditForm({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold text-slate-400 hidden md:block">Per-trainee progress</p>
-            <button type="button" onClick={() => { setProgressRows(enrollments.map(enr => ({ id: crypto.randomUUID(), report_id: report?.id ?? 'new', enrollment_id: enr.id, progress_text: progressRows.find(p => p.enrollment_id === enr.id)?.progress_text ?? '', gk_rating: progressRows.find(p => p.enrollment_id === enr.id)?.gk_rating ?? null, dex_rating: progressRows.find(p => p.enrollment_id === enr.id)?.dex_rating ?? null, hom_rating: progressRows.find(p => p.enrollment_id === enr.id)?.hom_rating ?? null, coming_back_next_day: progressRows.find(p => p.enrollment_id === enr.id)?.coming_back_next_day ?? true, homework_completed: progressRows.find(p => p.enrollment_id === enr.id)?.homework_completed ?? false, attendance: progressRows.find(p => p.enrollment_id === enr.id)?.attendance ?? true, late: progressRows.find(p => p.enrollment_id === enr.id)?.late ?? false, created_at: new Date().toISOString() }))) }} className="rounded-md bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-              Load current trainees
+            <button type="button" onClick={() => setProgressRows(prev => buildProgressRows(enrollments, prev, report?.id ?? 'new'))} className="rounded-md bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/10 px-2 py-1 text-[11px] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+              Refresh trainee list
             </button>
           </div>
 
           {progressRows.length === 0 ? (
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">No progress rows yet. Click &quot;Load current trainees&quot; to start.</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">No enrolled trainees in this class yet.</p>
           ) : (
             <div className="overflow-auto bg-white dark:bg-gw-surface rounded-[10px] border border-slate-200 dark:border-white/[0.06]">
               <table className="min-w-full text-[11px]">
