@@ -93,21 +93,7 @@ export function useScheduleQuery() {
 
   useEffect(() => {
     fetchSlots(filters, sort, page, debouncedSearch)
-  }, [
-    filters.province,
-    filters.site,
-    filters.class_id,
-    filters.archived,
-    filters.game_type,
-    filters.date_from,
-    filters.date_to,
-    filters.group_label,
-    debouncedSearch,
-    sort.column,
-    sort.direction,
-    page,
-    fetchSlots,
-  ])
+  }, [filters, sort, page, debouncedSearch, fetchSlots])
 
   const updateFilter = useCallback(<K extends keyof ScheduleFilters>(key: K, value: ScheduleFilters[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }))

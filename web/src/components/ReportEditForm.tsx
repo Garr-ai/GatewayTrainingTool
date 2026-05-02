@@ -37,6 +37,8 @@ interface ReportEditFormProps {
   drills: ClassDrill[]
   hours: ClassLoggedHours[]               // for computing auto-totals
   defaultGame?: string                    // pre-fill game field when creating new
+  initialValues?: Partial<ReportBody>     // pre-fill create mode from schedule/import-derived drafts
+  autosaveKey?: string                    // localStorage key for unsaved report edits
   onSave: (body: ReportBody) => Promise<void>
   onCancel: () => void
   canDelete: boolean
@@ -47,6 +49,11 @@ interface ReportEditFormProps {
 const fieldClass = 'mt-1 w-full bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40 focus:ring-2 focus:ring-gw-blue/15'
 const inlineFieldClass = 'bg-slate-100 dark:bg-gw-elevated border border-slate-200 dark:border-white/10 rounded-md px-1 py-0.5 text-[11px] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-gw-blue/40'
 const RATINGS: DailyRating[] = ['EE', 'ME', 'AD', 'NI']
+
+interface ReportAutosaveSnapshot {
+  savedAt: string
+  body: ReportBody
+}
 
 function buildProgressRows(
   enrollments: ClassEnrollment[],
@@ -74,8 +81,72 @@ function buildProgressRows(
   })
 }
 
+function buildTimelineRows(
+  rows: ReportBody['timeline'] | undefined,
+  reportId: string,
+): ClassDailyReportTimelineItem[] {
+  return (rows ?? []).map((row, index) => ({
+    id: crypto.randomUUID(),
+    report_id: reportId,
+    start_time: row.start_time ?? '',
+    end_time: row.end_time ?? '',
+    activity: row.activity ?? '',
+    homework_handouts_tests: row.homework_handouts_tests ?? '',
+    category: row.category ?? '',
+    position: index,
+    created_at: new Date().toISOString(),
+  }))
+}
+
+function buildProgressRowsFromBody(
+  rows: ReportBody['progress'] | undefined,
+  reportId: string,
+): ClassDailyReportTraineeProgress[] {
+  return (rows ?? []).map(row => ({
+    id: crypto.randomUUID(),
+    report_id: reportId,
+    enrollment_id: row.enrollment_id,
+    progress_text: row.progress_text ?? '',
+    gk_rating: row.gk_rating ?? null,
+    dex_rating: row.dex_rating ?? null,
+    hom_rating: row.hom_rating ?? null,
+    coming_back_next_day: row.coming_back_next_day ?? true,
+    homework_completed: row.homework_completed ?? false,
+    attendance: row.attendance ?? true,
+    late: row.late ?? false,
+    created_at: new Date().toISOString(),
+  }))
+}
+
+function buildDrillRowsFromBody(
+  rows: ReportBody['drill_times'] | undefined,
+  reportId: string,
+): ClassDailyReportDrillTime[] {
+  return (rows ?? []).map(row => ({
+    id: crypto.randomUUID(),
+    report_id: reportId,
+    enrollment_id: row.enrollment_id,
+    drill_id: row.drill_id,
+    time_seconds: row.time_seconds ?? null,
+    score: row.score ?? null,
+    created_at: new Date().toISOString(),
+  }))
+}
+
+function formatAutosaveTime(savedAt: string): string {
+  const date = new Date(savedAt)
+  if (Number.isNaN(date.getTime())) return 'unknown time'
+  return date.toLocaleString('en-CA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 export function ReportEditForm({
-  report, trainers, enrollments, drills, hours, defaultGame = '',
+  report, trainers, enrollments, drills, hours, defaultGame = '', initialValues, autosaveKey,
   onSave, onCancel, canDelete, onDelete, canEditCoordinatorNotes,
 }: ReportEditFormProps) {
   // Header fields — stored as strings; converted to numbers on save
@@ -100,10 +171,35 @@ export function ReportEditForm({
   const [drillTimeRows, setDrillTimeRows] = useState<ClassDailyReportDrillTime[]>([])
   const [coordinatorNotes, setCoordinatorNotes] = useState(report?.coordinator_notes ?? '')
   const [saving, setSaving] = useState(false)
+  const [autosaveDraft, setAutosaveDraft] = useState<ReportAutosaveSnapshot | null>(null)
+  const [autosaveReady, setAutosaveReady] = useState(false)
   const dragIndexRef = useRef<number | null>(null)
+
+  function applyBodyToForm(body: Partial<ReportBody>) {
+    const reportId = report?.id ?? 'new'
+    setReportDate(body.report_date ?? new Date().toISOString().slice(0, 10))
+    setReportGroup(body.group_label ?? '')
+    setReportGame(body.game ?? defaultGame)
+    setReportSessionLabel(body.session_label ?? '')
+    setReportStartTime(body.class_start_time ?? '')
+    setReportEndTime(body.class_end_time ?? '')
+    setMgConfirmed(body.mg_confirmed != null ? String(body.mg_confirmed) : '')
+    setMgAttended(body.mg_attended != null ? String(body.mg_attended) : '')
+    setCurrentTrainees(body.current_trainees != null ? String(body.current_trainees) : String(enrollments.length))
+    setLicensesReceived(body.licenses_received != null ? String(body.licenses_received) : '')
+    setOverrideHoursToDate(body.override_hours_to_date != null ? String(body.override_hours_to_date) : '')
+    setOverridePaidHours(body.override_paid_hours_total != null ? String(body.override_paid_hours_total) : '')
+    setOverrideLiveHours(body.override_live_hours_total != null ? String(body.override_live_hours_total) : '')
+    setSelectedTrainerIds(body.trainer_ids ?? [])
+    setTimelineItems(buildTimelineRows(body.timeline, reportId))
+    setProgressRows(buildProgressRows(enrollments, buildProgressRowsFromBody(body.progress, reportId), reportId))
+    setDrillTimeRows(buildDrillRowsFromBody(body.drill_times, reportId))
+    setCoordinatorNotes(body.coordinator_notes ?? '')
+  }
 
   // Initialize form from `report` prop (or blank defaults when creating new)
   useEffect(() => {
+    setAutosaveReady(false)
     if (report) {
       setReportDate(report.report_date)
       setReportGroup(report.group_label ?? '')
@@ -124,27 +220,40 @@ export function ReportEditForm({
       setDrillTimeRows(report.drill_times)
       setCoordinatorNotes(report?.coordinator_notes ?? '')
     } else {
-      setReportDate(new Date().toISOString().slice(0, 10))
-      setReportGroup('')
-      setReportGame(defaultGame)
-      setReportSessionLabel('')
-      setReportStartTime('')
-      setReportEndTime('')
-      setMgConfirmed('')
-      setMgAttended('')
-      setCurrentTrainees(String(enrollments.length))
-      setLicensesReceived('')
-      setOverrideHoursToDate('')
-      setOverridePaidHours('')
-      setOverrideLiveHours('')
-      setSelectedTrainerIds([])
-      setTimelineItems([])
+      const draft = initialValues ?? {}
+      setReportDate(draft.report_date ?? new Date().toISOString().slice(0, 10))
+      setReportGroup(draft.group_label ?? '')
+      setReportGame(draft.game ?? defaultGame)
+      setReportSessionLabel(draft.session_label ?? '')
+      setReportStartTime(draft.class_start_time ?? '')
+      setReportEndTime(draft.class_end_time ?? '')
+      setMgConfirmed(draft.mg_confirmed != null ? String(draft.mg_confirmed) : '')
+      setMgAttended(draft.mg_attended != null ? String(draft.mg_attended) : '')
+      setCurrentTrainees(draft.current_trainees != null ? String(draft.current_trainees) : String(enrollments.length))
+      setLicensesReceived(draft.licenses_received != null ? String(draft.licenses_received) : '')
+      setOverrideHoursToDate(draft.override_hours_to_date != null ? String(draft.override_hours_to_date) : '')
+      setOverridePaidHours(draft.override_paid_hours_total != null ? String(draft.override_paid_hours_total) : '')
+      setOverrideLiveHours(draft.override_live_hours_total != null ? String(draft.override_live_hours_total) : '')
+      setSelectedTrainerIds(draft.trainer_ids ?? [])
+      setTimelineItems(buildTimelineRows(draft.timeline, 'new'))
       setProgressRows(buildProgressRows(enrollments, [], 'new'))
       setDrillTimeRows([])
-      setCoordinatorNotes('')
+      setCoordinatorNotes(draft.coordinator_notes ?? '')
     }
+
+    let storedDraft: ReportAutosaveSnapshot | null = null
+    if (autosaveKey) {
+      try {
+        const stored = window.localStorage.getItem(autosaveKey)
+        if (stored) storedDraft = JSON.parse(stored) as ReportAutosaveSnapshot
+      } catch {
+        storedDraft = null
+      }
+    }
+    setAutosaveDraft(storedDraft)
+    setAutosaveReady(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [report])
+  }, [report, initialValues, autosaveKey])
 
   useEffect(() => {
     setProgressRows(prev => buildProgressRows(enrollments, prev, report?.id ?? 'new'))
@@ -210,12 +319,59 @@ export function ReportEditForm({
     }
   }
 
+  function restoreAutosaveDraft() {
+    if (!autosaveDraft) return
+    applyBodyToForm(autosaveDraft.body)
+    setAutosaveDraft(null)
+  }
+
+  function discardAutosaveDraft() {
+    if (autosaveKey) window.localStorage.removeItem(autosaveKey)
+    setAutosaveDraft(null)
+  }
+
+  useEffect(() => {
+    if (!autosaveKey || !autosaveReady || autosaveDraft) return
+    const timer = window.setTimeout(() => {
+      const snapshot: ReportAutosaveSnapshot = {
+        savedAt: new Date().toISOString(),
+        body: buildBody(),
+      }
+      window.localStorage.setItem(autosaveKey, JSON.stringify(snapshot))
+    }, 700)
+    return () => window.clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    autosaveKey,
+    autosaveReady,
+    autosaveDraft,
+    reportDate,
+    reportGroup,
+    reportGame,
+    reportSessionLabel,
+    reportStartTime,
+    reportEndTime,
+    mgConfirmed,
+    mgAttended,
+    currentTrainees,
+    licensesReceived,
+    overrideHoursToDate,
+    overridePaidHours,
+    overrideLiveHours,
+    selectedTrainerIds,
+    timelineItems,
+    progressRows,
+    drillTimeRows,
+    coordinatorNotes,
+  ])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!reportDate) return
     setSaving(true)
     try {
       await onSave(buildBody())
+      if (autosaveKey) window.localStorage.removeItem(autosaveKey)
     } finally {
       setSaving(false)
     }
@@ -223,6 +379,26 @@ export function ReportEditForm({
 
   return (
     <div className="mb-4 bg-slate-100 dark:bg-gw-elevated rounded-[10px] border border-slate-200 dark:border-white/[0.06] p-3 space-y-4 text-xs">
+      {autosaveDraft && (
+        <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p>
+              Unsaved draft from {formatAutosaveTime(autosaveDraft.savedAt)}
+              {autosaveDraft.body.report_date ? ` · ${autosaveDraft.body.report_date}` : ''}
+              {autosaveDraft.body.group_label ? ` · Group ${autosaveDraft.body.group_label}` : ''}
+              {autosaveDraft.body.session_label ? ` · ${autosaveDraft.body.session_label}` : ''}
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={restoreAutosaveDraft} className="rounded-md bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-[11px] font-semibold hover:bg-amber-500/20 transition-colors">
+                Restore draft
+              </button>
+              <button type="button" onClick={discardAutosaveDraft} className="rounded-md bg-white dark:bg-gw-surface border border-slate-200 dark:border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Date

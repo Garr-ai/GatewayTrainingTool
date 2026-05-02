@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/apiClient'
 import type { Class } from '../types'
@@ -60,14 +60,14 @@ export function ClassesPage() {
     }
   }
 
-  function sortClasses(classes: Class[]): Class[] {
+  const sortClasses = useCallback((classes: Class[]): Class[] => {
     return [...classes].sort((a, b) => {
       const aVal = (a as unknown as Record<string, unknown>)[sortCol] as string | null ?? ''
       const bVal = (b as unknown as Record<string, unknown>)[sortCol] as string | null ?? ''
       const cmp = String(aVal).localeCompare(String(bVal))
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }
+  }, [sortCol, sortDir])
 
   const navigate = useNavigate()
 
@@ -88,7 +88,7 @@ export function ClassesPage() {
     setProvince(''); setSite(''); setGameType(''); setSearch('')
   }
 
-  function applyFilters(classes: Class[]): Class[] {
+  const applyFilters = useCallback((classes: Class[]): Class[] => {
     let result = classes
     if (province) result = result.filter(c => c.province === province)
     if (site) result = result.filter(c => c.site === site)
@@ -98,10 +98,10 @@ export function ClassesPage() {
       result = result.filter(c => c.name.toLowerCase().includes(q))
     }
     return result
-  }
+  }, [gameType, province, search, site])
 
-  const filteredActive = useMemo(() => sortClasses(applyFilters(active)), [active, province, site, gameType, search, sortCol, sortDir])
-  const filteredArchived = useMemo(() => sortClasses(applyFilters(archived)), [archived, province, site, gameType, search, sortCol, sortDir])
+  const filteredActive = useMemo(() => sortClasses(applyFilters(active)), [active, applyFilters, sortClasses])
+  const filteredArchived = useMemo(() => sortClasses(applyFilters(archived)), [archived, applyFilters, sortClasses])
 
   function handleArchive(c: Class, e: React.MouseEvent) {
     e.stopPropagation()

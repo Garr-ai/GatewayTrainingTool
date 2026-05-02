@@ -94,21 +94,7 @@ export function useReportsQuery() {
   // Fetch on mount and whenever filters/sort/page/debouncedSearch change
   useEffect(() => {
     fetchReports(filters, sort, page, debouncedSearch)
-  }, [
-    filters.province,
-    filters.site,
-    filters.class_id,
-    filters.archived,
-    filters.game_type,
-    filters.date_from,
-    filters.date_to,
-    debouncedSearch,
-    sort.column,
-    sort.direction,
-    page,
-    fetchReports,
-    refreshKey,
-  ])
+  }, [filters, sort, page, debouncedSearch, fetchReports, refreshKey])
 
   const refetch = useCallback(() => setRefreshKey(k => k + 1), [])
 

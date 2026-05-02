@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { api, type ReportBody, type ReportWithNested } from '../../lib/apiClient'
 import { useTrainerClassDetail } from '../../contexts/TrainerClassDetailContext'
 import { SkeletonTable } from '../../components/Skeleton'
@@ -26,6 +26,12 @@ export function TrainerReportsSection() {
   const archived = classInfo?.archived ?? false
   const activeEnr = enrollments.filter(e => e.status === 'enrolled')
   const className = classInfo?.name ?? ''
+  const reportAutosaveKey = useMemo(() => {
+    const date = editingReport?.report_date ?? 'new'
+    const group = editingReport?.group_label ?? 'all'
+    const session = editingReport?.session_label ?? editingReport?.id ?? mode
+    return `daily-report-draft:${classId}:${date}:${group}:${session}`
+  }, [classId, editingReport, mode])
 
   function openCreate() {
     setEditingReport(null)
@@ -197,6 +203,7 @@ export function TrainerReportsSection() {
         drills={drills}
         hours={[...trainerHours, ...studentHours]}
         defaultGame={classInfo?.game_type ?? ''}
+        autosaveKey={reportAutosaveKey}
         onSave={handleSaveFromForm}
         onCancel={() => { setMode('list'); setEditingReport(null) }}
         canDelete={false}

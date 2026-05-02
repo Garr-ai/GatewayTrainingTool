@@ -5,6 +5,7 @@ import { CoordinatorLayout } from '../components/CoordinatorLayout'
 import { TrainerLayout, TRAINER_NAV_ITEMS } from '../components/TrainerLayout'
 import { StudentLayout, STUDENT_NAV_ITEMS } from '../components/StudentLayout'
 import { BrandedLoader } from '../components/BrandedLoader'
+import { CommandPalette } from '../components/CommandPalette'
 import { RoleSelectionPage } from '../pages/RoleSelectionPage'
 import { api } from '../lib/apiClient'
 
@@ -95,6 +96,8 @@ export function ProtectedLayout() {
   // Coordinator layout: icon sidebar (desktop) + bottom nav (mobile)
   if (role === 'coordinator') {
     return (
+      <>
+      <CommandPalette />
       <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
         {/* Desktop icon sidebar — hidden on mobile */}
         <CoordinatorLayout />
@@ -179,6 +182,7 @@ export function ProtectedLayout() {
           </div>
         )}
       </div>
+      </>
     )
   }
 
@@ -190,6 +194,8 @@ export function ProtectedLayout() {
     ]
 
     return (
+      <>
+      <CommandPalette />
       <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
         <TrainerLayout />
 
@@ -283,11 +289,14 @@ export function ProtectedLayout() {
           </div>
         )}
       </div>
+      </>
     )
   }
 
   // Student (trainee) layout: icon sidebar (desktop) + bottom nav (mobile)
   return (
+    <>
+    <CommandPalette />
     <div className="min-h-screen w-screen bg-slate-50 dark:bg-gw-darkest">
       <StudentLayout />
 
@@ -335,5 +344,6 @@ export function ProtectedLayout() {
         </button>
       </nav>
     </div>
+    </>
   )
 }

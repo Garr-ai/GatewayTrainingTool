@@ -14,6 +14,14 @@ interface PaletteItem {
   icon: string
 }
 
+type ApiSearchResult =
+  | SearchResults['classes'][number]
+  | SearchResults['students'][number]
+  | SearchResults['trainers'][number]
+  | SearchResults['reports'][number]
+
+const EMPTY_SEARCH_RESULTS: SearchResults = { classes: [], students: [], trainers: [], reports: [] }
+
 const COORDINATOR_PAGES: PaletteItem[] = [
   { id: 'nav-dashboard', label: 'Dashboard', path: '/dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z' },
   { id: 'nav-classes', label: 'Classes', path: '/classes', icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14a2 2 0 012 2v12a2.5 2.5 0 01-2.5 2.5H4z' },
@@ -41,28 +49,25 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [searchResults, setSearchResults] = useState<SearchResults>({ students: [], trainers: [], reports: [] })
+  const [searchResults, setSearchResults] = useState<SearchResults>(EMPTY_SEARCH_RESULTS)
   const [searchLoading, setSearchLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { role } = useAuth()
+  const { active, archived } = useClasses()
 
   // Get classes for coordinator search
-  let classItems: PaletteItem[] = []
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { active, archived } = useClasses()
-    classItems = [...active, ...archived].map(c => ({
+  const classItems: PaletteItem[] = useMemo(() => {
+    if (role !== 'coordinator') return []
+    return [...active, ...archived].map(c => ({
       id: `class-${c.id}`,
       label: c.name,
       description: `${c.site} · ${c.province}`,
       path: `/classes/${classSlug(c.name)}`,
       icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 004 17V5a2 2 0 012-2h14a2 2 0 012 2v12a2.5 2.5 0 01-2.5 2.5H4z',
     }))
-  } catch {
-    // ClassesContext not available (student/trainer) — just skip
-  }
+  }, [active, archived, role])
 
   const pages = role === 'coordinator'
     ? COORDINATOR_PAGES
@@ -105,7 +110,7 @@ export function CommandPalette() {
     if (open) {
       setQuery('')
       setSelectedIndex(0)
-      setSearchResults({ students: [], trainers: [], reports: [] })
+      setSearchResults(EMPTY_SEARCH_RESULTS)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
@@ -113,7 +118,7 @@ export function CommandPalette() {
   // Debounced API search — fires 300ms after query changes when query >= 2 chars
   useEffect(() => {
     if (query.trim().length < 2) {
-      setSearchResults({ students: [], trainers: [], reports: [] })
+      setSearchResults(EMPTY_SEARCH_RESULTS)
       return
     }
     setSearchLoading(true)
@@ -122,7 +127,7 @@ export function CommandPalette() {
         const results = await api.search.query(query.trim())
         setSearchResults(results)
       } catch {
-        setSearchResults({ students: [], trainers: [], reports: [] })
+        setSearchResults(EMPTY_SEARCH_RESULTS)
       } finally {
         setSearchLoading(false)
       }
@@ -135,16 +140,18 @@ export function CommandPalette() {
     navigate(item.path)
   }, [navigate])
 
-  const navigateToResult = useCallback((type: 'student' | 'trainer' | 'report', item: Record<string, string>) => {
+  const navigateToResult = useCallback((item: ApiSearchResult) => {
     setOpen(false)
-    if (type === 'student') {
+    if (item.type === 'class') {
+      navigate(role === 'coordinator' ? `/classes/${classSlug(item.name)}` : `/my-classes/${item.id}`)
+    } else if (item.type === 'student') {
       const path = role === 'coordinator'
         ? `/classes/${classSlug(item.className)}`
         : `/my-classes/${item.classId}`
       navigate(path)
-    } else if (type === 'trainer') {
-      navigate('/trainers')
-    } else if (type === 'report') {
+    } else if (item.type === 'trainer') {
+      navigate(role === 'coordinator' ? '/trainers' : `/my-classes/${item.classId}`)
+    } else if (item.type === 'report') {
       const path = role === 'coordinator'
         ? `/classes/${classSlug(item.className)}`
         : `/my-classes/${item.classId}`
@@ -240,15 +247,34 @@ export function CommandPalette() {
                 <p className="px-4 py-2 text-xs text-slate-400 dark:text-slate-500">Searching…</p>
               )}
 
+              {!searchLoading && searchResults.classes.length > 0 && (
+                <div className="mt-1">
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Classes</p>
+                  {searchResults.classes.map(c => (
+                    <button key={`api-class-${c.id}`} type="button" onClick={() => navigateToResult(c)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{c.name}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
+                          {c.site} · {c.gameType ?? 'Class'} · {c.startDate.slice(0, 4)}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {!searchLoading && searchResults.students.length > 0 && (
                 <div className="mt-1">
                   <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Students</p>
                   {searchResults.students.map(s => (
-                    <button key={`student-${s.id}-${s.classId}`} type="button" onClick={() => navigateToResult('student', s)}
+                    <button key={`student-${s.id}-${s.classId}`} type="button" onClick={() => navigateToResult(s)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium">{s.name}</span>
-                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{s.className}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
+                          {s.className}{s.groupLabel ? ` · Group ${s.groupLabel}` : ''}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -259,11 +285,11 @@ export function CommandPalette() {
                 <div className="mt-1">
                   <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Trainers</p>
                   {searchResults.trainers.map(t => (
-                    <button key={`trainer-${t.id}`} type="button" onClick={() => navigateToResult('trainer', t)}
+                    <button key={`trainer-${t.id}`} type="button" onClick={() => navigateToResult(t)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium">{t.name}</span>
-                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{t.email}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{t.email}{t.className ? ` · ${t.className}` : ''}</span>
                       </div>
                     </button>
                   ))}
@@ -272,13 +298,15 @@ export function CommandPalette() {
 
               {!searchLoading && searchResults.reports.length > 0 && (
                 <div className="mt-1">
-                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Classes</p>
+                  <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Reports</p>
                   {searchResults.reports.map(r => (
-                    <button key={`report-${r.id}`} type="button" onClick={() => navigateToResult('report', r)}
+                    <button key={`report-${r.id}`} type="button" onClick={() => navigateToResult(r)}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors duration-75">
                       <div className="flex-1 min-w-0">
                         <span className="text-sm font-medium">{r.className}</span>
-                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{r.reportDate}</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
+                          {r.reportDate}{r.sessionLabel ? ` · ${r.sessionLabel}` : ''}{r.groupLabel ? ` · Group ${r.groupLabel}` : ''}
+                        </span>
                       </div>
                     </button>
                   ))}

@@ -165,6 +165,7 @@ interface ProgressRowInput {
   coming_back_next_day: boolean | null
   homework_completed: boolean
   attendance: boolean
+  late: boolean
 }
 
 /** Input shape for a single drill/test time recording when creating or updating a report. */
@@ -341,9 +342,70 @@ function payrollQs(params?: PayrollListParams): string {
 }
 
 export interface SearchResults {
-  students: Array<{ id: string; name: string; email: string; classId: string; className: string }>
-  trainers: Array<{ id: string; name: string; email: string }>
-  reports: Array<{ id: string; classId: string; className: string; reportDate: string }>
+  classes: Array<{
+    type: 'class'
+    id: string
+    name: string
+    site: string
+    province: Province
+    gameType: string | null
+    startDate: string
+    endDate: string
+    archived: boolean
+    score: number
+  }>
+  students: Array<{
+    type: 'student'
+    id: string
+    name: string
+    email: string
+    classId: string
+    className: string
+    groupLabel: string | null
+    score: number
+  }>
+  trainers: Array<{
+    type: 'trainer'
+    id: string
+    name: string
+    email: string
+    classId: string
+    className: string
+    score: number
+  }>
+  reports: Array<{
+    type: 'report'
+    id: string
+    classId: string
+    className: string
+    reportDate: string
+    groupLabel: string | null
+    game: string | null
+    sessionLabel: string | null
+    classStartTime: string | null
+    classEndTime: string | null
+    score: number
+  }>
+}
+
+export interface LegacyStudentClaimRow {
+  id: string
+  class_id: string
+  class_name: string
+  student_name: string
+  student_email: string
+  status: EnrollmentStatus
+  group_label: string | null
+  created_at: string
+  claimed: boolean
+  duplicate_count: number
+  matched_profiles: Array<{ id: string; email: string; full_name: string }>
+}
+
+export interface LegacyStudentMergeResponse {
+  updated: number
+  removed_duplicates: number
+  skipped: string[]
 }
 
 // ─── API client ─────────────────────────────────────────────────────────────
@@ -600,6 +662,12 @@ export const api = {
     /** Create placeholder trainee profiles for legacy-imported student names. Coordinator only. */
     createLegacyStudents: (body: { students: string[] }) =>
       req<{ data: Array<{ full_name: string; email: string; created: boolean }> }>('/profiles/legacy-students', { method: 'POST', body: JSON.stringify(body) }),
+    /** Review unclaimed legacy student enrollment rows. Coordinator only. */
+    legacyUnclaimedStudents: () =>
+      req<{ data: LegacyStudentClaimRow[] }>('/profiles/legacy-students/unclaimed'),
+    /** Merge selected legacy enrollments into a real trainee profile. Coordinator only. */
+    mergeLegacyStudents: (body: { enrollment_ids: string[]; target_email: string; target_name?: string }) =>
+      req<LegacyStudentMergeResponse>('/profiles/legacy-students/merge', { method: 'POST', body: JSON.stringify(body) }),
   },
 
   selfService: {

@@ -24,7 +24,7 @@ export interface ParsedPayrollRow {
 export interface LegacyWorkbookParseResult {
   reports: ParsedLegacyReport[]
   payrollRows: ParsedPayrollRow[]
-  excludedSheets: string[]
+  excludedSheets: Array<{ sheetName: string; reason: string }>
   payrollWarnings: string[]
 }
 
@@ -180,7 +180,7 @@ function isLikelyPersonName(text: string): boolean {
   if (normalized.length < 5 || normalized.length > 80) return false
   if (/\d/.test(normalized)) return false
   const lower = normalized.toLowerCase()
-  if (/(trainee|student|trainer|date|time|activity|group|session|report|progress|rating|homework|legend|checklist)/.test(lower)) return false
+  if (/(trainee|student|trainer|date|time|activity|group|session|report|progress|rating|homework|legend|checklist|game|drill|test|lecture|break|intro|review|simulation|prep)/.test(lower)) return false
   const parts = normalized.split(' ').filter(Boolean)
   if (parts.length < 2 || parts.length > 4) return false
   return parts.every(p => /^[A-Za-z][A-Za-z'-.]*$/.test(p))
@@ -382,14 +382,16 @@ function isPayrollSheet(sheetName: string, textRows: string[]): boolean {
   return textRows.slice(0, 10).some(t => t.toLowerCase().includes('payroll'))
 }
 
-function isLikelyDailyReportSheet(sheetName: string, textRows: string[]): boolean {
+function dailyReportExclusionReason(sheetName: string, textRows: string[]): string | null {
   const lowerName = sheetName.toLowerCase()
-  if (EXCLUDED_SHEET_KEYWORDS.some(k => lowerName.includes(k))) return false
-  if (isPayrollSheet(sheetName, textRows)) return false
+  const matchedKeyword = EXCLUDED_SHEET_KEYWORDS.find(k => lowerName.includes(k))
+  if (matchedKeyword) return `Skipped non-report sheet (${matchedKeyword}).`
+  if (isPayrollSheet(sheetName, textRows)) return null
   const combined = textRows.slice(0, 60).join(' ').toLowerCase()
   const hasDay = /\bday\s+(\d{1,2}|[a-z]+)\b/.test(combined) || /\bday\s+(\d{1,2}|[a-z]+)\b/.test(lowerName)
   const hasTimelineHints = (combined.includes('time') && combined.includes('activity')) || combined.includes('drill')
-  return hasDay || hasTimelineHints
+  if (hasDay || hasTimelineHints) return null
+  return 'Skipped because no day, timeline, activity, or drill markers were found.'
 }
 
 function parsePayrollRows(
@@ -478,7 +480,7 @@ export async function parseLegacyWorkbook({
   const fileGroupLabel = parseGroupLabel(file.name)
   const reports: ParsedLegacyReport[] = []
   const payrollRows: ParsedPayrollRow[] = []
-  const excludedSheets: string[] = []
+  const excludedSheets: Array<{ sheetName: string; reason: string }> = []
   const payrollWarnings: string[] = []
 
   workbook.SheetNames.forEach((sheetName, sheetIndex) => {
@@ -494,8 +496,9 @@ export async function parseLegacyWorkbook({
       return
     }
 
-    if (!isLikelyDailyReportSheet(sheetName, textRows)) {
-      excludedSheets.push(sheetName)
+    const exclusionReason = dailyReportExclusionReason(sheetName, textRows)
+    if (exclusionReason) {
+      excludedSheets.push({ sheetName, reason: exclusionReason })
       return
     }
 

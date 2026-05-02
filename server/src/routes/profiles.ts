@@ -27,6 +27,7 @@ import { logAudit } from '../lib/audit'
 import {
   profileUpdateBodySchema,
   legacyStudentsBodySchema,
+  legacyStudentMergeBodySchema,
   roleSelectionBodySchema,
   validateBody,
 } from '../lib/validation'
@@ -37,6 +38,12 @@ const LEGACY_EMAIL_DOMAIN = 'gatewaytraining.local'
 
 function normalizeName(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
+}
+
+function normalizeNameKey(value: string | null | undefined): string {
+  return normalizeName(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
 }
 
 function splitName(fullName: string): { first: string; last: string } | null {
@@ -86,6 +93,28 @@ async function claimLegacyStudentEnrollments(studentName: string, email: string)
       .eq('id', row.id)
     if (updateError) throw updateError
   }
+}
+
+function profileDisplayName(profile: {
+  full_name: string | null
+  first_name: string | null
+  last_name: string | null
+  email: string
+}): string {
+  return normalizeName(profile.full_name ?? [profile.first_name, profile.last_name].filter(Boolean).join(' ')) || profile.email
+}
+
+function profileNameKeys(profile: {
+  full_name: string | null
+  first_name: string | null
+  last_name: string | null
+}): string[] {
+  return [
+    profile.full_name,
+    [profile.first_name, profile.last_name].filter(Boolean).join(' '),
+  ]
+    .map(normalizeNameKey)
+    .filter(Boolean)
 }
 
 /**
@@ -269,6 +298,232 @@ profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Resp
     })
 
     res.json({ status: 'pending' })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /profiles/legacy-students/unclaimed
+ * Auth: coordinator
+ * Lists placeholder enrollment rows created by legacy imports. These rows are
+ * not real accounts yet, so coordinators can review duplicates and merge them
+ * into a trainee profile after the student signs up.
+ */
+profilesRouter.get('/profiles/legacy-students/unclaimed', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.userRole !== 'coordinator') {
+      res.status(403).json({ error: 'Coordinator access required' })
+      return
+    }
+
+    const { data: legacyRows, error: legacyError } = await supabase
+      .from('class_enrollments')
+      .select('id, class_id, student_name, student_email, status, group_label, created_at, classes!inner(name)')
+      .ilike('student_email', `%@${LEGACY_EMAIL_DOMAIN}`)
+      .order('student_name', { ascending: true })
+      .limit(1000)
+    if (legacyError) throw legacyError
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, first_name, last_name')
+      .eq('role', 'trainee')
+      .not('email', 'ilike', `%@${LEGACY_EMAIL_DOMAIN}`)
+      .order('full_name', { ascending: true })
+      .limit(2000)
+    if (profilesError) throw profilesError
+
+    const duplicateCounts = new Map<string, number>()
+    for (const row of legacyRows ?? []) {
+      const key = normalizeNameKey((row as { student_name: string }).student_name)
+      duplicateCounts.set(key, (duplicateCounts.get(key) ?? 0) + 1)
+    }
+
+    const profilesByName = new Map<string, Array<{
+      id: string
+      email: string
+      full_name: string | null
+      first_name: string | null
+      last_name: string | null
+    }>>()
+    for (const profile of profiles ?? []) {
+      const typed = profile as {
+        id: string
+        email: string
+        full_name: string | null
+        first_name: string | null
+        last_name: string | null
+      }
+      for (const key of profileNameKeys(typed)) {
+        const bucket = profilesByName.get(key) ?? []
+        bucket.push(typed)
+        profilesByName.set(key, bucket)
+      }
+    }
+
+    const data = (legacyRows ?? []).map(row => {
+      const typed = row as unknown as {
+        id: string
+        class_id: string
+        student_name: string
+        student_email: string
+        status: string
+        group_label: string | null
+        created_at: string
+        classes: { name: string } | Array<{ name: string }> | null
+      }
+      const classRow = Array.isArray(typed.classes) ? typed.classes[0] : typed.classes
+      const key = normalizeNameKey(typed.student_name)
+      const matches = profilesByName.get(key) ?? []
+      return {
+        id: typed.id,
+        class_id: typed.class_id,
+        class_name: classRow?.name ?? '',
+        student_name: typed.student_name,
+        student_email: typed.student_email,
+        status: typed.status,
+        group_label: typed.group_label,
+        created_at: typed.created_at,
+        claimed: false,
+        duplicate_count: duplicateCounts.get(key) ?? 1,
+        matched_profiles: matches.map(profile => ({
+          id: profile.id,
+          email: profile.email,
+          full_name: profileDisplayName(profile),
+        })),
+      }
+    })
+
+    res.json({ data })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /profiles/legacy-students/merge
+ * Auth: coordinator
+ * Re-points selected placeholder enrollments at an existing trainee profile.
+ * If a class already has the target trainee enrolled, the placeholder row is
+ * deleted to avoid duplicate roster entries.
+ */
+profilesRouter.post('/profiles/legacy-students/merge', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.userRole !== 'coordinator') {
+      res.status(403).json({ error: 'Coordinator access required' })
+      return
+    }
+
+    const body = validateBody(legacyStudentMergeBodySchema, req, res)
+    if (!body) return
+    const targetEmail = body.target_email.toLowerCase()
+
+    const { data: targetProfile, error: targetError } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, first_name, last_name, role')
+      .eq('email', targetEmail)
+      .not('email', 'ilike', `%@${LEGACY_EMAIL_DOMAIN}`)
+      .maybeSingle()
+    if (targetError) throw targetError
+    if (!targetProfile) {
+      res.status(404).json({ error: 'No real student profile found for that email.' })
+      return
+    }
+    if ((targetProfile as { role?: string }).role !== 'trainee') {
+      res.status(400).json({ error: 'Target email must belong to a student account.' })
+      return
+    }
+
+    const targetName = normalizeName(body.target_name ?? profileDisplayName(targetProfile as {
+      full_name: string | null
+      first_name: string | null
+      last_name: string | null
+      email: string
+    }))
+
+    let updated = 0
+    let removedDuplicates = 0
+    const skipped: string[] = []
+
+    for (const enrollmentId of [...new Set(body.enrollment_ids)]) {
+      const { data: enrollment, error: enrollmentError } = await supabase
+        .from('class_enrollments')
+        .select('*')
+        .eq('id', enrollmentId)
+        .maybeSingle()
+      if (enrollmentError) throw enrollmentError
+      if (!enrollment) {
+        skipped.push(enrollmentId)
+        continue
+      }
+
+      const row = enrollment as {
+        id: string
+        class_id: string
+        student_email: string
+        student_name: string
+      }
+
+      if (!row.student_email.toLowerCase().endsWith(`@${LEGACY_EMAIL_DOMAIN}`)) {
+        skipped.push(row.id)
+        continue
+      }
+
+      const { data: existing, error: existingError } = await supabase
+        .from('class_enrollments')
+        .select('id')
+        .eq('class_id', row.class_id)
+        .eq('student_email', targetEmail)
+        .maybeSingle()
+      if (existingError) throw existingError
+
+      if (existing && (existing as { id: string }).id !== row.id) {
+        const { error: deleteError } = await supabase
+          .from('class_enrollments')
+          .delete()
+          .eq('id', row.id)
+        if (deleteError) throw deleteError
+        removedDuplicates += 1
+
+        await logAudit({
+          userId: req.userId!,
+          action: 'DELETE',
+          tableName: 'class_enrollments',
+          recordId: row.id,
+          before: enrollment as Record<string, unknown>,
+          metadata: { legacy_student_merge: true, target_email: targetEmail, duplicate_of: (existing as { id: string }).id },
+          ipAddress: req.ip,
+        })
+        continue
+      }
+
+      const updates = {
+        student_email: targetEmail,
+        student_name: targetName,
+      }
+      const { data: after, error: updateError } = await supabase
+        .from('class_enrollments')
+        .update(updates)
+        .eq('id', row.id)
+        .select()
+        .single()
+      if (updateError) throw updateError
+      updated += 1
+
+      await logAudit({
+        userId: req.userId!,
+        action: 'UPDATE',
+        tableName: 'class_enrollments',
+        recordId: row.id,
+        before: enrollment as Record<string, unknown>,
+        after: after as Record<string, unknown>,
+        metadata: { legacy_student_merge: true, target_email: targetEmail },
+        ipAddress: req.ip,
+      })
+    }
+
+    res.json({ updated, removed_duplicates: removedDuplicates, skipped })
   } catch (err) {
     next(err)
   }

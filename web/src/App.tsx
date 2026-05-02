@@ -29,7 +29,6 @@ import { TrainerRoute } from './layouts/TrainerRoute'
 import { ConditionalTrainerProvider } from './contexts/TrainerContext'
 import { ProtectedLayout } from './layouts/ProtectedLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { CommandPalette } from './components/CommandPalette'
 import { LoginView } from './pages/LoginView'
 import { DashboardView } from './pages/DashboardView'
 import { ClassesPage } from './pages/ClassesPage'
@@ -63,7 +62,6 @@ function App() {
     <AuthProvider>
       <ToastProvider>
       <BrowserRouter>
-        <CommandPalette />
         <Routes>
           {/* Public — accessible without authentication */}
           <Route path="/login" element={<LoginView />} />

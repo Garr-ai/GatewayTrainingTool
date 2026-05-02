@@ -188,6 +188,12 @@ export const legacyStudentsBodySchema = z.object({
   students: z.array(z.string().trim().min(1).max(200)).min(1).max(1000),
 })
 
+export const legacyStudentMergeBodySchema = z.object({
+  enrollment_ids: z.array(z.string().uuid()).min(1).max(100),
+  target_email: z.string().trim().email().max(254),
+  target_name: z.string().trim().min(1).max(160).optional(),
+})
+
 export const feedbackBodySchema = z.object({
   category: z.enum(['bug', 'feature', 'general']).default('general'),
   message: z.string().trim().min(10).max(2000),
