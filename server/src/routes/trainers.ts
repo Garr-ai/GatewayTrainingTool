@@ -21,6 +21,8 @@
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
+import { trainerBodySchema, validateBody } from '../lib/validation'
 
 export const trainersRouter = Router()
 
@@ -52,7 +54,9 @@ trainersRouter.get('/classes/:classId/trainers', async (req: Request, res: Respo
  */
 trainersRouter.post('/classes/:classId/trainers', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { trainer_name, trainer_email, role } = req.body
+    const body = validateBody(trainerBodySchema, req, res)
+    if (!body) return
+    const { trainer_name, trainer_email, role } = body
     const { data, error } = await supabase
       .from('class_trainers')
       .insert({
@@ -64,6 +68,15 @@ trainersRouter.post('/classes/:classId/trainers', async (req: Request, res: Resp
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_trainers',
+      recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, trainer_email, role },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     next(err)
@@ -79,7 +92,19 @@ trainersRouter.post('/classes/:classId/trainers', async (req: Request, res: Resp
  */
 trainersRouter.put('/classes/:classId/trainers/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { trainer_name, trainer_email, role } = req.body
+    const body = validateBody(trainerBodySchema, req, res)
+    if (!body) return
+    const { trainer_name, trainer_email, role } = body
+    const { data: before, error: beforeError } = await supabase
+      .from('class_trainers')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Trainer not found' })
+      return
+    }
     const { data, error } = await supabase
       .from('class_trainers')
       .update({ trainer_name, trainer_email, role })
@@ -94,6 +119,16 @@ trainersRouter.put('/classes/:classId/trainers/:id', async (req: Request, res: R
       }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_trainers',
+      recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, trainer_email, role },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     next(err)
@@ -112,7 +147,7 @@ trainersRouter.delete('/classes/:classId/trainers/:id', async (req: Request, res
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_trainers')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -120,6 +155,15 @@ trainersRouter.delete('/classes/:classId/trainers/:id', async (req: Request, res
       res.status(404).json({ error: 'Trainer not found' })
       return
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_trainers',
+      recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
     const { error } = await supabase.from('class_trainers').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

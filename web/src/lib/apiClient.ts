@@ -310,6 +310,27 @@ export interface PaginatedPayroll {
   limit: number
 }
 
+export type AuditAction = 'CREATE' | 'READ' | 'UPDATE' | 'DELETE'
+
+export interface AuditEntry {
+  id: number
+  userId: string
+  userEmail: string | null
+  action: AuditAction
+  tableName: string
+  recordId: string
+  before: Record<string, unknown> | null
+  after: Record<string, unknown> | null
+  metadata: Record<string, unknown> | null
+  ipAddress: string | null
+  createdAt: string
+}
+
+export interface AuditResponse {
+  entries: AuditEntry[]
+  nextCursor: string | null
+}
+
 function payrollQs(params?: PayrollListParams): string {
   if (!params) return ''
   const entries: Record<string, string> = {}
@@ -693,9 +714,35 @@ export const api = {
     reject: (id: string) => req<{ id: string; status: string; requested_role: string }>(`/role-requests/${id}/reject`, { method: 'PUT' }),
   },
 
+  audit: {
+    search: (params?: {
+      userId?: string
+      tableName?: string
+      action?: AuditAction | ''
+      from?: string
+      to?: string
+      cursor?: string | null
+      limit?: number
+    }) => {
+      const entries: Record<string, string> = {}
+      if (params) {
+        for (const [key, value] of Object.entries(params)) {
+          if (value !== undefined && value !== null && value !== '') entries[key] = String(value)
+        }
+      }
+      const qs = new URLSearchParams(entries).toString()
+      return req<AuditResponse>(`/audit${qs ? `?${qs}` : ''}`)
+    },
+    record: (tableName: string, recordId: string, cursor?: string | null, limit = 50) => {
+      const qs = new URLSearchParams({ limit: String(limit) })
+      if (cursor) qs.set('cursor', cursor)
+      return req<AuditResponse>(`/audit/record/${encodeURIComponent(tableName)}/${encodeURIComponent(recordId)}?${qs}`)
+    },
+  },
+
   dashboard: {
     hoursSummary: () => req<{ total_hours: number; trainer_count: number }>('/dashboard/hours-summary'),
-    enrollmentSummary: () => req<{ enrolled: number; waitlist: number }>('/dashboard/enrollment-summary'),
+    enrollmentSummary: () => req<{ enrolled: number; failed: number; dropped: number }>('/dashboard/enrollment-summary'),
     attendanceRate: () => req<{ rate: number | null }>('/dashboard/attendance-rate'),
     unreportedSessions: () => req<{ classes: { class_id: string; class_name: string; session_date: string }[] }>('/dashboard/unreported-sessions'),
     activity: (limit = 10) => req<{ items: { type: string; description: string; timestamp: string; link_to: string }[] }>(`/dashboard/activity?limit=${limit}`),

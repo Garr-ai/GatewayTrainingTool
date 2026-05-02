@@ -24,6 +24,12 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
+import {
+  profileUpdateBodySchema,
+  legacyStudentsBodySchema,
+  roleSelectionBodySchema,
+  validateBody,
+} from '../lib/validation'
 
 export const profilesRouter = Router()
 
@@ -115,26 +121,25 @@ profilesRouter.get('/profiles/me', async (req: Request, res: Response, next: Nex
  * Updates the current user's profile. Accepts first_name, last_name, phone,
  * full_name, and province. Role changes are not permitted via this endpoint.
  */
-const VALID_PROVINCES = new Set(['BC', 'AB', 'ON'])
-
 profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { full_name, first_name, last_name, phone, province } = req.body as {
-      full_name?: string; first_name?: string; last_name?: string; phone?: string; province?: string
-    }
+    const body = validateBody(profileUpdateBodySchema, req, res)
+    if (!body) return
+    const { full_name, first_name, last_name, phone, province } = body
+
+    const { data: before, error: beforeError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.userId!)
+      .single()
+    if (beforeError) throw beforeError
 
     const updates: Record<string, unknown> = {}
-    if (full_name !== undefined) updates.full_name = full_name.trim() || null
-    if (first_name !== undefined) updates.first_name = first_name.trim() || null
-    if (last_name !== undefined) updates.last_name = last_name.trim() || null
-    if (phone !== undefined) updates.phone = phone.trim() || null
-    if (province !== undefined) {
-      if (!VALID_PROVINCES.has(province)) {
-        res.status(400).json({ error: 'Invalid province value' })
-        return
-      }
-      updates.province = province
-    }
+    if (full_name !== undefined) updates.full_name = full_name || null
+    if (first_name !== undefined) updates.first_name = first_name || null
+    if (last_name !== undefined) updates.last_name = last_name || null
+    if (phone !== undefined) updates.phone = phone || null
+    if (province !== undefined) updates.province = province
 
     // Keep full_name in sync when first/last are provided
     if (updates.first_name !== undefined || updates.last_name !== undefined) {
@@ -162,6 +167,8 @@ profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: Nex
       action: 'UPDATE',
       tableName: 'profiles',
       recordId: req.userId!,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: updates,
       ipAddress: req.ip,
     })
@@ -181,32 +188,27 @@ profilesRouter.put('/profiles/me', async (req: Request, res: Response, next: Nex
  * Also accepts first_name, last_name, phone to collect profile data during onboarding.
  * Returns { status: 'active' | 'pending' }.
  */
-const SELECTABLE_ROLES = new Set(['trainee', 'trainer', 'coordinator'])
-
 profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { selected_role, first_name, last_name, phone } = req.body as {
-      selected_role?: string; first_name?: string; last_name?: string; phone?: string
-    }
-    if (!selected_role || !SELECTABLE_ROLES.has(selected_role)) {
-      res.status(400).json({ error: 'Invalid selected_role. Must be trainee, trainer, or coordinator.' })
-      return
-    }
+    const body = validateBody(roleSelectionBodySchema, req, res)
+    if (!body) return
+    const { selected_role, first_name, last_name, phone } = body
 
-    // Require first and last name
-    if (!first_name?.trim() || !last_name?.trim()) {
-      res.status(400).json({ error: 'First name and last name are required.' })
-      return
-    }
+    const { data: beforeProfile, error: beforeError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.userId!)
+      .single()
+    if (beforeError) throw beforeError
 
     // Build profile updates
     const profileUpdates: Record<string, unknown> = {
       role_selected: true,
-      first_name: first_name.trim(),
-      last_name: last_name.trim(),
-      full_name: [first_name.trim(), last_name.trim()].filter(Boolean).join(' '),
+      first_name,
+      last_name,
+      full_name: [first_name, last_name].filter(Boolean).join(' '),
     }
-    if (phone !== undefined) profileUpdates.phone = phone.trim() || null
+    if (phone !== undefined) profileUpdates.phone = phone || null
 
     // Mark role as selected and save profile data
     const { error: updateError } = await supabase
@@ -214,6 +216,24 @@ profilesRouter.put('/profiles/me/role-selection', async (req: Request, res: Resp
       .update(profileUpdates)
       .eq('id', req.userId!)
     if (updateError) throw updateError
+
+    const { data: afterProfile, error: afterError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.userId!)
+      .single()
+    if (afterError) throw afterError
+
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'profiles',
+      recordId: req.userId!,
+      before: beforeProfile as Record<string, unknown>,
+      after: afterProfile as Record<string, unknown>,
+      metadata: { role_selection: true, selected_role },
+      ipAddress: req.ip,
+    })
 
     if (selected_role === 'trainee') {
       await claimLegacyStudentEnrollments(profileUpdates.full_name as string, req.userEmail ?? '')
@@ -271,11 +291,9 @@ profilesRouter.post('/profiles/legacy-students', async (req: Request, res: Respo
       return
     }
 
-    const students = ((req.body as { students?: unknown })?.students ?? []) as string[]
-    if (!Array.isArray(students) || students.length === 0) {
-      res.status(400).json({ error: 'students array is required' })
-      return
-    }
+    const body = validateBody(legacyStudentsBodySchema, req, res)
+    if (!body) return
+    const { students } = body
 
     const uniqueNames = [...new Set(students.map(normalizeName).filter(Boolean))]
     const results: Array<{ full_name: string; email: string; created: boolean }> = []

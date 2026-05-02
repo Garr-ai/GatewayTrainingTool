@@ -67,7 +67,7 @@ export function StudentClassDetailPage() {
         <div className="flex items-center gap-2 mt-2">
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
             enrollment.status === 'enrolled' ? 'bg-emerald-500/15 text-emerald-400' :
-            enrollment.status === 'waitlist' ? 'bg-amber-500/15 text-amber-400' :
+            enrollment.status === 'failed' ? 'bg-rose-500/15 text-rose-400' :
             'bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400'
           }`}>
             {enrollment.status}

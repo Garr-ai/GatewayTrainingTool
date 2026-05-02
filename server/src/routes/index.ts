@@ -41,6 +41,7 @@ import { roleRequestsRouter } from './roleRequests'
 import { profilesRouter } from './profiles'
 import { dashboardRouter } from './dashboard'
 import { searchRouter } from './search'
+import { auditRouter } from './audit'
 
 export const router = Router()
 
@@ -67,3 +68,4 @@ router.use(hoursRouter)
 router.use(payrollRouter)
 router.use(studentProgressRouter)
 router.use(roleRequestsRouter)
+router.use(auditRouter)

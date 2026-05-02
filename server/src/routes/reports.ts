@@ -41,6 +41,7 @@ import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 import { autoFailNotComingBack } from '../lib/autoFail'
 import { writeLimiter } from '../middleware/rateLimiter'
+import { reportBodySchema, validateBody } from '../lib/validation'
 
 export const reportsRouter = Router()
 
@@ -244,6 +245,8 @@ reportsRouter.get('/reports/:id', async (req: Request, res: Response, next: Next
  */
 reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const body = validateBody(reportBodySchema, req, res)
+    if (!body) return
     const {
       report_date,
       group_label,
@@ -258,11 +261,12 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
       override_hours_to_date,
       override_paid_hours_total,
       override_live_hours_total,
+      coordinator_notes,
       trainer_ids = [],
       timeline = [],
       progress = [],
       drill_times = [],
-    } = req.body
+    } = body
 
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
@@ -281,6 +285,7 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
         override_hours_to_date: override_hours_to_date ?? null,
         override_paid_hours_total: override_paid_hours_total ?? null,
         override_live_hours_total: override_live_hours_total ?? null,
+        coordinator_notes: coordinator_notes ?? null,
       })
       .select()
       .single()
@@ -308,7 +313,7 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
       )
     }
     if (progress.length > 0) {
-      await supabase.from('class_daily_report_trainee_progress').insert(
+      const { data: progressRows, error: progressError } = await supabase.from('class_daily_report_trainee_progress').insert(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress.map((row: any) => ({
           report_id: reportId,
@@ -323,6 +328,17 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
           late: row.late ?? false,
         })),
       )
+        .select()
+      if (progressError) throw progressError
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_daily_report_trainee_progress',
+        recordId: `report:${reportId}`,
+        after: { rows: progressRows ?? [] },
+        metadata: { class_id: req.params.classId, report_id: reportId, count: progressRows?.length ?? 0 },
+        ipAddress: req.ip,
+      })
     }
     if (drill_times.length > 0) {
       const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
@@ -346,6 +362,7 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
       action: 'CREATE',
       tableName: 'class_daily_reports',
       recordId: reportId,
+      after: report as Record<string, unknown>,
       metadata: { class_id: req.params.classId, report_date },
       ipAddress: req.ip,
     })
@@ -374,6 +391,8 @@ reportsRouter.post('/classes/:classId/reports', writeLimiter, async (req: Reques
  */
 reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const body = validateBody(reportBodySchema, req, res)
+    if (!body) return
     const {
       report_date,
       group_label,
@@ -393,9 +412,19 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
       timeline = [],
       progress = [],
       drill_times = [],
-    } = req.body
+    } = body
 
     const reportId = req.params.id as string
+    const { data: before, error: beforeError } = await supabase
+      .from('class_daily_reports')
+      .select('*')
+      .eq('id', reportId)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Report not found' })
+      return
+    }
 
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
@@ -451,9 +480,16 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
       )
     }
 
+    const { data: beforeProgress, error: beforeProgressError } = await supabase
+      .from('class_daily_report_trainee_progress')
+      .select('*')
+      .eq('report_id', reportId)
+    if (beforeProgressError) throw beforeProgressError
+
     await supabase.from('class_daily_report_trainee_progress').delete().eq('report_id', reportId)
+    let afterProgress: unknown[] = []
     if (progress.length > 0) {
-      await supabase.from('class_daily_report_trainee_progress').insert(
+      const { data: insertedProgress, error: progressError } = await supabase.from('class_daily_report_trainee_progress').insert(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress.map((row: any) => ({
           report_id: reportId,
@@ -468,7 +504,20 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
           late: row.late ?? false,
         })),
       )
+        .select()
+      if (progressError) throw progressError
+      afterProgress = insertedProgress ?? []
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_daily_report_trainee_progress',
+      recordId: `report:${reportId}`,
+      before: { rows: beforeProgress ?? [] },
+      after: { rows: afterProgress },
+      metadata: { class_id: req.params.classId, report_id: reportId },
+      ipAddress: req.ip,
+    })
 
     const { error: dtDelError } = await supabase.from('class_daily_report_drill_times').delete().eq('report_id', reportId)
     if (dtDelError) throw dtDelError
@@ -494,6 +543,8 @@ reportsRouter.put('/classes/:classId/reports/:id', writeLimiter, async (req: Req
       action: 'UPDATE',
       tableName: 'class_daily_reports',
       recordId: reportId,
+      before: before as Record<string, unknown>,
+      after: report as Record<string, unknown>,
       metadata: { class_id: req.params.classId, report_date },
       ipAddress: req.ip,
     })
@@ -516,7 +567,7 @@ reportsRouter.delete('/classes/:classId/reports/:id', writeLimiter, async (req: 
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_daily_reports')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -530,6 +581,7 @@ reportsRouter.delete('/classes/:classId/reports/:id', writeLimiter, async (req: 
       action: 'DELETE',
       tableName: 'class_daily_reports',
       recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
       metadata: { class_id: req.params.classId },
       ipAddress: req.ip,
     })

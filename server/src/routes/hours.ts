@@ -30,6 +30,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 import { writeLimiter } from '../middleware/rateLimiter'
+import { hoursBodySchema, validateBody } from '../lib/validation'
 
 export const hoursRouter = Router()
 
@@ -64,14 +65,10 @@ hoursRouter.get('/classes/:classId/hours', async (req: Request, res: Response, n
  */
 hoursRouter.post('/classes/:classId/hours', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const body = validateBody(hoursBodySchema, req, res)
+    if (!body) return
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
-      req.body
-
-    // Validate hours is a non-negative number — important for payroll accuracy
-    if (hours === undefined || typeof hours !== 'number' || hours < 0 || hours > 24) {
-      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
-      return
-    }
+      body
 
     const { data, error } = await supabase
       .from('class_logged_hours')
@@ -95,6 +92,7 @@ hoursRouter.post('/classes/:classId/hours', writeLimiter, async (req: Request, r
       action: 'CREATE',
       tableName: 'class_logged_hours',
       recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
       metadata: { class_id: req.params.classId, hours, paid, person_type },
       ipAddress: req.ip,
     })
@@ -115,12 +113,19 @@ hoursRouter.post('/classes/:classId/hours', writeLimiter, async (req: Request, r
  */
 hoursRouter.put('/classes/:classId/hours/:id', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const body = validateBody(hoursBodySchema, req, res)
+    if (!body) return
     const { log_date, person_type, trainer_id, enrollment_id, hours, paid, live_training, notes } =
-      req.body
+      body
 
-    // Validate hours is a non-negative number — important for payroll accuracy
-    if (hours !== undefined && (typeof hours !== 'number' || hours < 0 || hours > 24)) {
-      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
+    const { data: before, error: beforeError } = await supabase
+      .from('class_logged_hours')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Hours record not found' })
       return
     }
 
@@ -153,6 +158,8 @@ hoursRouter.put('/classes/:classId/hours/:id', writeLimiter, async (req: Request
       action: 'UPDATE',
       tableName: 'class_logged_hours',
       recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: { class_id: req.params.classId, hours, paid, person_type },
       ipAddress: req.ip,
     })
@@ -175,7 +182,7 @@ hoursRouter.delete('/classes/:classId/hours/:id', writeLimiter, async (req: Requ
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_logged_hours')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -189,6 +196,7 @@ hoursRouter.delete('/classes/:classId/hours/:id', writeLimiter, async (req: Requ
       action: 'DELETE',
       tableName: 'class_logged_hours',
       recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
       metadata: { class_id: req.params.classId },
       ipAddress: req.ip,
     })

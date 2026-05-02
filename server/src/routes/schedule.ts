@@ -24,6 +24,8 @@
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
+import { scheduleBatchBodySchema, scheduleBodySchema, validateBody } from '../lib/validation'
 
 export const scheduleRouter = Router()
 
@@ -172,14 +174,12 @@ scheduleRouter.get('/classes/:classId/schedule', async (req: Request, res: Respo
  */
 scheduleRouter.post('/classes/:classId/schedule/batch', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { days_of_week, start_time, end_time, trainer_id, group_label, date_from, date_to } = req.body
-    if (!days_of_week?.length || !start_time || !end_time || !date_from || !date_to) {
-      res.status(400).json({ error: 'days_of_week, start_time, end_time, date_from, and date_to are required' })
-      return
-    }
+    const body = validateBody(scheduleBatchBodySchema, req, res)
+    if (!body) return
+    const { days_of_week, start_time, end_time, trainer_id, group_label, date_from, date_to } = body
 
     const classId = req.params.classId as string
-    const daySet = new Set<number>(days_of_week as number[])
+    const daySet = new Set<number>(days_of_week)
     const slots: { class_id: string; slot_date: string; start_time: string; end_time: string; trainer_id: string | null; group_label: string | null }[] = []
     const cursor = new Date(date_from + 'T12:00:00')
     const endDate = new Date(date_to + 'T12:00:00')
@@ -224,8 +224,19 @@ scheduleRouter.post('/classes/:classId/schedule/batch', async (req: Request, res
       return
     }
 
-    const { error } = await supabase.from('class_schedule_slots').insert(toInsert)
+    const { data, error } = await supabase.from('class_schedule_slots').insert(toInsert).select()
     if (error) throw error
+    for (const row of data ?? []) {
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_schedule_slots',
+        recordId: row.id,
+        after: row as Record<string, unknown>,
+        metadata: { class_id: classId, batch: true, slot_date: row.slot_date },
+        ipAddress: req.ip,
+      })
+    }
 
     res.status(201).json({ inserted: toInsert.length })
   } catch (err) {
@@ -241,7 +252,9 @@ scheduleRouter.post('/classes/:classId/schedule/batch', async (req: Request, res
  */
 scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { slot_date, start_time, end_time, notes, trainer_id, group_label } = req.body
+    const body = validateBody(scheduleBodySchema, req, res)
+    if (!body) return
+    const { slot_date, start_time, end_time, notes, trainer_id, group_label } = body
     const { data, error } = await supabase
       .from('class_schedule_slots')
       .insert({
@@ -256,6 +269,15 @@ scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Resp
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_schedule_slots',
+      recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, slot_date },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     next(err)
@@ -271,7 +293,19 @@ scheduleRouter.post('/classes/:classId/schedule', async (req: Request, res: Resp
  */
 scheduleRouter.put('/classes/:classId/schedule/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { slot_date, start_time, end_time, notes, trainer_id, group_label } = req.body
+    const body = validateBody(scheduleBodySchema, req, res)
+    if (!body) return
+    const { slot_date, start_time, end_time, notes, trainer_id, group_label } = body
+    const { data: before, error: beforeError } = await supabase
+      .from('class_schedule_slots')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Schedule slot not found' })
+      return
+    }
     const { data, error } = await supabase
       .from('class_schedule_slots')
       .update({
@@ -293,6 +327,16 @@ scheduleRouter.put('/classes/:classId/schedule/:id', async (req: Request, res: R
       }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_schedule_slots',
+      recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, slot_date },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     next(err)
@@ -311,7 +355,7 @@ scheduleRouter.delete('/classes/:classId/schedule/:id', async (req: Request, res
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_schedule_slots')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -319,6 +363,15 @@ scheduleRouter.delete('/classes/:classId/schedule/:id', async (req: Request, res
       res.status(404).json({ error: 'Schedule slot not found' })
       return
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_schedule_slots',
+      recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
     const { error } = await supabase.from('class_schedule_slots').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

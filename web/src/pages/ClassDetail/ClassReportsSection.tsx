@@ -71,7 +71,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     trainers, enrollments: allEnrollments, reports, hours, drills,
     loading, refreshReports, refreshHours, refreshEnrollments, setReports, setHours,
   } = useClassDetail()
-  // Only enrolled students appear in daily progress (waitlisted/dropped are excluded)
+  // Only enrolled students appear in daily progress (dropped/failed are excluded)
   const enrollments = useMemo(
     () => allEnrollments.filter(e => e.status === 'enrolled'),
     [allEnrollments],

@@ -17,6 +17,8 @@
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
+import { drillBodySchema, drillUpdateBodySchema, validateBody } from '../lib/validation'
 
 export const drillsRouter = Router()
 
@@ -48,7 +50,9 @@ drillsRouter.get('/classes/:classId/drills', async (req: Request, res: Response,
  */
 drillsRouter.post('/classes/:classId/drills', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, type, par_time_seconds, target_score } = req.body
+    const body = validateBody(drillBodySchema, req, res)
+    if (!body) return
+    const { name, type, par_time_seconds, target_score } = body
     const { data, error } = await supabase
       .from('class_drills')
       .insert({
@@ -62,6 +66,15 @@ drillsRouter.post('/classes/:classId/drills', async (req: Request, res: Response
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_drills',
+      recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, name, type },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     next(err)
@@ -78,10 +91,22 @@ drillsRouter.post('/classes/:classId/drills', async (req: Request, res: Response
  */
 drillsRouter.put('/classes/:classId/drills/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, type, par_time_seconds, target_score, active } = req.body
+    const body = validateBody(drillUpdateBodySchema, req, res)
+    if (!body) return
+    const { data: before, error: beforeError } = await supabase
+      .from('class_drills')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Drill not found' })
+      return
+    }
+    const update = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined))
     const { data, error } = await supabase
       .from('class_drills')
-      .update({ name, type, par_time_seconds, target_score, active })
+      .update(update)
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .select()
@@ -93,6 +118,16 @@ drillsRouter.put('/classes/:classId/drills/:id', async (req: Request, res: Respo
       }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_drills',
+      recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, updated_fields: Object.keys(update) },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     next(err)
@@ -111,7 +146,7 @@ drillsRouter.delete('/classes/:classId/drills/:id', async (req: Request, res: Re
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_drills')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -119,6 +154,15 @@ drillsRouter.delete('/classes/:classId/drills/:id', async (req: Request, res: Re
       res.status(404).json({ error: 'Drill not found' })
       return
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_drills',
+      recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
     const { error } = await supabase.from('class_drills').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

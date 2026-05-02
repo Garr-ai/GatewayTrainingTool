@@ -22,6 +22,18 @@ import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 import { autoFailNotComingBack } from '../lib/autoFail'
 import { writeLimiter } from '../middleware/rateLimiter'
+import {
+  drillBodySchema,
+  drillUpdateBodySchema,
+  enrollmentUpdateBodySchema,
+  feedbackBodySchema,
+  hoursBodySchema,
+  hoursBulkBodySchema,
+  reportBodySchema,
+  scheduleBodySchema,
+  studentMyProgressBodySchema,
+  validateBody,
+} from '../lib/validation'
 
 export const selfServiceRouter = Router()
 
@@ -566,6 +578,8 @@ selfServiceRouter.get('/me/my-classes/:classId/students/:enrollmentId/progress',
 selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(reportBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const trainerRow = await validateTrainerAccess(req.userEmail, classId)
 
@@ -576,9 +590,9 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
       report_date, group_label, game, session_label,
       class_start_time, class_end_time,
       mg_confirmed, mg_attended, current_trainees, licenses_received,
-      override_hours_to_date, override_paid_hours_total, override_live_hours_total,
+      override_hours_to_date, override_paid_hours_total, override_live_hours_total, coordinator_notes,
       trainer_ids = [], timeline = [], progress = [], drill_times = [],
-    } = req.body
+    } = body
 
     // Auto-include this trainer if not already in trainer_ids
     const allTrainerIds: string[] = trainer_ids.includes(trainerRow.id)
@@ -602,6 +616,7 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
         override_hours_to_date: override_hours_to_date ?? null,
         override_paid_hours_total: override_paid_hours_total ?? null,
         override_live_hours_total: override_live_hours_total ?? null,
+        coordinator_notes: coordinator_notes ?? null,
       })
       .select()
       .single()
@@ -629,7 +644,7 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
       )
     }
     if (progress.length > 0) {
-      await supabase.from('class_daily_report_trainee_progress').insert(
+      const { data: progressRows, error: progressError } = await supabase.from('class_daily_report_trainee_progress').insert(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress.map((row: any) => ({
           report_id: reportId,
@@ -644,6 +659,17 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
           late: row.late ?? false,
         })),
       )
+        .select()
+      if (progressError) throw progressError
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_daily_report_trainee_progress',
+        recordId: `report:${reportId}`,
+        after: { rows: progressRows ?? [] },
+        metadata: { class_id: classId, report_id: reportId, count: progressRows?.length ?? 0, created_by: 'trainer' },
+        ipAddress: req.ip,
+      })
     }
     if (drill_times.length > 0) {
       const { error: dtError } = await supabase.from('class_daily_report_drill_times').insert(
@@ -667,6 +693,7 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
       action: 'CREATE',
       tableName: 'class_daily_reports',
       recordId: reportId,
+      after: report as Record<string, unknown>,
       metadata: { class_id: classId, report_date, created_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -681,6 +708,8 @@ selfServiceRouter.post('/me/my-classes/:classId/reports', writeLimiter, async (r
 selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(reportBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const reportId = req.params.reportId as string
     await validateTrainerAccess(req.userEmail, classId)
@@ -692,9 +721,17 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
       report_date, group_label, game, session_label,
       class_start_time, class_end_time,
       mg_confirmed, mg_attended, current_trainees, licenses_received,
-      override_hours_to_date, override_paid_hours_total, override_live_hours_total,
+      override_hours_to_date, override_paid_hours_total, override_live_hours_total, coordinator_notes,
       trainer_ids = [], timeline = [], progress = [], drill_times = [],
-    } = req.body
+    } = body
+
+    const { data: before, error: beforeError } = await supabase
+      .from('class_daily_reports')
+      .select('*')
+      .eq('id', reportId)
+      .eq('class_id', classId)
+      .single()
+    if (beforeError || !before) { res.status(404).json({ error: 'Report not found' }); return }
 
     const { data: report, error: reportError } = await supabase
       .from('class_daily_reports')
@@ -712,6 +749,7 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
         override_hours_to_date: override_hours_to_date ?? null,
         override_paid_hours_total: override_paid_hours_total ?? null,
         override_live_hours_total: override_live_hours_total ?? null,
+        coordinator_notes: coordinator_notes ?? null,
       })
       .eq('id', reportId)
       .eq('class_id', classId)
@@ -745,9 +783,16 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
       )
     }
 
+    const { data: beforeProgress, error: beforeProgressError } = await supabase
+      .from('class_daily_report_trainee_progress')
+      .select('*')
+      .eq('report_id', reportId)
+    if (beforeProgressError) throw beforeProgressError
+
     await supabase.from('class_daily_report_trainee_progress').delete().eq('report_id', reportId)
+    let afterProgress: unknown[] = []
     if (progress.length > 0) {
-      await supabase.from('class_daily_report_trainee_progress').insert(
+      const { data: insertedProgress, error: progressError } = await supabase.from('class_daily_report_trainee_progress').insert(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress.map((row: any) => ({
           report_id: reportId,
@@ -762,7 +807,20 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
           late: row.late ?? false,
         })),
       )
+        .select()
+      if (progressError) throw progressError
+      afterProgress = insertedProgress ?? []
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_daily_report_trainee_progress',
+      recordId: `report:${reportId}`,
+      before: { rows: beforeProgress ?? [] },
+      after: { rows: afterProgress },
+      metadata: { class_id: classId, report_id: reportId, updated_by: 'trainer' },
+      ipAddress: req.ip,
+    })
 
     const { error: dtDelError } = await supabase.from('class_daily_report_drill_times').delete().eq('report_id', reportId)
     if (dtDelError) throw dtDelError
@@ -788,6 +846,8 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
       action: 'UPDATE',
       tableName: 'class_daily_reports',
       recordId: reportId,
+      before: before as Record<string, unknown>,
+      after: report as Record<string, unknown>,
       metadata: { class_id: classId, report_date, updated_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -804,18 +864,15 @@ selfServiceRouter.put('/me/my-classes/:classId/reports/:reportId', writeLimiter,
 selfServiceRouter.post('/me/my-classes/:classId/hours', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(hoursBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const trainerRow = await validateTrainerAccess(req.userEmail, classId)
 
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot log hours for archived classes' }); return }
 
-    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = req.body
-
-    if (hours === undefined || typeof hours !== 'number' || hours < 0 || hours > 24) {
-      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
-      return
-    }
+    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = body
 
     // Trainers can only log their own hours (trainer_id forced to their own)
     const trainer_id = person_type === 'trainer' ? trainerRow.id : null
@@ -842,6 +899,7 @@ selfServiceRouter.post('/me/my-classes/:classId/hours', async (req: Request, res
       action: 'CREATE',
       tableName: 'class_logged_hours',
       recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, hours, person_type, created_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -856,30 +914,15 @@ selfServiceRouter.post('/me/my-classes/:classId/hours', async (req: Request, res
 selfServiceRouter.post('/me/my-classes/:classId/hours/bulk', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(hoursBulkBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     await validateTrainerAccess(req.userEmail, classId)
 
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot log hours for archived classes' }); return }
 
-    const { log_date, entries, paid, live_training } = req.body as {
-      log_date: string
-      entries: Array<{ enrollment_id: string; hours: number; notes?: string }>
-      paid?: boolean
-      live_training?: boolean
-    }
-
-    if (!Array.isArray(entries) || entries.length === 0) {
-      res.status(400).json({ error: 'entries must be a non-empty array' })
-      return
-    }
-
-    for (const entry of entries) {
-      if (typeof entry.hours !== 'number' || entry.hours < 0 || entry.hours > 24) {
-        res.status(400).json({ error: 'Each entry hours must be between 0 and 24' })
-        return
-      }
-    }
+    const { log_date, entries, paid, live_training } = body
 
     const rows = entries.map(entry => ({
       class_id: classId,
@@ -899,14 +942,17 @@ selfServiceRouter.post('/me/my-classes/:classId/hours/bulk', async (req: Request
       .select()
     if (error) throw error
 
-    await logAudit({
-      userId: req.userId!,
-      action: 'CREATE',
-      tableName: 'class_logged_hours',
-      recordId: 'bulk',
-      metadata: { class_id: classId, count: entries.length, created_by: 'trainer' },
-      ipAddress: req.ip,
-    })
+    for (const row of data ?? []) {
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_logged_hours',
+        recordId: row.id,
+        after: row as Record<string, unknown>,
+        metadata: { class_id: classId, hours: row.hours, person_type: 'student', created_by: 'trainer_bulk' },
+        ipAddress: req.ip,
+      })
+    }
 
     res.status(201).json({ inserted: (data ?? []).length })
   } catch (err) {
@@ -918,6 +964,8 @@ selfServiceRouter.post('/me/my-classes/:classId/hours/bulk', async (req: Request
 selfServiceRouter.put('/me/my-classes/:classId/hours/:hourId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(hoursBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const hourId = req.params.hourId as string
     const trainerRow = await validateTrainerAccess(req.userEmail, classId)
@@ -925,12 +973,15 @@ selfServiceRouter.put('/me/my-classes/:classId/hours/:hourId', async (req: Reque
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
 
-    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = req.body
+    const { log_date, person_type, enrollment_id, hours, paid, live_training, notes } = body
 
-    if (hours !== undefined && (typeof hours !== 'number' || hours < 0 || hours > 24)) {
-      res.status(400).json({ error: 'hours must be a number between 0 and 24' })
-      return
-    }
+    const { data: before, error: beforeError } = await supabase
+      .from('class_logged_hours')
+      .select('*')
+      .eq('id', hourId)
+      .eq('class_id', classId)
+      .single()
+    if (beforeError || !before) { res.status(404).json({ error: 'Hours record not found' }); return }
 
     const trainer_id = person_type === 'trainer' ? trainerRow.id : null
 
@@ -960,6 +1011,8 @@ selfServiceRouter.put('/me/my-classes/:classId/hours/:hourId', async (req: Reque
       action: 'UPDATE',
       tableName: 'class_logged_hours',
       recordId: hourId,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, hours, person_type, updated_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -983,7 +1036,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
 
     const { data: existing, error: fetchError } = await supabase
       .from('class_logged_hours')
-      .select('id')
+      .select('*')
       .eq('id', hourId)
       .eq('class_id', classId)
       .single()
@@ -994,6 +1047,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
       action: 'DELETE',
       tableName: 'class_logged_hours',
       recordId: hourId,
+      before: existing as Record<string, unknown>,
       metadata: { class_id: classId, deleted_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1012,6 +1066,8 @@ selfServiceRouter.delete('/me/my-classes/:classId/hours/:hourId', async (req: Re
 selfServiceRouter.patch('/me/my-classes/:classId/enrollments/:enrollmentId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(enrollmentUpdateBodySchema.pick({ status: true }), req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const enrollmentId = req.params.enrollmentId as string
     await validateTrainerAccess(req.userEmail, classId)
@@ -1019,11 +1075,19 @@ selfServiceRouter.patch('/me/my-classes/:classId/enrollments/:enrollmentId', wri
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
 
-    const { status } = req.body as { status?: string }
+    const { status } = body
     if (!status || !['enrolled', 'failed'].includes(status)) {
       res.status(400).json({ error: 'status must be "enrolled" or "failed"' })
       return
     }
+
+    const { data: before, error: beforeError } = await supabase
+      .from('class_enrollments')
+      .select('*')
+      .eq('id', enrollmentId)
+      .eq('class_id', classId)
+      .single()
+    if (beforeError || !before) { res.status(404).json({ error: 'Enrollment not found' }); return }
 
     const { data, error } = await supabase
       .from('class_enrollments')
@@ -1042,6 +1106,8 @@ selfServiceRouter.patch('/me/my-classes/:classId/enrollments/:enrollmentId', wri
       action: 'UPDATE',
       tableName: 'class_enrollments',
       recordId: enrollmentId,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, status, updated_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1223,13 +1289,15 @@ selfServiceRouter.get('/me/hours', async (req: Request, res: Response, next: Nex
 selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(drillBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     await validateTrainerAccess(req.userEmail, classId)
 
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot create drills for archived classes' }); return }
 
-    const { name, type, par_time_seconds, target_score } = req.body
+    const { name, type, par_time_seconds, target_score } = body
     const { data, error } = await supabase
       .from('class_drills')
       .insert({
@@ -1248,6 +1316,7 @@ selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, re
       action: 'CREATE',
       tableName: 'class_drills',
       recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, name, created_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1261,6 +1330,8 @@ selfServiceRouter.post('/me/my-classes/:classId/drills', async (req: Request, re
 selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(drillUpdateBodySchema, req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const drillId = req.params.drillId as string
     await validateTrainerAccess(req.userEmail, classId)
@@ -1268,10 +1339,17 @@ selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Req
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot modify data for archived classes' }); return }
 
-    const { name, type, par_time_seconds, target_score, active } = req.body
+    const { data: before, error: beforeError } = await supabase
+      .from('class_drills')
+      .select('*')
+      .eq('id', drillId)
+      .eq('class_id', classId)
+      .single()
+    if (beforeError || !before) { res.status(404).json({ error: 'Drill not found' }); return }
+    const update = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined))
     const { data, error } = await supabase
       .from('class_drills')
-      .update({ name, type, par_time_seconds, target_score, active })
+      .update(update)
       .eq('id', drillId)
       .eq('class_id', classId)
       .select()
@@ -1285,6 +1363,8 @@ selfServiceRouter.put('/me/my-classes/:classId/drills/:drillId', async (req: Req
       action: 'UPDATE',
       tableName: 'class_drills',
       recordId: drillId,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, updated_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1307,7 +1387,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
 
     const { data: existing, error: fetchError } = await supabase
       .from('class_drills')
-      .select('id')
+      .select('*')
       .eq('id', drillId)
       .eq('class_id', classId)
       .single()
@@ -1324,6 +1404,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
       action: 'DELETE',
       tableName: 'class_drills',
       recordId: drillId,
+      before: existing as Record<string, unknown>,
       metadata: { class_id: classId, deleted_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1354,17 +1435,15 @@ selfServiceRouter.delete('/me/my-classes/:classId/drills/:drillId', async (req: 
 selfServiceRouter.post('/me/my-classes/:classId/schedule', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(scheduleBodySchema.omit({ trainer_id: true }), req, res)
+    if (!body) return
     const classId = req.params.classId as string
     await validateTrainerAccess(req.userEmail, classId)
 
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot add schedule slots for archived classes' }); return }
 
-    const { slot_date, start_time, end_time, notes, group_label } = req.body
-    if (!slot_date || !start_time || !end_time) {
-      res.status(400).json({ error: 'slot_date, start_time, and end_time are required' })
-      return
-    }
+    const { slot_date, start_time, end_time, notes, group_label } = body
 
     const { data, error } = await supabase
       .from('class_schedule_slots')
@@ -1384,6 +1463,7 @@ selfServiceRouter.post('/me/my-classes/:classId/schedule', writeLimiter, async (
       action: 'CREATE',
       tableName: 'class_schedule_slots',
       recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, slot_date, created_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1397,6 +1477,8 @@ selfServiceRouter.post('/me/my-classes/:classId/schedule', writeLimiter, async (
 selfServiceRouter.put('/me/my-classes/:classId/schedule/:slotId', writeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.userEmail) { res.status(401).json({ error: 'No email associated with this account' }); return }
+    const body = validateBody(scheduleBodySchema.omit({ trainer_id: true }), req, res)
+    if (!body) return
     const classId = req.params.classId as string
     const slotId = req.params.slotId as string
     await validateTrainerAccess(req.userEmail, classId)
@@ -1404,7 +1486,14 @@ selfServiceRouter.put('/me/my-classes/:classId/schedule/:slotId', writeLimiter, 
     const { data: cls } = await supabase.from('classes').select('archived').eq('id', classId).single()
     if (cls?.archived) { res.status(400).json({ error: 'Cannot modify schedule slots for archived classes' }); return }
 
-    const { slot_date, start_time, end_time, notes, group_label } = req.body
+    const { slot_date, start_time, end_time, notes, group_label } = body
+    const { data: before, error: beforeError } = await supabase
+      .from('class_schedule_slots')
+      .select('*')
+      .eq('id', slotId)
+      .eq('class_id', classId)
+      .single()
+    if (beforeError || !before) { res.status(404).json({ error: 'Schedule slot not found' }); return }
     const { data, error } = await supabase
       .from('class_schedule_slots')
       .update({
@@ -1427,6 +1516,8 @@ selfServiceRouter.put('/me/my-classes/:classId/schedule/:slotId', writeLimiter, 
       action: 'UPDATE',
       tableName: 'class_schedule_slots',
       recordId: slotId,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
       metadata: { class_id: classId, slot_date, updated_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1449,7 +1540,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/schedule/:slotId', writeLimite
 
     const { data: existing, error: fetchError } = await supabase
       .from('class_schedule_slots')
-      .select('id')
+      .select('*')
       .eq('id', slotId)
       .eq('class_id', classId)
       .single()
@@ -1460,6 +1551,7 @@ selfServiceRouter.delete('/me/my-classes/:classId/schedule/:slotId', writeLimite
       action: 'DELETE',
       tableName: 'class_schedule_slots',
       recordId: slotId,
+      before: existing as Record<string, unknown>,
       metadata: { class_id: classId, deleted_by: 'trainer' },
       ipAddress: req.ip,
     })
@@ -1508,27 +1600,10 @@ selfServiceRouter.post('/me/feedback', writeLimiter, async (req: Request, res: R
       return
     }
 
-    const categoryRaw = String((req.body as { category?: unknown })?.category ?? 'general').trim().toLowerCase()
-    const category = categoryRaw === 'bug' || categoryRaw === 'feature' || categoryRaw === 'general'
-      ? categoryRaw
-      : null
-    if (!category) {
-      res.status(400).json({ error: 'Category must be one of: bug, feature, general.' })
-      return
-    }
-
-    const message = String((req.body as { message?: unknown })?.message ?? '').trim()
-    if (message.length < 10) {
-      res.status(400).json({ error: 'Feedback message must be at least 10 characters.' })
-      return
-    }
-    if (message.length > 2000) {
-      res.status(400).json({ error: 'Feedback message cannot exceed 2000 characters.' })
-      return
-    }
-
-    const pageRaw = String((req.body as { page?: unknown })?.page ?? '').trim()
-    const page = pageRaw ? pageRaw.slice(0, 160) : null
+    const body = validateBody(feedbackBodySchema, req, res)
+    if (!body) return
+    const { category, message } = body
+    const page = body.page || null
 
     const { data, error } = await supabase
       .from('app_feedback')
@@ -1833,21 +1908,33 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
     // Check if a progress row already exists
     const { data: existing } = await supabase
       .from('class_daily_report_trainee_progress')
-      .select('id')
+      .select('*')
       .eq('report_id', reportId)
       .eq('enrollment_id', enrollment.id)
       .maybeSingle()
 
     if (existing) {
       // Update existing row
-      const { error: updateError } = await supabase
+      const { data: updatedProgress, error: updateError } = await supabase
         .from('class_daily_report_trainee_progress')
         .update({ attendance: true, late: isLate })
         .eq('id', existing.id)
+        .select()
+        .single()
       if (updateError) throw updateError
+      await logAudit({
+        userId: req.userId!,
+        action: 'UPDATE',
+        tableName: 'class_daily_report_trainee_progress',
+        recordId: existing.id as string,
+        before: existing as Record<string, unknown>,
+        after: updatedProgress as Record<string, unknown>,
+        metadata: { class_id: req.params.classId, report_id: reportId, action: 'student_sign_in' },
+        ipAddress: req.ip,
+      })
     } else {
       // Insert new row with attendance = true, other fields null/default
-      const { error: insertError } = await supabase
+      const { data: newProgress, error: insertError } = await supabase
         .from('class_daily_report_trainee_progress')
         .insert({
           report_id: reportId,
@@ -1856,7 +1943,18 @@ selfServiceRouter.post('/me/my-class/:classId/reports/:reportId/sign-in', async 
           late: isLate,
           homework_completed: false,
         })
+        .select()
+        .single()
       if (insertError) throw insertError
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_daily_report_trainee_progress',
+        recordId: newProgress.id as string,
+        after: newProgress as Record<string, unknown>,
+        metadata: { class_id: req.params.classId, report_id: reportId, action: 'student_sign_in' },
+        ipAddress: req.ip,
+      })
     }
 
     res.json({ signed_in: true, late: isLate })
@@ -1878,6 +1976,8 @@ selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', a
       res.status(403).json({ error: 'You are not enrolled in this class.' })
       return
     }
+    const body = validateBody(studentMyProgressBodySchema, req, res)
+    if (!body) return
 
     const reportId = req.params.reportId
 
@@ -1893,12 +1993,7 @@ selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', a
       return
     }
 
-    const { gk_rating, dex_rating, hom_rating, drill_times } = req.body as {
-      gk_rating?: string | null
-      dex_rating?: string | null
-      hom_rating?: string | null
-      drill_times?: Array<{ drill_id: string; time_seconds?: number | null; score?: number | null }>
-    }
+    const { gk_rating, dex_rating, hom_rating, drill_times } = body
 
     // Build partial update for progress row
     const progressUpdates: Record<string, unknown> = {}
@@ -1909,7 +2004,7 @@ selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', a
     // Check if a progress row already exists
     const { data: existing } = await supabase
       .from('class_daily_report_trainee_progress')
-      .select('id')
+      .select('*')
       .eq('report_id', reportId)
       .eq('enrollment_id', enrollment.id)
       .maybeSingle()
@@ -1921,10 +2016,25 @@ selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', a
           .update(progressUpdates)
           .eq('id', existing.id)
         if (updateError) throw updateError
+        const { data: afterProgress } = await supabase
+          .from('class_daily_report_trainee_progress')
+          .select('*')
+          .eq('id', existing.id)
+          .single()
+        await logAudit({
+          userId: req.userId!,
+          action: 'UPDATE',
+          tableName: 'class_daily_report_trainee_progress',
+          recordId: existing.id as string,
+          before: existing as Record<string, unknown>,
+          after: afterProgress as Record<string, unknown>,
+          metadata: { class_id: req.params.classId, report_id: reportId, updated_by: 'student' },
+          ipAddress: req.ip,
+        })
       }
     } else {
       // Insert new row with provided fields
-      const { error: insertError } = await supabase
+      const { data: newProgress, error: insertError } = await supabase
         .from('class_daily_report_trainee_progress')
         .insert({
           report_id: reportId,
@@ -1933,7 +2043,18 @@ selfServiceRouter.patch('/me/my-class/:classId/reports/:reportId/my-progress', a
           homework_completed: false,
           ...progressUpdates,
         })
+        .select()
+        .single()
       if (insertError) throw insertError
+      await logAudit({
+        userId: req.userId!,
+        action: 'CREATE',
+        tableName: 'class_daily_report_trainee_progress',
+        recordId: newProgress.id as string,
+        after: newProgress as Record<string, unknown>,
+        metadata: { class_id: req.params.classId, report_id: reportId, created_by: 'student' },
+        ipAddress: req.ip,
+      })
     }
 
     // Handle drill times — per-drill upsert

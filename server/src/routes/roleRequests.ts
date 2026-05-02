@@ -105,6 +105,13 @@ roleRequestsRouter.put('/role-requests/:id/approve', async (req: Request, res: R
 
     const rr = roleRequest as { id: string; user_id: string; requested_role: string }
 
+    const { data: beforeProfile, error: beforeProfileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', rr.user_id)
+      .single()
+    if (beforeProfileError) throw beforeProfileError
+
     // Update request status
     const { error: updateError } = await supabase
       .from('role_requests')
@@ -119,12 +126,29 @@ roleRequestsRouter.put('/role-requests/:id/approve', async (req: Request, res: R
       .eq('id', rr.user_id)
     if (profileError) throw profileError
 
+    const { data: afterProfile, error: afterProfileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', rr.user_id)
+      .single()
+    if (afterProfileError) throw afterProfileError
+
     await logAudit({
       userId: req.userId!,
       action: 'UPDATE',
       tableName: 'role_requests',
       recordId: requestId,
       metadata: { action: 'approve', requested_role: rr.requested_role, target_user: rr.user_id },
+      ipAddress: req.ip as string,
+    })
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'profiles',
+      recordId: rr.user_id,
+      before: beforeProfile as Record<string, unknown>,
+      after: afterProfile as Record<string, unknown>,
+      metadata: { action: 'role_request_approve', requested_role: rr.requested_role, request_id: requestId },
       ipAddress: req.ip as string,
     })
 

@@ -15,8 +15,8 @@
  *
  * Enrollment statuses:
  *   enrolled  — Currently active in the class
- *   waitlist  — Waiting for a spot to open
  *   dropped   — Has left the class (record kept for history)
+ *   failed    — Did not complete the class
  *
  * The `saving` state is shown inside the search modal while the enrollment
  * API call is in flight, since the modal stays open for batch enrollments.

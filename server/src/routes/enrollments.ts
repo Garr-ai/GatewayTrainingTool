@@ -10,7 +10,7 @@
  *   PUT    /classes/:classId/enrollments/:id        — Update enrollment status or group label
  *   DELETE /classes/:classId/enrollments/:id        — Remove an enrollment from a class
  *
- * Enrollment statuses: 'enrolled' | 'waitlisted' | 'withdrawn' | 'completed'
+ * Enrollment statuses: 'enrolled' | 'dropped' | 'failed'
  * The GET route accepts an optional `?status=` query param to filter by status.
  * For example, GET /classes/:classId/enrollments?status=enrolled returns only
  * active enrollees (used when building the progress table in reports).
@@ -21,6 +21,13 @@
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
+import {
+  enrollmentBatchBodySchema,
+  enrollmentBodySchema,
+  enrollmentUpdateBodySchema,
+  validateBody,
+} from '../lib/validation'
 
 export const enrollmentsRouter = Router()
 
@@ -59,11 +66,9 @@ enrollmentsRouter.get('/classes/:classId/enrollments', async (req: Request, res:
  */
 enrollmentsRouter.post('/classes/:classId/enrollments/batch', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { students } = req.body as { students: { email: string; group_label?: string }[] }
-    if (!students?.length) {
-      res.status(400).json({ error: 'students array is required' })
-      return
-    }
+    const body = validateBody(enrollmentBatchBodySchema, req, res)
+    if (!body) return
+    const { students } = body
 
     const classId = req.params.classId as string
     const emails = students.map(s => s.email.trim().toLowerCase())
@@ -107,8 +112,19 @@ enrollmentsRouter.post('/classes/:classId/enrollments/batch', async (req: Reques
     }
 
     if (toInsert.length > 0) {
-      const { error } = await supabase.from('class_enrollments').insert(toInsert)
+      const { data, error } = await supabase.from('class_enrollments').insert(toInsert).select()
       if (error) throw error
+      for (const row of data ?? []) {
+        await logAudit({
+          userId: req.userId!,
+          action: 'CREATE',
+          tableName: 'class_enrollments',
+          recordId: row.id,
+          after: row as Record<string, unknown>,
+          metadata: { class_id: classId, batch: true, student_email: row.student_email },
+          ipAddress: req.ip,
+        })
+      }
     }
 
     res.status(201).json({ inserted: toInsert.length, skipped: skipped.length, not_found: notFound })
@@ -126,7 +142,9 @@ enrollmentsRouter.post('/classes/:classId/enrollments/batch', async (req: Reques
  */
 enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { student_name, student_email, status, group_label } = req.body
+    const body = validateBody(enrollmentBodySchema, req, res)
+    if (!body) return
+    const { student_name, student_email, status, group_label } = body
     const { data, error } = await supabase
       .from('class_enrollments')
       .insert({
@@ -139,6 +157,15 @@ enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'class_enrollments',
+      recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, student_email, status },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     next(err)
@@ -148,7 +175,7 @@ enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res
 /**
  * PUT /classes/:classId/enrollments/:id
  * Auth: coordinator
- * Updates enrollment status (e.g. 'enrolled' → 'withdrawn') or the group label.
+ * Updates enrollment status (e.g. 'enrolled' → 'dropped') or the group label.
  * Note: student_name and student_email are snapshot fields set on creation and
  * are intentionally not updatable here — the snapshot captures who enrolled.
  * Both enrollment UUID and classId are matched in the query (IDOR protection).
@@ -156,7 +183,19 @@ enrollmentsRouter.post('/classes/:classId/enrollments', async (req: Request, res
  */
 enrollmentsRouter.put('/classes/:classId/enrollments/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, group_label } = req.body
+    const body = validateBody(enrollmentUpdateBodySchema, req, res)
+    if (!body) return
+    const { status, group_label } = body
+    const { data: before, error: beforeError } = await supabase
+      .from('class_enrollments')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('class_id', req.params.classId)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Enrollment not found' })
+      return
+    }
     const { data, error } = await supabase
       .from('class_enrollments')
       .update({ status, group_label: group_label ?? null })
@@ -171,6 +210,16 @@ enrollmentsRouter.put('/classes/:classId/enrollments/:id', async (req: Request, 
       }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'class_enrollments',
+      recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+      metadata: { class_id: req.params.classId, status },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     next(err)
@@ -189,7 +238,7 @@ enrollmentsRouter.delete('/classes/:classId/enrollments/:id', async (req: Reques
   try {
     const { data: existing, error: fetchError } = await supabase
       .from('class_enrollments')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .eq('class_id', req.params.classId)
       .single()
@@ -197,6 +246,15 @@ enrollmentsRouter.delete('/classes/:classId/enrollments/:id', async (req: Reques
       res.status(404).json({ error: 'Enrollment not found' })
       return
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'class_enrollments',
+      recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
+      metadata: { class_id: req.params.classId },
+      ipAddress: req.ip,
+    })
     const { error } = await supabase.from('class_enrollments').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

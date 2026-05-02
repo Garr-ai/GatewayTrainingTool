@@ -21,7 +21,10 @@
  */
 
 import { Router, type Request, type Response, type NextFunction } from 'express'
+import { z } from 'zod'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
+import { classBodySchema, classUpdateBodySchema, validateBody } from '../lib/validation'
 
 export const classesRouter = Router()
 
@@ -109,7 +112,9 @@ classesRouter.get('/classes/:id', async (req: Request, res: Response, next: Next
  */
 classesRouter.post('/classes', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, site, province, game_type, start_date, end_date, description } = req.body
+    const body = validateBody(classBodySchema, req, res)
+    if (!body) return
+    const { name, site, province, game_type, start_date, end_date, description } = body
 
     // Check for duplicate name before inserting — the DB may not have a unique constraint
     const { data: existing } = await supabase
@@ -132,10 +137,19 @@ classesRouter.post('/classes', async (req: Request, res: Response, next: NextFun
         start_date,
         end_date,
         description: description ?? null,
-      })
+    })
       .select()
       .single()
     if (error) throw error
+    await logAudit({
+      userId: req.userId!,
+      action: 'CREATE',
+      tableName: 'classes',
+      recordId: (data as { id: string }).id,
+      after: data as Record<string, unknown>,
+      metadata: { name, province, site },
+      ipAddress: req.ip,
+    })
     res.status(201).json(data)
   } catch (err) {
     next(err)
@@ -152,18 +166,23 @@ classesRouter.post('/classes', async (req: Request, res: Response, next: NextFun
  */
 classesRouter.put('/classes/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, site, province, game_type, start_date, end_date, description, archived } = req.body
-    const update: Record<string, unknown> = {
-      name,
-      site,
-      province,
-      game_type: game_type ?? null,
-      start_date,
-      end_date,
-      description: description ?? null,
+    const body = validateBody(classUpdateBodySchema, req, res)
+    if (!body) return
+
+    const { data: before, error: beforeError } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('id', req.params.id)
+      .single()
+    if (beforeError || !before) {
+      res.status(404).json({ error: 'Class not found' })
+      return
     }
-    // Only include `archived` in the update if it was explicitly sent in the body
-    if (archived !== undefined) update.archived = archived
+
+    const update: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined) update[key] = value ?? null
+    }
     const { data, error } = await supabase
       .from('classes')
       .update(update)
@@ -177,6 +196,16 @@ classesRouter.put('/classes/:id', async (req: Request, res: Response, next: Next
       }
       throw error
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'UPDATE',
+      tableName: 'classes',
+      recordId: req.params.id as string,
+      before: before as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+      metadata: { updated_fields: Object.keys(update) },
+      ipAddress: req.ip,
+    })
     res.json(data)
   } catch (err) {
     next(err)
@@ -190,16 +219,48 @@ classesRouter.put('/classes/:id', async (req: Request, res: Response, next: Next
  */
 classesRouter.patch('/classes/batch', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { ids, action } = req.body as { ids: string[]; action: 'archive' | 'delete' }
-    if (!ids?.length || !['archive', 'delete'].includes(action)) {
-      res.status(400).json({ error: 'ids and action (archive|delete) are required' })
-      return
-    }
+    const body = validateBody(z.object({
+      ids: z.array(z.string().uuid()).min(1).max(500),
+      action: z.enum(['archive', 'delete']),
+    }), req, res)
+    if (!body) return
+    const { ids, action } = body
+
+    const { data: existing, error: existingError } = await supabase
+      .from('classes')
+      .select('*')
+      .in('id', ids)
+    if (existingError) throw existingError
+
     if (action === 'archive') {
-      const { error } = await supabase.from('classes').update({ archived: true }).in('id', ids)
+      const { data, error } = await supabase.from('classes').update({ archived: true }).in('id', ids).select()
       if (error) throw error
+      for (const row of data ?? []) {
+        const before = (existing ?? []).find(item => item.id === row.id)
+        await logAudit({
+          userId: req.userId!,
+          action: 'UPDATE',
+          tableName: 'classes',
+          recordId: row.id,
+          before: before as Record<string, unknown> | undefined,
+          after: row as Record<string, unknown>,
+          metadata: { batch_action: action },
+          ipAddress: req.ip,
+        })
+      }
       res.json({ affected: ids.length })
     } else {
+      for (const row of existing ?? []) {
+        await logAudit({
+          userId: req.userId!,
+          action: 'DELETE',
+          tableName: 'classes',
+          recordId: row.id,
+          before: row as Record<string, unknown>,
+          metadata: { batch_action: action },
+          ipAddress: req.ip,
+        })
+      }
       const { error } = await supabase.from('classes').delete().in('id', ids)
       if (error) throw error
       res.status(200).json({ affected: ids.length })
@@ -222,13 +283,22 @@ classesRouter.delete('/classes/:id', async (req: Request, res: Response, next: N
     // Fetch first to return 404 if not found (Supabase delete doesn't error on missing rows)
     const { data: existing, error: fetchError } = await supabase
       .from('classes')
-      .select('id')
+      .select('*')
       .eq('id', req.params.id)
       .single()
     if (fetchError || !existing) {
       res.status(404).json({ error: 'Class not found' })
       return
     }
+    await logAudit({
+      userId: req.userId!,
+      action: 'DELETE',
+      tableName: 'classes',
+      recordId: req.params.id as string,
+      before: existing as Record<string, unknown>,
+      metadata: { name: (existing as { name?: string }).name },
+      ipAddress: req.ip,
+    })
     const { error } = await supabase.from('classes').delete().eq('id', req.params.id)
     if (error) throw error
     res.status(204).send()

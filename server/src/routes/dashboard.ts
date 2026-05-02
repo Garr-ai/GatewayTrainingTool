@@ -37,7 +37,7 @@ dashboardRouter.get('/dashboard/enrollment-summary', async (req: Request, res: R
     if (classesError) throw classesError
     const classIds = (classes ?? []).map(c => c.id)
     if (classIds.length === 0) {
-      res.json({ enrolled: 0, waitlist: 0 })
+      res.json({ enrolled: 0, failed: 0, dropped: 0 })
       return
     }
 
@@ -45,13 +45,14 @@ dashboardRouter.get('/dashboard/enrollment-summary', async (req: Request, res: R
       .from('class_enrollments')
       .select('status')
       .in('class_id', classIds)
-      .in('status', ['enrolled', 'waitlist'])
+      .in('status', ['enrolled', 'failed', 'dropped'])
 
     if (error) throw error
     const rows = data ?? []
     const enrolled = rows.filter(r => r.status === 'enrolled').length
-    const waitlist = rows.filter(r => r.status === 'waitlist').length
-    res.json({ enrolled, waitlist })
+    const failed = rows.filter(r => r.status === 'failed').length
+    const dropped = rows.filter(r => r.status === 'dropped').length
+    res.json({ enrolled, failed, dropped })
   } catch (err) {
     next(err)
   }

@@ -111,7 +111,7 @@ export function StudentProgressPage() {
                 <span className="font-medium text-slate-800 dark:text-slate-200">{c.class_name}</span>
                 <span className={`ml-2 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${
                   c.status === 'enrolled' ? 'bg-emerald-500/15 text-emerald-400' :
-                  c.status === 'waitlist' ? 'bg-amber-500/15 text-amber-400' :
+                  c.status === 'failed' ? 'bg-rose-500/15 text-rose-400' :
                   'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
                 }`}>
                   {c.status}

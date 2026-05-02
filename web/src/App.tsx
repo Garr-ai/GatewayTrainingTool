@@ -46,6 +46,7 @@ import { TrainerSchedulePage } from './pages/TrainerSchedulePage'
 import { TrainerHoursPage } from './pages/TrainerHoursPage'
 import { StudentRoute } from './layouts/StudentRoute'
 import { StudentClassDetailPage } from './pages/StudentClassDetailPage'
+import { AuditLogPage } from './pages/AuditLogPage'
 
 /** Renders role-specific content for shared paths (/reports, /schedule). */
 function RoleAwareRoute({ coordinator, trainer }: { coordinator: React.ReactNode; trainer: React.ReactNode }) {
@@ -80,6 +81,7 @@ function App() {
             <Route path="students/progress/:email" element={<CoordinatorRoute><StudentProgressPage /></CoordinatorRoute>} />
             <Route path="students" element={<CoordinatorRoute><RosterPage role="trainee" title="Students" subtitle="All registered trainees" /></CoordinatorRoute>} />
             <Route path="trainers" element={<CoordinatorRoute><RosterPage role="trainer" title="Trainers" subtitle="All registered trainers" /></CoordinatorRoute>} />
+            <Route path="audit" element={<CoordinatorRoute><AuditLogPage /></CoordinatorRoute>} />
 
             {/* Settings — all roles (content is role-aware inside SettingsContent) */}
             <Route path="settings" element={<SettingsContent />} />

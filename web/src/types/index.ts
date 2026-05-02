@@ -87,7 +87,7 @@ export interface ClassTrainer {
   created_at: string
 }
 
-/** Whether a student is actively in the class, on the waitlist, or has dropped. */
+/** Whether a student is active, has left, or did not complete the class. */
 export type EnrollmentStatus = 'enrolled' | 'dropped' | 'failed'
 
 /**

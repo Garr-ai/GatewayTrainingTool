@@ -60,7 +60,7 @@ export function DashboardContent() {
 
   // New dashboard data
   const [hoursSummary, setHoursSummary] = useState<{ total_hours: number; trainer_count: number } | null>(null)
-  const [enrollmentSummary, setEnrollmentSummary] = useState<{ enrolled: number; waitlist: number } | null>(null)
+  const [enrollmentSummary, setEnrollmentSummary] = useState<{ enrolled: number; failed: number; dropped: number } | null>(null)
   const [attendanceRate, setAttendanceRate] = useState<{ rate: number | null } | null>(null)
   const [unreportedSessions, setUnreportedSessions] = useState<{ class_id: string; class_name: string }[]>([])
   const [activityItems, setActivityItems] = useState<{ type: string; description: string; timestamp: string; link_to: string }[]>([])
@@ -230,8 +230,10 @@ export function DashboardContent() {
           {!enrollmentSummary ? <SkeletonText className="h-7 w-16 mt-1" /> : (
             <>
               <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{enrollmentSummary.enrolled}</p>
-              {enrollmentSummary.waitlist > 0 && (
-                <p className="mt-1 text-[11px] text-amber-400">{enrollmentSummary.waitlist} on waitlist</p>
+              {(enrollmentSummary.failed + enrollmentSummary.dropped) > 0 && (
+                <p className="mt-1 text-[11px] text-amber-400">
+                  {enrollmentSummary.failed} failed, {enrollmentSummary.dropped} dropped
+                </p>
               )}
             </>
           )}
