@@ -31,7 +31,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
+import { api, type LegacyImportBatch, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { parseLegacyWorkbook, type ParsedLegacyReport, type ParsedPayrollRow } from '../../lib/legacyReportImport'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
@@ -65,6 +65,7 @@ interface ReportDraftState {
 
 interface ImportBatchSummary {
   id: string
+  recordId?: string
   createdReportIds: string[]
   createdHourIds: string[]
   createdEnrollmentIds: string[]
@@ -122,6 +123,14 @@ function scheduleTime(value: string) {
   return value.slice(0, 5)
 }
 
+function payrollRowKey(row: ParsedPayrollRow, index: number) {
+  return `${row.sheetName}|${row.log_date}|${row.trainer_id}|${row.hours}|${row.paid ? 1 : 0}|${row.live_training ? 1 : 0}|${index}`
+}
+
+function formatBatchDate(value: string) {
+  return new Date(value).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export function ClassReportsSection({ classId, className, mode, defaultGameType, classStartDate }: ClassReportsSectionProps) {
   const { toast } = useToast()
   const [confirmState, setConfirmState] = useState<{
@@ -171,6 +180,10 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   const [parsedPayrollRows, setParsedPayrollRows] = useState<ParsedPayrollRow[]>([])
   const [excludedLegacySheets, setExcludedLegacySheets] = useState<Array<{ sheetName: string; reason: string }>>([])
   const [payrollParseWarnings, setPayrollParseWarnings] = useState<string[]>([])
+  const [selectedLegacyReportSheets, setSelectedLegacyReportSheets] = useState<Set<string>>(new Set())
+  const [selectedPayrollRowKeys, setSelectedPayrollRowKeys] = useState<Set<string>>(new Set())
+  const [importBatches, setImportBatches] = useState<LegacyImportBatch[]>([])
+  const [importBatchesLoading, setImportBatchesLoading] = useState(false)
   const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set())
   const [lastImportBatch, setLastImportBatch] = useState<ImportBatchSummary | null>(null)
 
@@ -199,10 +212,18 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     const session = source?.session_label ?? editingReportFull?.id ?? reportDraft?.sourceLabel ?? 'manual'
     return `daily-report-draft:${classId}:${date}:${group}:${session}`
   }, [classId, editingReportFull, reportDraft])
+  const selectedParsedLegacyReports = useMemo(
+    () => parsedLegacyReports.filter(report => selectedLegacyReportSheets.has(report.sheetName)),
+    [parsedLegacyReports, selectedLegacyReportSheets],
+  )
+  const selectedParsedPayrollRows = useMemo(
+    () => parsedPayrollRows.filter((row, index) => selectedPayrollRowKeys.has(payrollRowKey(row, index))),
+    [parsedPayrollRows, selectedPayrollRowKeys],
+  )
   const legacyImportReview = useMemo(() => {
     const enrollmentMap = buildEnrollmentNameMap(allEnrollments)
     const parsedNames = [...new Set(
-      parsedLegacyReports
+      selectedParsedLegacyReports
         .flatMap(report => [
           ...report.studentNames,
           ...report.progressEntries.map(entry => entry.studentName),
@@ -211,15 +232,15 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         .filter(Boolean),
     )]
     const missingStudentNames = parsedNames.filter(name => !findEnrollmentByName(name, enrollmentMap, allEnrollments))
-    const progressEntries = parsedLegacyReports.reduce((sum, report) => sum + report.progressEntries.length, 0)
-    const warningCount = parsedLegacyReports.reduce((sum, report) => sum + report.warnings.length, 0) + payrollParseWarnings.length
+    const progressEntries = selectedParsedLegacyReports.reduce((sum, report) => sum + report.progressEntries.length, 0)
+    const warningCount = selectedParsedLegacyReports.reduce((sum, report) => sum + report.warnings.length, 0) + payrollParseWarnings.length
     return {
       parsedStudentCount: parsedNames.length,
       missingStudentNames,
       progressEntries,
       warningCount,
     }
-  }, [allEnrollments, parsedLegacyReports, payrollParseWarnings])
+  }, [allEnrollments, selectedParsedLegacyReports, payrollParseWarnings])
 
   function enrollmentsForScheduleSlot(slot: ClassScheduleSlot) {
     if (!slot.group_label) return enrollments
@@ -567,6 +588,57 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     })
   }, [reports])
 
+  async function loadImportBatches() {
+    setImportBatchesLoading(true)
+    try {
+      const result = await api.legacyImports.list(classId, { limit: 10 })
+      setImportBatches(result.data)
+    } catch (err) {
+      toast((err as Error).message, 'error')
+    } finally {
+      setImportBatchesLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (mode === 'reports') loadImportBatches()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, mode])
+
+  function toggleSelectedLegacyReport(sheetName: string) {
+    setSelectedLegacyReportSheets(prev => {
+      const next = new Set(prev)
+      if (next.has(sheetName)) next.delete(sheetName)
+      else next.add(sheetName)
+      return next
+    })
+  }
+
+  function toggleAllLegacyReports() {
+    if (selectedLegacyReportSheets.size === parsedLegacyReports.length) {
+      setSelectedLegacyReportSheets(new Set())
+      return
+    }
+    setSelectedLegacyReportSheets(new Set(parsedLegacyReports.map(report => report.sheetName)))
+  }
+
+  function toggleSelectedPayrollRow(key: string) {
+    setSelectedPayrollRowKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleAllPayrollRows() {
+    if (selectedPayrollRowKeys.size === parsedPayrollRows.length) {
+      setSelectedPayrollRowKeys(new Set())
+      return
+    }
+    setSelectedPayrollRowKeys(new Set(parsedPayrollRows.map((row, index) => payrollRowKey(row, index))))
+  }
+
   async function handleLegacyFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -576,6 +648,8 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     setParsedPayrollRows([])
     setExcludedLegacySheets([])
     setPayrollParseWarnings([])
+    setSelectedLegacyReportSheets(new Set())
+    setSelectedPayrollRowKeys(new Set())
     setLastImportBatch(null)
     try {
       const parsed = await parseLegacyWorkbook({
@@ -588,6 +662,8 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
       setParsedPayrollRows(parsed.payrollRows)
       setExcludedLegacySheets(parsed.excludedSheets)
       setPayrollParseWarnings(parsed.payrollWarnings)
+      setSelectedLegacyReportSheets(new Set(parsed.reports.map(report => report.sheetName)))
+      setSelectedPayrollRowKeys(new Set(parsed.payrollRows.map((row, index) => payrollRowKey(row, index))))
       toast(
         `Parsed ${parsed.reports.length} report sheet${parsed.reports.length === 1 ? '' : 's'}${parsed.excludedSheets.length ? `, excluded ${parsed.excludedSheets.length}` : ''}${parsed.payrollRows.length ? `, payroll rows ${parsed.payrollRows.length}` : ''}.`,
         'success',
@@ -601,7 +677,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   }
 
   async function handleImportParsedReports() {
-    if (parsedLegacyReports.length === 0 && parsedPayrollRows.length === 0) return
+    if (selectedParsedLegacyReports.length === 0 && selectedParsedPayrollRows.length === 0) return
     setImporting(true)
     setError(null)
 
@@ -626,7 +702,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     const createdEnrollmentIds: string[] = []
 
     const parsedStudentNames = [...new Set(
-      parsedLegacyReports
+      selectedParsedLegacyReports
         .flatMap(r => [
           ...r.studentNames,
           ...r.progressEntries.map(p => p.studentName),
@@ -671,7 +747,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     const enrollmentsAfterImport = await api.enrollments.list(classId)
     const enrollmentByName = buildEnrollmentNameMap(enrollmentsAfterImport)
 
-    for (const parsed of parsedLegacyReports) {
+    for (const parsed of selectedParsedLegacyReports) {
       const key = `${parsed.body.report_date}|${parsed.body.group_label ?? ''}|${parsed.body.session_label ?? ''}`
       if (existingKeys.has(key)) {
         skipped += 1
@@ -717,7 +793,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     const existingHourKeys = new Set(
       hours.map(h => `${h.log_date}|${h.person_type}|${h.trainer_id ?? ''}|${h.enrollment_id ?? ''}|${h.hours}|${h.paid ? 1 : 0}|${h.live_training ? 1 : 0}|${h.notes ?? ''}`),
     )
-    for (const row of parsedPayrollRows) {
+    for (const row of selectedParsedPayrollRows) {
       const key = `${row.log_date}|${row.person_type}|${row.trainer_id}||${row.hours}|${row.paid ? 1 : 0}|${row.live_training ? 1 : 0}|${row.notes ?? ''}`
       if (existingHourKeys.has(key)) {
         payrollSkipped += 1
@@ -736,8 +812,44 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     await refreshReports()
     await refreshHours()
     await refreshEnrollments()
+    let recordedBatch: LegacyImportBatch | null = null
+    try {
+      recordedBatch = await api.legacyImports.record(classId, {
+        import_id: importBatchId,
+        file_name: legacyFileName || null,
+        report_count: created,
+        payroll_count: payrollImported,
+        enrollment_count: studentEnrollmentsCreated,
+        progress_unmatched: progressUnmatched,
+        created_report_ids: createdReportIds,
+        created_hour_ids: createdHourIds,
+        created_enrollment_ids: createdEnrollmentIds,
+        skipped_reports: skipped + (parsedLegacyReports.length - selectedParsedLegacyReports.length),
+        skipped_payroll: payrollSkipped + (parsedPayrollRows.length - selectedParsedPayrollRows.length),
+        excluded_sheets: excludedLegacySheets,
+        warnings: [
+          ...selectedParsedLegacyReports.flatMap(report => report.warnings.map(warning => `${report.sheetName}: ${warning}`)),
+          ...payrollParseWarnings,
+        ],
+        summary: {
+          reports_selected: selectedParsedLegacyReports.length,
+          reports_available: parsedLegacyReports.length,
+          payroll_selected: selectedParsedPayrollRows.length,
+          payroll_available: parsedPayrollRows.length,
+          student_profiles_created: studentProfilesCreated,
+          student_enrollments_skipped: studentEnrollmentsSkipped,
+          student_enrollments_failed: studentEnrollmentsFailed,
+          report_failures: failed,
+          payroll_failures: payrollFailed,
+        },
+      })
+      await loadImportBatches()
+    } catch (err) {
+      toast(`Imported, but batch history was not saved: ${(err as Error).message}`, 'error')
+    }
     setLastImportBatch({
       id: importBatchId,
+      recordId: recordedBatch?.id,
       createdReportIds,
       createdHourIds,
       createdEnrollmentIds,
@@ -769,6 +881,20 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
       confirmVariant: 'danger',
       onConfirm: async () => {
         setConfirmState(null)
+        if (batch.recordId) {
+          try {
+            const result = await api.legacyImports.rollback(classId, batch.recordId)
+            await refreshReports()
+            await refreshHours()
+            await refreshEnrollments()
+            await loadImportBatches()
+            toast(`Rolled back ${result.deleted_reports} report${result.deleted_reports === 1 ? '' : 's'}, ${result.deleted_hours} payroll row${result.deleted_hours === 1 ? '' : 's'}, and ${result.deleted_enrollments} enrollment${result.deleted_enrollments === 1 ? '' : 's'}.`, 'success')
+            setLastImportBatch(null)
+          } catch (err) {
+            toast((err as Error).message, 'error')
+          }
+          return
+        }
         let failed = 0
         for (const reportId of batch.createdReportIds) {
           try {
@@ -799,6 +925,28 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         } else {
           toast('Import batch rolled back.', 'success')
           setLastImportBatch(null)
+        }
+      },
+    })
+  }
+
+  function handleRollbackPersistentBatch(batch: LegacyImportBatch) {
+    setConfirmState({
+      title: 'Rollback import batch',
+      message: `Delete imported rows from ${batch.import_id}? This will remove up to ${batch.report_count} report${batch.report_count === 1 ? '' : 's'}, ${batch.payroll_count} payroll row${batch.payroll_count === 1 ? '' : 's'}, and ${batch.enrollment_count} enrollment${batch.enrollment_count === 1 ? '' : 's'}.`,
+      confirmLabel: 'Rollback',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmState(null)
+        try {
+          const result = await api.legacyImports.rollback(classId, batch.id)
+          await refreshReports()
+          await refreshHours()
+          await refreshEnrollments()
+          await loadImportBatches()
+          toast(`Rolled back ${result.deleted_reports} report${result.deleted_reports === 1 ? '' : 's'}, ${result.deleted_hours} payroll row${result.deleted_hours === 1 ? '' : 's'}, and ${result.deleted_enrollments} enrollment${result.deleted_enrollments === 1 ? '' : 's'}.`, 'success')
+        } catch (err) {
+          toast((err as Error).message, 'error')
         }
       },
     })
@@ -939,12 +1087,66 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
               </div>
             )}
 
+            {(importBatchesLoading || importBatches.length > 0) && (
+              <div className="rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface px-3 py-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Import history</p>
+                  <button type="button" onClick={loadImportBatches} className="rounded-md border border-slate-200 dark:border-white/10 px-2 py-1 text-[10px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                    Refresh
+                  </button>
+                </div>
+                {importBatchesLoading ? (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Loading import history…</p>
+                ) : (
+                  <div className="overflow-auto">
+                    <table className="min-w-full text-[11px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-white/[0.06]">
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Batch</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Created</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Rows</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Status</th>
+                          <th className="px-2 py-1 text-right uppercase tracking-wide text-slate-500">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importBatches.map(batch => (
+                          <tr key={batch.id} className="border-b border-slate-100 dark:border-white/[0.03]">
+                            <td className="px-2 py-1 text-slate-700 dark:text-slate-200">
+                              <p className="font-medium">{batch.import_id}</p>
+                              <p className="text-[10px] text-slate-500">{batch.file_name ?? 'No file name'}</p>
+                            </td>
+                            <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{formatBatchDate(batch.created_at)}</td>
+                            <td className="px-2 py-1 text-slate-600 dark:text-slate-300">
+                              {batch.report_count} reports · {batch.payroll_count} payroll · {batch.enrollment_count} enrollments
+                            </td>
+                            <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{batch.status.replace('_', ' ')}</td>
+                            <td className="px-2 py-1 text-right">
+                              {batch.status === 'active' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRollbackPersistentBatch(batch)}
+                                  className="rounded-md border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-500 hover:bg-rose-500/15 transition-colors"
+                                >
+                                  Rollback
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {(parsedLegacyReports.length > 0 || parsedPayrollRows.length > 0) && (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   <div className="rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-slate-500">Reports</p>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{parsedLegacyReports.length}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedParsedLegacyReports.length}/{parsedLegacyReports.length}</p>
                   </div>
                   <div className="rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface px-3 py-2">
                     <p className="text-[10px] uppercase tracking-wide text-slate-500">Students</p>
@@ -974,6 +1176,15 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                     <table className="min-w-full text-[11px]">
                       <thead>
                         <tr className="border-b border-slate-200 dark:border-white/[0.06]">
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={parsedLegacyReports.length > 0 && selectedLegacyReportSheets.size === parsedLegacyReports.length}
+                              onChange={toggleAllLegacyReports}
+                              className="accent-gw-blue"
+                              aria-label="Select all parsed report sheets"
+                            />
+                          </th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Sheet</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Date</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Session / Time</th>
@@ -992,8 +1203,18 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                             ...parsed.progressEntries.map(entry => entry.studentName),
                           ].map(name => name.trim()).filter(Boolean))]
                           const missingCount = parsedNames.filter(name => !findEnrollmentByName(name, enrollmentMap, allEnrollments)).length
+                          const selected = selectedLegacyReportSheets.has(parsed.sheetName)
                           return (
-                            <tr key={parsed.sheetName} className="border-b border-slate-100 dark:border-white/[0.03]">
+                            <tr key={parsed.sheetName} className={`border-b border-slate-100 dark:border-white/[0.03] ${selected ? '' : 'opacity-55'}`}>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleSelectedLegacyReport(parsed.sheetName)}
+                                  className="accent-gw-blue"
+                                  aria-label={`Include ${parsed.sheetName}`}
+                                />
+                              </td>
                               <td className="px-2 py-1 text-slate-700 dark:text-slate-200">{parsed.sheetName}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.report_date}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">
@@ -1011,17 +1232,65 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                     </table>
                   </div>
                 )}
+                {parsedPayrollRows.length > 0 && (
+                  <div className="overflow-auto rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface">
+                    <table className="min-w-full text-[11px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-white/[0.06]">
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">
+                            <input
+                              type="checkbox"
+                              checked={parsedPayrollRows.length > 0 && selectedPayrollRowKeys.size === parsedPayrollRows.length}
+                              onChange={toggleAllPayrollRows}
+                              className="accent-gw-blue"
+                              aria-label="Select all payroll rows"
+                            />
+                          </th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Payroll Sheet</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Date</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Hours</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Flags</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedPayrollRows.map((row, index) => {
+                          const key = payrollRowKey(row, index)
+                          const selected = selectedPayrollRowKeys.has(key)
+                          return (
+                            <tr key={key} className={`border-b border-slate-100 dark:border-white/[0.03] ${selected ? '' : 'opacity-55'}`}>
+                              <td className="px-2 py-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleSelectedPayrollRow(key)}
+                                  className="accent-gw-blue"
+                                  aria-label={`Include payroll row ${index + 1}`}
+                                />
+                              </td>
+                              <td className="px-2 py-1 text-slate-700 dark:text-slate-200">{row.sheetName}</td>
+                              <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.log_date}</td>
+                              <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.hours}</td>
+                              <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.paid ? 'Paid' : 'Unpaid'} · {row.live_training ? 'Live' : 'Classroom'}</td>
+                              <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.notes ?? '—'}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Payroll rows queued for Payroll section: {parsedPayrollRows.length}
+                    Payroll rows queued for Payroll section: {selectedParsedPayrollRows.length}/{parsedPayrollRows.length}
                   </p>
                   <button
                     type="button"
                     onClick={handleImportParsedReports}
-                    disabled={importing || importParsing}
+                    disabled={importing || importParsing || (selectedParsedLegacyReports.length === 0 && selectedParsedPayrollRows.length === 0)}
                     className="rounded-md bg-gradient-to-r from-gw-blue to-gw-teal text-white font-semibold px-3 py-1.5 text-xs hover:brightness-110 transition-all duration-150 disabled:opacity-60"
                   >
-                    {importing ? 'Importing…' : `Import ${parsedLegacyReports.length} report${parsedLegacyReports.length === 1 ? '' : 's'}${parsedPayrollRows.length ? ` + ${parsedPayrollRows.length} payroll` : ''}`}
+                    {importing ? 'Importing…' : `Import ${selectedParsedLegacyReports.length} report${selectedParsedLegacyReports.length === 1 ? '' : 's'}${selectedParsedPayrollRows.length ? ` + ${selectedParsedPayrollRows.length} payroll` : ''}`}
                   </button>
                 </div>
               </>

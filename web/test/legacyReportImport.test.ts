@@ -66,6 +66,11 @@ function workbookFile(name: string): File {
     ['EE', 'Exceeds expectations'],
   ]), 'PROGRESS LEGEND')
 
+  XLSX.utils.book_append_sheet(wb, worksheet([
+    ['Time', 'Activity', 'Drills/Handouts/Tests'],
+    ['9:30-10:30', 'Generic activity', 'Generic handout'],
+  ]), 'Activity Only')
+
   const bytes = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
   return {
     name,
@@ -82,7 +87,8 @@ test('parseLegacyWorkbook imports report sheets and routes excluded/payroll shee
   })
 
   assert.equal(result.reports.length, 2)
-  assert.deepEqual(result.excludedSheets.map(sheet => sheet.sheetName).sort(), ['CHECKLIST', 'PROGRESS LEGEND'])
+  assert.deepEqual(result.excludedSheets.map(sheet => sheet.sheetName).sort(), ['Activity Only', 'CHECKLIST', 'PROGRESS LEGEND'])
+  assert.match(result.excludedSheets.find(sheet => sheet.sheetName === 'Activity Only')?.reason ?? '', /meet and greet/)
   assert.equal(result.payrollRows.length, 1)
   assert.equal(result.payrollRows[0].log_date, '2026-04-12')
   assert.equal(result.payrollRows[0].trainer_id, trainers[0].id)

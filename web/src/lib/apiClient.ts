@@ -408,6 +408,84 @@ export interface LegacyStudentMergeResponse {
   skipped: string[]
 }
 
+export type FeedbackStatus = 'new' | 'reviewing' | 'resolved' | 'archived'
+export type FeedbackCategory = 'bug' | 'feature' | 'general'
+
+export interface FeedbackInboxItem {
+  id: string
+  user_id: string
+  user_email: string
+  user_role: string | null
+  category: FeedbackCategory
+  message: string
+  page: string | null
+  user_agent: string | null
+  status: FeedbackStatus
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface FeedbackListParams {
+  status?: FeedbackStatus | ''
+  category?: FeedbackCategory | ''
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export interface LegacyImportBatch {
+  id: string
+  import_id: string
+  class_id: string
+  file_name: string | null
+  status: 'active' | 'rolled_back' | 'partial_rollback'
+  report_count: number
+  payroll_count: number
+  enrollment_count: number
+  progress_unmatched: number
+  created_report_ids: string[]
+  created_hour_ids: string[]
+  created_enrollment_ids: string[]
+  skipped_reports: number
+  skipped_payroll: number
+  excluded_sheets: Array<{ sheetName: string; reason: string }>
+  warnings: string[]
+  summary: Record<string, unknown>
+  created_by: string
+  rolled_back_by: string | null
+  rolled_back_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LegacyImportBatchBody {
+  import_id: string
+  file_name?: string | null
+  report_count: number
+  payroll_count: number
+  enrollment_count: number
+  progress_unmatched: number
+  created_report_ids: string[]
+  created_hour_ids: string[]
+  created_enrollment_ids: string[]
+  skipped_reports: number
+  skipped_payroll: number
+  excluded_sheets: Array<{ sheetName: string; reason: string }>
+  warnings: string[]
+  summary?: Record<string, unknown>
+}
+
+function paramsQs(params?: object): string {
+  if (!params) return ''
+  const entries: Record<string, string> = {}
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') entries[k] = String(v)
+  }
+  return new URLSearchParams(entries).toString()
+}
+
 // ─── API client ─────────────────────────────────────────────────────────────
 
 /**
@@ -587,6 +665,26 @@ export const api = {
     update: (classId: string, id: string, body: Partial<ClassLoggedHours>) =>
       req<ClassLoggedHours>(`/classes/${classId}/hours/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
     delete: (classId: string, id: string) => req<void>(`/classes/${classId}/hours/${id}`, { method: 'DELETE' }),
+  },
+
+  feedback: {
+    list: (params?: FeedbackListParams) => {
+      const qs = paramsQs(params)
+      return req<{ data: FeedbackInboxItem[]; total: number; page: number; limit: number }>(`/feedback${qs ? `?${qs}` : ''}`)
+    },
+    updateStatus: (id: string, status: FeedbackStatus) =>
+      req<FeedbackInboxItem>(`/feedback/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  },
+
+  legacyImports: {
+    list: (classId: string, params?: { page?: number; limit?: number }) => {
+      const qs = paramsQs(params)
+      return req<{ data: LegacyImportBatch[]; total: number; page: number; limit: number }>(`/classes/${classId}/import-batches${qs ? `?${qs}` : ''}`)
+    },
+    record: (classId: string, body: LegacyImportBatchBody) =>
+      req<LegacyImportBatch>(`/classes/${classId}/import-batches`, { method: 'POST', body: JSON.stringify(body) }),
+    rollback: (classId: string, batchId: string) =>
+      req<{ batch: LegacyImportBatch; deleted_reports: number; deleted_hours: number; deleted_enrollments: number }>(`/classes/${classId}/import-batches/${batchId}/rollback`, { method: 'POST' }),
   },
 
   studentProgress: {

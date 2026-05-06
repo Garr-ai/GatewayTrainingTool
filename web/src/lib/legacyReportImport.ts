@@ -382,16 +382,21 @@ function isPayrollSheet(sheetName: string, textRows: string[]): boolean {
   return textRows.slice(0, 10).some(t => t.toLowerCase().includes('payroll'))
 }
 
+function hasImportableDailyReportMarker(sheetName: string, textRows: string[]): boolean {
+  const combined = `${sheetName} ${textRows.slice(0, 80).join(' ')}`.toLowerCase()
+  const hasMeetAndGreet = /\bmeet\s*(?:&|and)?\s*greet\b|\bm\s*&\s*g\b/.test(combined)
+  const hasDiscovery = /\bdiscovery\b|\bdisc\b/.test(combined)
+  const hasDay = /\bday\s+(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/.test(combined)
+  return hasMeetAndGreet || hasDiscovery || hasDay
+}
+
 function dailyReportExclusionReason(sheetName: string, textRows: string[]): string | null {
   const lowerName = sheetName.toLowerCase()
   const matchedKeyword = EXCLUDED_SHEET_KEYWORDS.find(k => lowerName.includes(k))
   if (matchedKeyword) return `Skipped non-report sheet (${matchedKeyword}).`
   if (isPayrollSheet(sheetName, textRows)) return null
-  const combined = textRows.slice(0, 60).join(' ').toLowerCase()
-  const hasDay = /\bday\s+(\d{1,2}|[a-z]+)\b/.test(combined) || /\bday\s+(\d{1,2}|[a-z]+)\b/.test(lowerName)
-  const hasTimelineHints = (combined.includes('time') && combined.includes('activity')) || combined.includes('drill')
-  if (hasDay || hasTimelineHints) return null
-  return 'Skipped because no day, timeline, activity, or drill markers were found.'
+  if (hasImportableDailyReportMarker(sheetName, textRows)) return null
+  return 'Skipped because the sheet did not mention meet and greet, discovery/DISC, or a Day X report.'
 }
 
 function parsePayrollRows(

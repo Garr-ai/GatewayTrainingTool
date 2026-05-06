@@ -42,6 +42,8 @@ import { profilesRouter } from './profiles'
 import { dashboardRouter } from './dashboard'
 import { searchRouter } from './search'
 import { auditRouter } from './audit'
+import { feedbackRouter } from './feedback'
+import { legacyImportsRouter } from './legacyImports'
 
 export const router = Router()
 
@@ -69,3 +71,5 @@ router.use(payrollRouter)
 router.use(studentProgressRouter)
 router.use(roleRequestsRouter)
 router.use(auditRouter)
+router.use(feedbackRouter)
+router.use(legacyImportsRouter)

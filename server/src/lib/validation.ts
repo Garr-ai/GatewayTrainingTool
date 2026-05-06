@@ -200,6 +200,30 @@ export const feedbackBodySchema = z.object({
   page: z.string().trim().max(160).optional(),
 })
 
+export const feedbackStatusBodySchema = z.object({
+  status: z.enum(['new', 'reviewing', 'resolved', 'archived']),
+})
+
+export const legacyImportBatchBodySchema = z.object({
+  import_id: z.string().trim().min(1).max(120),
+  file_name: z.string().trim().max(260).nullable().optional(),
+  report_count: z.number().int().min(0).max(10000).default(0),
+  payroll_count: z.number().int().min(0).max(10000).default(0),
+  enrollment_count: z.number().int().min(0).max(10000).default(0),
+  progress_unmatched: z.number().int().min(0).max(10000).default(0),
+  created_report_ids: z.array(z.string().uuid()).max(10000).default([]),
+  created_hour_ids: z.array(z.string().uuid()).max(10000).default([]),
+  created_enrollment_ids: z.array(z.string().uuid()).max(10000).default([]),
+  skipped_reports: z.number().int().min(0).max(10000).default(0),
+  skipped_payroll: z.number().int().min(0).max(10000).default(0),
+  excluded_sheets: z.array(z.object({
+    sheetName: z.string().trim().max(160),
+    reason: z.string().trim().max(500),
+  })).max(500).default([]),
+  warnings: z.array(z.string().trim().max(1000)).max(1000).default([]),
+  summary: z.record(z.string(), z.unknown()).default({}),
+})
+
 export const studentMyProgressBodySchema = z.object({
   gk_rating: dailyRatingSchema.nullable().optional(),
   dex_rating: dailyRatingSchema.nullable().optional(),
