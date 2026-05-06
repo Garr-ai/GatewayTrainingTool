@@ -29,6 +29,7 @@ const COORDINATOR_PAGES: PaletteItem[] = [
   { id: 'nav-trainers', label: 'Trainers', path: '/trainers', icon: 'M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2M8.5 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6' },
   { id: 'nav-reports', label: 'Reports', path: '/reports', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6' },
   { id: 'nav-schedule', label: 'Schedule', path: '/schedule', icon: 'M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18' },
+  { id: 'nav-health', label: 'System Health', path: '/system-health', icon: 'M22 12h-4l-3 8L9 4l-3 8H2' },
   { id: 'nav-settings', label: 'Settings', path: '/settings', icon: 'M12 15a3 3 0 100-6 3 3 0 000 6z' },
 ]
 
@@ -153,7 +154,7 @@ export function CommandPalette() {
       navigate(role === 'coordinator' ? '/trainers' : `/my-classes/${item.classId}`)
     } else if (item.type === 'report') {
       const path = role === 'coordinator'
-        ? `/classes/${classSlug(item.className)}`
+        ? `/classes/${classSlug(item.className)}/reports/${item.id}`
         : `/my-classes/${item.classId}`
       navigate(path)
     }

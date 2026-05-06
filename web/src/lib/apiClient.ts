@@ -477,6 +477,52 @@ export interface LegacyImportBatchBody {
   summary?: Record<string, unknown>
 }
 
+export interface LegacyImportReviewBody {
+  reports: Array<{
+    sheet_name: string
+    report_date: string
+    group_label?: string | null
+    session_label?: string | null
+    student_names: string[]
+    progress_student_names: string[]
+  }>
+  payroll_rows: Array<{
+    client_key: string
+    log_date: string
+    trainer_id: string
+    hours: number
+    paid: boolean
+    live_training: boolean
+    notes?: string | null
+  }>
+}
+
+export interface LegacyImportReviewResult {
+  reports: Array<{ sheet_name: string; key: string; duplicate_report_id: string | null; status: 'new' | 'duplicate' }>
+  payroll_rows: Array<{ client_key: string; duplicate_hour_id: string | null; status: 'new' | 'duplicate' }>
+  students: {
+    total: number
+    existing: Array<{ name: string; enrollment_id: string; existing_name: string; status: 'existing' }>
+    missing: Array<{ name: string; enrollment_id: null; existing_name: null; status: 'missing' }>
+  }
+  summary: {
+    duplicate_reports: number
+    duplicate_payroll_rows: number
+    missing_students: number
+  }
+}
+
+export interface SystemHealthResponse {
+  generated_at: string
+  overall: 'ok' | 'warning' | 'error'
+  checks: Array<{
+    name: string
+    status: 'ok' | 'warning' | 'error'
+    message: string
+    latency_ms?: number
+  }>
+}
+
 function paramsQs(params?: object): string {
   if (!params) return ''
   const entries: Record<string, string> = {}
@@ -677,6 +723,8 @@ export const api = {
   },
 
   legacyImports: {
+    review: (classId: string, body: LegacyImportReviewBody) =>
+      req<LegacyImportReviewResult>(`/classes/${classId}/import-review`, { method: 'POST', body: JSON.stringify(body) }),
     list: (classId: string, params?: { page?: number; limit?: number }) => {
       const qs = paramsQs(params)
       return req<{ data: LegacyImportBatch[]; total: number; page: number; limit: number }>(`/classes/${classId}/import-batches${qs ? `?${qs}` : ''}`)
@@ -685,6 +733,10 @@ export const api = {
       req<LegacyImportBatch>(`/classes/${classId}/import-batches`, { method: 'POST', body: JSON.stringify(body) }),
     rollback: (classId: string, batchId: string) =>
       req<{ batch: LegacyImportBatch; deleted_reports: number; deleted_hours: number; deleted_enrollments: number }>(`/classes/${classId}/import-batches/${batchId}/rollback`, { method: 'POST' }),
+  },
+
+  systemHealth: {
+    get: () => req<SystemHealthResponse>('/system-health'),
   },
 
   studentProgress: {

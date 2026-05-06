@@ -44,6 +44,7 @@ import { searchRouter } from './search'
 import { auditRouter } from './audit'
 import { feedbackRouter } from './feedback'
 import { legacyImportsRouter } from './legacyImports'
+import { systemHealthRouter } from './systemHealth'
 
 export const router = Router()
 
@@ -73,3 +74,4 @@ router.use(roleRequestsRouter)
 router.use(auditRouter)
 router.use(feedbackRouter)
 router.use(legacyImportsRouter)
+router.use(systemHealthRouter)

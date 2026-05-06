@@ -22,7 +22,7 @@ import { ClassDetailPage } from './ClassDetailPage'
 export function ClassDetailView() {
   const { role, loading } = useAuth()
   // React Router provides the dynamic :className segment as a string
-  const { className } = useParams()
+  const { className, reportId } = useParams()
 
   // Wait for auth to resolve before making routing decisions
   if (loading || role === null) {
@@ -43,6 +43,5 @@ export function ClassDetailView() {
   const decodedSlug = className
   const reconstructedName = decodedSlug.replace(/-/g, ' ')
 
-  return <ClassDetailPage className={reconstructedName} />
+  return <ClassDetailPage className={reconstructedName} deepLinkedReportId={reportId} />
 }
-

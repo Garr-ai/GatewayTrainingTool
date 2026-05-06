@@ -224,6 +224,26 @@ export const legacyImportBatchBodySchema = z.object({
   summary: z.record(z.string(), z.unknown()).default({}),
 })
 
+export const legacyImportReviewBodySchema = z.object({
+  reports: z.array(z.object({
+    sheet_name: z.string().trim().min(1).max(160),
+    report_date: dateSchema,
+    group_label: z.string().trim().max(80).nullable().optional(),
+    session_label: z.string().trim().max(160).nullable().optional(),
+    student_names: z.array(z.string().trim().min(1).max(200)).max(1000).default([]),
+    progress_student_names: z.array(z.string().trim().min(1).max(200)).max(1000).default([]),
+  })).max(500).default([]),
+  payroll_rows: z.array(z.object({
+    client_key: z.string().trim().min(1).max(260),
+    log_date: dateSchema,
+    trainer_id: z.string().uuid(),
+    hours: z.number().min(0).max(24),
+    paid: z.boolean(),
+    live_training: z.boolean(),
+    notes: z.string().trim().max(2000).nullable().optional(),
+  })).max(1000).default([]),
+})
+
 export const studentMyProgressBodySchema = z.object({
   gk_rating: dailyRatingSchema.nullable().optional(),
   dex_rating: dailyRatingSchema.nullable().optional(),

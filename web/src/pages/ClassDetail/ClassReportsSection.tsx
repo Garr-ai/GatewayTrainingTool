@@ -31,7 +31,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, type LegacyImportBatch, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
+import { api, type LegacyImportBatch, type LegacyImportReviewResult, type ReportWithNested, type ReportBody } from '../../lib/apiClient'
 import type { ReportPdfArgs } from '../../lib/reportPdf'
 import { parseLegacyWorkbook, type ParsedLegacyReport, type ParsedPayrollRow } from '../../lib/legacyReportImport'
 import { ReportPreviewModal } from '../../components/ReportPreviewModal'
@@ -55,6 +55,7 @@ interface ClassReportsSectionProps {
   mode: 'reports' | 'hours'   // Which tab this component is currently rendering
   defaultGameType?: string | null  // Class's game type, used as default when creating new reports
   classStartDate?: string
+  deepLinkedReportId?: string
 }
 
 interface ReportDraftState {
@@ -131,7 +132,7 @@ function formatBatchDate(value: string) {
   return new Date(value).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-export function ClassReportsSection({ classId, className, mode, defaultGameType, classStartDate }: ClassReportsSectionProps) {
+export function ClassReportsSection({ classId, className, mode, defaultGameType, classStartDate, deepLinkedReportId }: ClassReportsSectionProps) {
   const { toast } = useToast()
   const [confirmState, setConfirmState] = useState<{
     title: string
@@ -162,6 +163,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   const [previewArgs, setPreviewArgs] = useState<ReportPdfArgs | null>(null)
   // Cache of full report details (keyed by report ID) so editing then viewing PDF skips a re-fetch
   const reportCacheRef = useRef<Record<string, ReportWithNested>>({})
+  const openedDeepLinkRef = useRef<string | null>(null)
 
   // ── Logged hours form state ───────────────────────────────────────────────
   const [hoursFormOpen, setHoursFormOpen] = useState(false)
@@ -184,6 +186,9 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   const [selectedPayrollRowKeys, setSelectedPayrollRowKeys] = useState<Set<string>>(new Set())
   const [importBatches, setImportBatches] = useState<LegacyImportBatch[]>([])
   const [importBatchesLoading, setImportBatchesLoading] = useState(false)
+  const [importReview, setImportReview] = useState<LegacyImportReviewResult | null>(null)
+  const [importReviewLoading, setImportReviewLoading] = useState(false)
+  const [batchDetail, setBatchDetail] = useState<LegacyImportBatch | null>(null)
   const [selectedReportIds, setSelectedReportIds] = useState<Set<string>>(new Set())
   const [lastImportBatch, setLastImportBatch] = useState<ImportBatchSummary | null>(null)
 
@@ -219,6 +224,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
   const selectedParsedPayrollRows = useMemo(
     () => parsedPayrollRows.filter((row, index) => selectedPayrollRowKeys.has(payrollRowKey(row, index))),
     [parsedPayrollRows, selectedPayrollRowKeys],
+  )
+  const importReviewReportBySheet = useMemo(
+    () => new Map((importReview?.reports ?? []).map(row => [row.sheet_name, row])),
+    [importReview],
+  )
+  const importReviewPayrollByKey = useMemo(
+    () => new Map((importReview?.payroll_rows ?? []).map(row => [row.client_key, row])),
+    [importReview],
   )
   const legacyImportReview = useMemo(() => {
     const enrollmentMap = buildEnrollmentNameMap(allEnrollments)
@@ -454,6 +467,15 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     }
   }
 
+  useEffect(() => {
+    if (!deepLinkedReportId || mode !== 'reports' || loading || openedDeepLinkRef.current === deepLinkedReportId) return
+    const targetReport = reports.find(report => report.id === deepLinkedReportId)
+    if (!targetReport) return
+    openedDeepLinkRef.current = deepLinkedReportId
+    handleViewPdf(targetReport)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedReportId, loading, mode, reports])
+
   /** Resets the hours form and opens it in "add new hours" mode. */
   function openAddHours() {
     setEditingHours(null)
@@ -600,6 +622,37 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     }
   }
 
+  async function runImportReview(reportsToReview: ParsedLegacyReport[], payrollRowsToReview: ParsedPayrollRow[]) {
+    setImportReviewLoading(true)
+    try {
+      const result = await api.legacyImports.review(classId, {
+        reports: reportsToReview.map(report => ({
+          sheet_name: report.sheetName,
+          report_date: report.body.report_date,
+          group_label: report.body.group_label ?? null,
+          session_label: report.body.session_label ?? null,
+          student_names: report.studentNames,
+          progress_student_names: report.progressEntries.map(entry => entry.studentName),
+        })),
+        payroll_rows: payrollRowsToReview.map((row, index) => ({
+          client_key: payrollRowKey(row, index),
+          log_date: row.log_date,
+          trainer_id: row.trainer_id,
+          hours: row.hours,
+          paid: row.paid,
+          live_training: row.live_training,
+          notes: row.notes,
+        })),
+      })
+      setImportReview(result)
+    } catch (err) {
+      setImportReview(null)
+      toast(`Import review failed: ${(err as Error).message}`, 'error')
+    } finally {
+      setImportReviewLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (mode === 'reports') loadImportBatches()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -650,6 +703,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
     setPayrollParseWarnings([])
     setSelectedLegacyReportSheets(new Set())
     setSelectedPayrollRowKeys(new Set())
+    setImportReview(null)
     setLastImportBatch(null)
     try {
       const parsed = await parseLegacyWorkbook({
@@ -664,6 +718,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
       setPayrollParseWarnings(parsed.payrollWarnings)
       setSelectedLegacyReportSheets(new Set(parsed.reports.map(report => report.sheetName)))
       setSelectedPayrollRowKeys(new Set(parsed.payrollRows.map((row, index) => payrollRowKey(row, index))))
+      await runImportReview(parsed.reports, parsed.payrollRows)
       toast(
         `Parsed ${parsed.reports.length} report sheet${parsed.reports.length === 1 ? '' : 's'}${parsed.excludedSheets.length ? `, excluded ${parsed.excludedSheets.length}` : ''}${parsed.payrollRows.length ? `, payroll rows ${parsed.payrollRows.length}` : ''}.`,
         'success',
@@ -1122,6 +1177,14 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                             </td>
                             <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{batch.status.replace('_', ' ')}</td>
                             <td className="px-2 py-1 text-right">
+                              <div className="flex justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setBatchDetail(batch)}
+                                className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
+                              >
+                                Details
+                              </button>
                               {batch.status === 'active' && (
                                 <button
                                   type="button"
@@ -1131,6 +1194,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                                   Rollback
                                 </button>
                               )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1165,6 +1229,28 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                     <p className={`text-sm font-semibold ${legacyImportReview.warningCount ? 'text-amber-500' : 'text-slate-800 dark:text-slate-200'}`}>{legacyImportReview.warningCount}</p>
                   </div>
                 </div>
+                {(importReviewLoading || importReview) && (
+                  <div className="rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300">
+                    {importReviewLoading ? (
+                      <p>Checking import against current class data…</p>
+                    ) : importReview && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                          <p className="font-semibold text-slate-700 dark:text-slate-200">Duplicate reports</p>
+                          <p>{importReview.summary.duplicate_reports}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-700 dark:text-slate-200">Duplicate payroll rows</p>
+                          <p>{importReview.summary.duplicate_payroll_rows}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-700 dark:text-slate-200">Missing students</p>
+                          <p>{importReview.summary.missing_students}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {legacyImportReview.missingStudentNames.length > 0 && (
                   <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-600 dark:text-amber-400">
                     <p className="font-semibold">Will create/enroll missing students</p>
@@ -1192,6 +1278,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Students</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Progress</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Timeline Rows</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">DB Check</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Warnings</th>
                         </tr>
                       </thead>
@@ -1204,6 +1291,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                           ].map(name => name.trim()).filter(Boolean))]
                           const missingCount = parsedNames.filter(name => !findEnrollmentByName(name, enrollmentMap, allEnrollments)).length
                           const selected = selectedLegacyReportSheets.has(parsed.sheetName)
+                          const reviewRow = importReviewReportBySheet.get(parsed.sheetName)
                           return (
                             <tr key={parsed.sheetName} className={`border-b border-slate-100 dark:border-white/[0.03] ${selected ? '' : 'opacity-55'}`}>
                               <td className="px-2 py-1">
@@ -1224,6 +1312,9 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.studentNames.length}{missingCount ? ` (${missingCount} new)` : ''}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.progressEntries.length}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{parsed.body.timeline.length}</td>
+                              <td className={`px-2 py-1 ${reviewRow?.status === 'duplicate' ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                                {reviewRow?.status === 'duplicate' ? 'Existing report' : 'New'}
+                              </td>
                               <td className="px-2 py-1 text-amber-500">{parsed.warnings.join(' ') || '—'}</td>
                             </tr>
                           )
@@ -1250,6 +1341,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Date</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Hours</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Flags</th>
+                          <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">DB Check</th>
                           <th className="px-2 py-1 text-left uppercase tracking-wide text-slate-500">Notes</th>
                         </tr>
                       </thead>
@@ -1257,6 +1349,7 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                         {parsedPayrollRows.map((row, index) => {
                           const key = payrollRowKey(row, index)
                           const selected = selectedPayrollRowKeys.has(key)
+                          const reviewRow = importReviewPayrollByKey.get(key)
                           return (
                             <tr key={key} className={`border-b border-slate-100 dark:border-white/[0.03] ${selected ? '' : 'opacity-55'}`}>
                               <td className="px-2 py-1">
@@ -1272,6 +1365,9 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.log_date}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.hours}</td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.paid ? 'Paid' : 'Unpaid'} · {row.live_training ? 'Live' : 'Classroom'}</td>
+                              <td className={`px-2 py-1 ${reviewRow?.status === 'duplicate' ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                                {reviewRow?.status === 'duplicate' ? 'Existing row' : 'New'}
+                              </td>
                               <td className="px-2 py-1 text-slate-600 dark:text-slate-300">{row.notes ?? '—'}</td>
                             </tr>
                           )
@@ -1563,6 +1659,93 @@ export function ClassReportsSection({ classId, className, mode, defaultGameType,
         args={previewArgs}
         onClose={() => { setPreviewArgs(null) }}
       />
+    )}
+
+    {batchDetail && (
+      <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/50 px-4 py-6" onClick={() => setBatchDetail(null)}>
+        <div className="w-full max-w-3xl max-h-[88vh] overflow-auto rounded-[10px] border border-slate-200 dark:border-white/10 bg-white dark:bg-gw-surface shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-white/[0.06] bg-white dark:bg-gw-surface px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Import batch details</h3>
+              <p className="mt-0.5 text-xs text-slate-500">{batchDetail.import_id} · {formatBatchDate(batchDetail.created_at)} · {batchDetail.status.replace('_', ' ')}</p>
+            </div>
+            <button type="button" onClick={() => setBatchDetail(null)} className="rounded-md border border-slate-200 dark:border-white/10 px-2 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+              Close
+            </button>
+          </div>
+          <div className="space-y-4 p-4 text-xs">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-gw-elevated px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Reports</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{batchDetail.report_count}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-gw-elevated px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Payroll</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{batchDetail.payroll_count}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-gw-elevated px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Enrollments</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{batchDetail.enrollment_count}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-gw-elevated px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Unmatched Progress</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{batchDetail.progress_unmatched}</p>
+              </div>
+            </div>
+
+            {batchDetail.file_name && (
+              <p className="text-slate-600 dark:text-slate-300">File: {batchDetail.file_name}</p>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                ['Report IDs', batchDetail.created_report_ids],
+                ['Payroll row IDs', batchDetail.created_hour_ids],
+                ['Enrollment IDs', batchDetail.created_enrollment_ids],
+              ].map(([label, ids]) => (
+                <div key={label as string} className="rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-gw-elevated px-3 py-2">
+                  <p className="mb-1 font-semibold text-slate-700 dark:text-slate-200">{label as string}</p>
+                  {(ids as string[]).length === 0 ? (
+                    <p className="text-slate-500">None</p>
+                  ) : (
+                    <div className="max-h-32 space-y-1 overflow-auto font-mono text-[10px] text-slate-600 dark:text-slate-300">
+                      {(ids as string[]).map(id => <p key={id}>{id}</p>)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {batchDetail.excluded_sheets.length > 0 && (
+              <div className="rounded-md border border-slate-200 dark:border-white/10 px-3 py-2">
+                <p className="mb-1 font-semibold text-slate-700 dark:text-slate-200">Excluded sheets</p>
+                <div className="space-y-1 text-slate-600 dark:text-slate-300">
+                  {batchDetail.excluded_sheets.map(sheet => (
+                    <p key={`${sheet.sheetName}-${sheet.reason}`}><span className="font-medium">{sheet.sheetName}</span>: {sheet.reason}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {batchDetail.warnings.length > 0 && (
+              <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                <p className="mb-1 font-semibold text-amber-700 dark:text-amber-300">Warnings</p>
+                <div className="space-y-1 text-amber-700 dark:text-amber-300">
+                  {batchDetail.warnings.map(warning => <p key={warning}>{warning}</p>)}
+                </div>
+              </div>
+            )}
+
+            {batchDetail.status === 'active' && (
+              <div className="flex justify-end">
+                <button type="button" onClick={() => { setBatchDetail(null); handleRollbackPersistentBatch(batchDetail) }} className="rounded-md border border-rose-500/25 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/15 transition-colors">
+                  Rollback batch
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     )}
 
     <ConfirmDialog

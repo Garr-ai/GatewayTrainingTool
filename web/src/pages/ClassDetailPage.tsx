@@ -15,6 +15,7 @@ import { ClassPayrollSection } from './ClassDetail/ClassPayrollSection'
 
 interface ClassDetailPageProps {
   className: string
+  deepLinkedReportId?: string
 }
 
 type ClassDetailTab =
@@ -26,11 +27,11 @@ type ClassDetailTab =
   | 'dailyReports'
   | 'payroll'
 
-export function ClassDetailPage({ className }: ClassDetailPageProps) {
+export function ClassDetailPage({ className, deepLinkedReportId }: ClassDetailPageProps) {
   const [classData, setClassData] = useState<Class | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<ClassDetailTab>('overview')
+  const [activeTab, setActiveTab] = useState<ClassDetailTab>(deepLinkedReportId ? 'dailyReports' : 'overview')
   const [editOpen, setEditOpen] = useState(false)
 
   useEffect(() => {
@@ -50,6 +51,10 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
     }
     loadClass()
   }, [className])
+
+  useEffect(() => {
+    if (deepLinkedReportId) setActiveTab('dailyReports')
+  }, [deepLinkedReportId])
 
   if (loading) {
     return <SkeletonTable rows={5} cols={6} />
@@ -135,7 +140,7 @@ export function ClassDetailPage({ className }: ClassDetailPageProps) {
           <div className={activeTab === 'schedule'      ? '' : 'hidden'}><ClassScheduleSection classId={classData.id} className={classData.name} startDate={classData.start_date} endDate={classData.end_date} /></div>
           <div className={activeTab === 'trainers'      ? '' : 'hidden'}><ClassTrainersSection classId={classData.id} className={classData.name} /></div>
           <div className={activeTab === 'students'      ? '' : 'hidden'}><ClassStudentsSection classId={classData.id} className={classData.name} archived={classData.archived} /></div>
-          <div className={activeTab === 'dailyReports'  ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="reports" defaultGameType={classData.game_type} classStartDate={classData.start_date} /></div>
+          <div className={activeTab === 'dailyReports'  ? '' : 'hidden'}><ClassReportsSection classId={classData.id} className={classData.name} mode="reports" defaultGameType={classData.game_type} classStartDate={classData.start_date} deepLinkedReportId={deepLinkedReportId} /></div>
           <div className={activeTab === 'payroll'       ? '' : 'hidden'}><ClassPayrollSection classId={classData.id} className={classData.name} /></div>
         </div>
       </ClassDetailProvider>
